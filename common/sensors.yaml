@@ -1,0 +1,14 @@
+i2c:
+  sda: GPIO01
+  scl: GPIO00
+  scan: false
+
+sensor:
+  - platform: bme280_i2c
+    address: 0x76
+    temperature:
+      name: Temperature
+    pressure:
+      name: Pressure
+    humidity:
+      name: Humidity
