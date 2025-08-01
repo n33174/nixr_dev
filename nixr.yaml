@@ -1,0 +1,396 @@
+substitutions:
+  name: "nixr"
+  friendly_name: "NIXR"
+  time_zone: "Australia/Brisbane"
+
+esphome:
+  project:
+    name: "NIXlabs.NIXR"
+    version: "0.1"
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  platformio_options:
+    board_build.flash_mode: dio
+  on_boot:
+    then:
+      - pcf8563.read_time:
+            id: rtc_time
+      - light.turn_on:
+          id: ring_light
+          brightness: 50%
+          effect: Clock
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: ESP32C3
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: DEBUG
+  logs:
+    sensor: INFO
+    datetime.datetime_entity: INFO
+
+# Enable Home Assistant API
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  # Set up a wifi access point
+  ap:
+    password: "12345678"
+
+captive_portal:
+
+# Sets up Bluetooth LE (Only on ESP32) to allow the user
+# to provision wifi credentials to the device.
+esp32_improv:
+  authorizer: none
+
+# Sets up the improv via serial client for Wi-Fi provisioning
+improv_serial:
+
+# This should point to the public location of this yaml file.
+dashboard_import:
+  package_import_url: github://n33174/nixr_dev/nixr.yaml@main
+  import_full_config: false # or true
+
+web_server:
+  port: 80
+  version: 3
+
+#external_components:
+#  - source:
+#      type: local
+#      path: components
+#    components: [ring_clock]
+
+external_components:
+  - source: github://n33174/nixr_dev@main
+    components: [ ring_clock ]
+
+globals:
+  - id: minute_button_long_press
+    type: bool
+    initial_value: 'false'
+  - id: hour_button_long_press
+    type: bool
+    initial_value: 'false'
+
+ring_clock:
+  id: RingClock
+  time_id: rtc_time
+  light_id: ring_light
+
+i2c:
+  sda: GPIO01
+  scl: GPIO00
+  scan: true
+
+uart:
+  id: uart_bus
+  baud_rate:  256000
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+
+binary_sensor:
+  - platform: ld2410
+    has_target:
+      name: Occupancy
+      on_press:
+        then:
+          - light.turn_on:
+              id: ring_light
+              brightness: 50%
+      on_release:
+        then:
+          - light.turn_on:
+              id: ring_light
+              brightness: 25%
+    has_moving_target:
+      name: Moving Target
+    has_still_target:
+      name: Still Target
+  - platform: gpio
+    pin:
+      number: GPIO9
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Mode Button"
+    filters:
+      delayed_on_off: 100ms # Debouncing
+    on_press: 
+      then:
+        - rtttl.play: 'long:d=4,o=5,b=100:e6'
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Hour Button"
+    internal: true
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+    on_multi_click:
+      - timing:
+          - ON for 40ms to 1s
+          - OFF for at least 50ms
+        then:
+         - button.press: hour_increment
+      - timing:
+          - ON for at least 1s
+        then:
+          lambda: |-
+            id(hour_button_long_press) = true;
+      - timing:
+          - OFF for at least 50ms
+        then:
+          lambda: |-
+            id(hour_button_long_press) = false;
+  - platform: gpio
+    pin:
+      number: GPIO6
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Minute Button"
+    internal: true
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+    on_multi_click:
+      - timing:
+          - ON for 40ms to 1s
+          - OFF for at least 50ms
+        then:
+         - button.press: minute_increment
+      - timing:
+          - ON for at least 1s
+        then:
+          lambda: |-
+            id(minute_button_long_press) = true;
+      - timing:
+          - OFF for at least 50ms
+        then:
+          lambda: |-
+            id(minute_button_long_press) = false;
+
+interval:
+  - interval: 250ms
+    then:
+      lambda: |-
+        if (id(minute_button_long_press)) {
+          id(minute_increment).press();
+        }
+        if (id(hour_button_long_press)) {
+          id(hour_increment).press();
+        }
+
+sensor:
+  - platform: bme280_i2c
+    address: 0x76
+    temperature:
+      name: Temperature
+    pressure:
+      name: Pressure
+    humidity:
+      name: Humidity
+
+text:
+  - platform: template
+    name: "Time Zone"
+    id: time_zone
+    mode: text
+    optimistic: true
+    initial_value: ${time_zone}
+
+button:
+  - platform: restart
+    name: Restart
+    id: restart_esp
+  - platform: factory_reset
+    name: Reset with Default Settings
+    disabled_by_default: True
+  - platform: template
+    name: "Hour Increment"
+    id: hour_increment
+    on_press:
+      then:
+        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+        - switch.turn_off: sntp_switch
+        - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+        - lambda: |-
+            setenv("TZ", id(time_zone).state.c_str(), 1);
+            tzset();
+            struct tm time_info;
+            time_info.tm_year = id(custom_time).year - 1900;
+            time_info.tm_mon = id(custom_time).month - 1;
+            time_info.tm_mday = id(custom_time).day;
+            time_info.tm_hour = id(custom_time).hour + 1;
+            time_info.tm_min = id(custom_time).minute;
+            time_info.tm_sec = id(custom_time).second;
+            time_info.tm_isdst = -1;
+            std::time_t t = mktime(&time_info);
+            struct timeval tv = {t, 0};
+            settimeofday(&tv, NULL);
+            ESP_LOGD("main", "System time set to: %s", ctime(&t));
+        - pcf8563.write_time:
+            id: rtc_time
+        - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+        - logger.log: 
+            format: "RTC incremented by 1 hour"
+            level: INFO
+  - platform: template
+    name: "Minute Increment"
+    id: minute_increment
+    on_press:
+      then:
+        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+        - switch.turn_off: sntp_switch
+        - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+        - lambda: |-
+            setenv("TZ", id(time_zone).state.c_str(), 1);
+            tzset();
+            struct tm time_info;
+            time_info.tm_year = id(custom_time).year - 1900;
+            time_info.tm_mon = id(custom_time).month - 1;
+            time_info.tm_mday = id(custom_time).day;
+            time_info.tm_hour = id(custom_time).hour;
+            time_info.tm_min = id(custom_time).minute + 1;
+            time_info.tm_sec = id(custom_time).second;
+            time_info.tm_isdst = -1;
+            std::time_t t = mktime(&time_info);
+            struct timeval tv = {t, 0};
+            settimeofday(&tv, NULL);
+            ESP_LOGD("main", "System time set to: %s", ctime(&t));
+        - pcf8563.write_time:
+            id: rtc_time
+        - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+        - logger.log: 
+            format: "RTC incremented by 1 minute"
+            level: INFO
+  - platform: template
+    name: "Set Custom Time"
+    id: custom_sync
+    on_press:
+      then:
+        - if:
+            condition:
+              - switch.is_off: sntp_switch
+            then:
+              - lambda: |-
+                  setenv("TZ", id(time_zone).state.c_str(), 1);
+                  tzset();
+                  struct tm time_info;
+                  time_info.tm_year = id(custom_time).year - 1900;
+                  time_info.tm_mon = id(custom_time).month - 1;
+                  time_info.tm_mday = id(custom_time).day;
+                  time_info.tm_hour = id(custom_time).hour;
+                  time_info.tm_min = id(custom_time).minute;
+                  time_info.tm_sec = id(custom_time).second;
+                  time_info.tm_isdst = -1;
+                  std::time_t t = mktime(&time_info);
+                  struct timeval tv = {t, 0};
+                  settimeofday(&tv, NULL);
+                  ESP_LOGD("main", "System time set to: %s", ctime(&t));
+              - pcf8563.write_time:
+                  id: rtc_time
+              - logger.log: 
+                  format: "RTC updated with custom time"
+                  level: INFO
+            else:
+              - logger.log:
+                  format: "Custom time NOT set - SNTP sync active"
+                  level: WARN
+
+switch:
+  - platform: template
+    name: "Enable SNTP Sync"
+    id: sntp_switch
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+
+datetime:
+  - platform: template
+    name: "Custom Time"
+    id: custom_time
+    type: datetime
+    initial_value: "2025-07-01 12:00:00"
+    optimistic: True
+
+
+time:
+  - platform: pcf8563
+    address: 0x51
+    update_interval: never
+    id: rtc_time
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+  - platform: sntp
+    id: sntp_time
+    on_time_sync:
+      then:
+        - if:
+            condition:
+              - switch.is_on: sntp_switch
+            then:
+              - pcf8563.write_time:
+                  id: rtc_time
+              - logger.log: 
+                  format: "SNTP Time Synchronised and RTC updated"
+                  level: INFO
+
+light:
+  - id: ring_light
+    name: "Ring Light"
+    platform: esp32_rmt_led_strip
+    rgb_order: GRB
+    chipset: ws2812
+    pin: GPIO10
+    num_leds: 108
+    effects:
+      - addressable_lambda:
+          name: Clock
+          lambda: |-
+            id(RingClock).addressable_lights_lambdacall(it);
+
+output:
+  - platform: ledc
+    pin: GPIO05
+    id: buzzer
+
+rtttl:
+  output: buzzer
+  id: buzzer_rtttl
+  gain: 90%
