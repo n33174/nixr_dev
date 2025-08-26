@@ -17,7 +17,7 @@ esphome:
             id: rtc_time
       - light.turn_on:
           id: ring_light
-          brightness: 50%
+          brightness: !lambda 'return id(standard_percentage).state/100;'
           effect: Clock
 
 esp32:
@@ -58,16 +58,26 @@ improv_serial:
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/nixr.yaml@main
   import_full_config: false # or true
-
+    
 web_server:
   port: 80
   version: 3
-
-#external_components:
-#  - source:
-#      type: local
-#      path: components
-#    components: [ring_clock]
+  sorting_groups:
+    - id: sorting_time
+      name: "Time Settings"
+      sorting_weight: 10
+    - id: sorting_light
+      name: "Light settings"
+      sorting_weight: 20
+    - id: sorting_sensors
+      name: "Sensors"
+      sorting_weight: 30
+    - id: sorting_other
+      name: "Other"
+      sorting_weight: 40
+    - id: sorting_system
+      name: "System"
+      sorting_weight: 50
 
 external_components:
   - source: github://n33174/nixr_dev@main
@@ -85,6 +95,13 @@ ring_clock:
   id: RingClock
   time_id: rtc_time
   light_id: ring_light
+  enable_scale: enable_scale
+  enable_seconds: enable_seconds
+  hour_hand_color: hour_hand_color
+  minute_hand_color: minute_hand_color
+  second_hand_color: second_hand_color
+  scale_color: scale_color
+  notification_color: notification_color
 
 i2c:
   sda: GPIO01
@@ -105,31 +122,53 @@ binary_sensor:
   - platform: ld2410
     has_target:
       name: Occupancy
+      web_server:
+        sorting_group_id: sorting_sensors
       on_press:
-        then:
-          - light.turn_on:
-              id: ring_light
-              brightness: 50%
+        - if:
+            condition:
+              - switch.is_on: presense_detection
+            then:
+              - light.turn_on:
+                  id: ring_light
+                  brightness:  !lambda 'return id(standard_percentage).state/100;'
+                  transition_length: 1s
       on_release:
-        then:
-          - light.turn_on:
-              id: ring_light
-              brightness: 25%
+        - if:
+            condition:
+              - switch.is_on: presense_detection
+            then:
+              - light.turn_on:
+                  id: ring_light
+                  brightness:  !lambda 'return id(low_percentage).state/100;'
+                  transition_length: 1s
     has_moving_target:
       name: Moving Target
+      web_server:
+        sorting_group_id: sorting_sensors
     has_still_target:
       name: Still Target
+      web_server:
+        sorting_group_id: sorting_sensors
   - platform: gpio
     pin:
       number: GPIO9
       inverted: True
       mode: INPUT_PULLUP
     name: "Mode Button"
+    internal: true
     filters:
       delayed_on_off: 100ms # Debouncing
     on_press: 
       then:
-        - rtttl.play: 'long:d=4,o=5,b=100:e6'
+        - switch.toggle: presense_detection
+        - if:
+            condition:
+              - switch.is_on: presense_detection
+            then:
+              - rtttl.play: 'double:d=4,o=5,b=100:16e6,16e6'
+            else:
+              - rtttl.play: 'single:d=4,o=5,b=100:16e6'
   - platform: gpio
     pin:
       number: GPIO7
@@ -199,10 +238,16 @@ sensor:
     address: 0x76
     temperature:
       name: Temperature
+      web_server:
+        sorting_group_id: sorting_sensors
     pressure:
       name: Pressure
+      web_server:
+        sorting_group_id: sorting_sensors
     humidity:
       name: Humidity
+      web_server:
+        sorting_group_id: sorting_sensors
 
 text:
   - platform: template
@@ -211,17 +256,58 @@ text:
     mode: text
     optimistic: true
     initial_value: ${time_zone}
+    web_server:
+      sorting_group_id: sorting_time
+
+number:
+  - platform: template
+    id: standard_percentage
+    name: "Standard Brightness Percentage"
+    optimistic: True
+    restore_value: True
+    unit_of_measurement: "%"
+    initial_value: 5
+    min_value: 1
+    max_value: 100
+    step: 1
+    web_server:
+      sorting_group_id: sorting_light
+  - platform: template
+    id: low_percentage
+    name: "Low/Off Brightness Percentage"
+    optimistic: True
+    restore_value: True
+    unit_of_measurement: "%"
+    initial_value: 25
+    min_value: 1
+    max_value: 100
+    step: 1
+    web_server:
+      sorting_group_id: sorting_light
 
 button:
   - platform: restart
     name: Restart
     id: restart_esp
+    web_server:
+      sorting_group_id: sorting_system
   - platform: factory_reset
     name: Reset with Default Settings
     disabled_by_default: True
+    web_server:
+      sorting_group_id: sorting_system
+  - platform: template
+    name: Buzzer
+    web_server:
+      sorting_group_id: sorting_other
+    on_press: 
+      then:
+        - rtttl.play: siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e
   - platform: template
     name: "Hour Increment"
     id: hour_increment
+    web_server:
+      sorting_group_id: sorting_time
     on_press:
       then:
         - rtttl.play: 'short:d=4,o=5,b=100:16e6'
@@ -259,6 +345,8 @@ button:
   - platform: template
     name: "Minute Increment"
     id: minute_increment
+    web_server:
+      sorting_group_id: sorting_time
     on_press:
       then:
         - rtttl.play: 'short:d=4,o=5,b=100:16e6'
@@ -296,6 +384,8 @@ button:
   - platform: template
     name: "Set Custom Time"
     id: custom_sync
+    web_server:
+      sorting_group_id: sorting_time
     on_press:
       then:
         - if:
@@ -333,6 +423,30 @@ switch:
     id: sntp_switch
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_time
+  - platform: template
+    name: "Presense Detection Dimming"
+    id: presense_detection
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    web_server:
+      sorting_group_id: sorting_light
+  - platform: template
+    name: "Enable Seconds"
+    id: enable_seconds
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_light
+  - platform: template
+    name: "Enable Scale"
+    id: enable_scale
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_light
+
 
 datetime:
   - platform: template
@@ -341,6 +455,8 @@ datetime:
     type: datetime
     initial_value: "2025-07-01 12:00:00"
     optimistic: True
+    web_server:
+      sorting_group_id: sorting_time
 
 
 time:
@@ -372,6 +488,7 @@ time:
                   level: INFO
 
 light:
+  # Main LED Rings
   - id: ring_light
     name: "Ring Light"
     platform: esp32_rmt_led_strip
@@ -379,13 +496,148 @@ light:
     chipset: ws2812
     pin: GPIO10
     num_leds: 108
+    # WARNING Increasing the values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
+    color_correct: [75%, 75%, 75%]
+    web_server:
+      sorting_group_id: sorting_light
     effects:
       - addressable_lambda:
           name: Clock
           lambda: |-
             id(RingClock).addressable_lights_lambdacall(it);
+  # Customise Hour Hand
+  - platform: rgb
+    id: hour_hand_color
+    name: "Hour Hand"
+    restore_mode: RESTORE_DEFAULT_OFF
+    default_transition_length: 0s
+    red: output_hour_red
+    green: output_hour_green
+    blue: output_hour_blue
+    web_server:
+      sorting_group_id: sorting_light
+  # Customise Minute Hand
+  - platform: rgb
+    id: minute_hand_color
+    name: "Minute Hand"
+    restore_mode: RESTORE_DEFAULT_OFF
+    default_transition_length: 0s
+    red: output_minute_red
+    green: output_minute_green
+    blue: output_minute_blue
+    web_server:
+      sorting_group_id: sorting_light
+  # Customise Second Hand
+  - platform: rgb
+    id: second_hand_color
+    name: "Second Hand"
+    restore_mode: RESTORE_DEFAULT_OFF
+    default_transition_length: 0s
+    red: output_second_red
+    green: output_second_green
+    blue: output_second_blue
+    web_server:
+      sorting_group_id: sorting_light
+  # Customise Scale
+  - platform: rgb
+    id: scale_color
+    name: "Scale"
+    restore_mode: RESTORE_DEFAULT_OFF
+    default_transition_length: 1s
+    red: output_scale_red
+    green: output_scale_green
+    blue: output_scale_blue
+    web_server:
+      sorting_group_id: sorting_light
+    effects:
+      - random:
+  # Remaining Inner Ring LEDs
+  - platform: rgb
+    id: notification_color
+    name: "Notification"
+    restore_mode: RESTORE_DEFAULT_OFF
+    default_transition_length: 1s
+    red: output_notification_red
+    green: output_notification_green
+    blue: output_notification_blue
+    web_server:
+      sorting_group_id: sorting_light
+    effects:
+      - random:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+          min_brightness: 50%
+          max_brightness: 100%
+      - pulse:
+          name: "Slow Pulse"
+          transition_length: 500ms
+          update_interval: 2s
 
 output:
+  # Dummy LED Outputs
+  - platform: template
+    id: output_hour_red
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_hour_green
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_hour_blue
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_minute_red
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_minute_green
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_minute_blue
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_second_red
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_second_green
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_second_blue
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_scale_red
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_scale_green
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_scale_blue
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_notification_red
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_notification_green
+    type: float
+    write_action: {}
+  - platform: template
+    id: output_notification_blue
+    type: float
+    write_action: {}
+  #Buzzer Output  
   - platform: ledc
     pin: GPIO05
     id: buzzer
@@ -394,3 +646,4 @@ rtttl:
   output: buzzer
   id: buzzer_rtttl
   gain: 90%
+
