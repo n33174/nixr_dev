@@ -40,7 +40,7 @@ namespace ring_clock {
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       //Inner Ring Color
       for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-        it[i] = light::ESPColor(r, g, b);
+        it[i] = Color(r, g, b);
       }
     } else {
       // Not Lit
@@ -59,14 +59,14 @@ namespace ring_clock {
           // Set LEDs
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
             if (i % (R2_NUM_LEDS/12) == 0) {
-              it[i] = light::ESPColor(r, g, b);
+              it[i] = Color(r, g, b);
             }
           }
         } else {
           // Set Default Scale Color
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
             if (i % (R2_NUM_LEDS/12) == 0) {
-              it[i] = light::ESPColor(255, 255, 255);
+              it[i] = Color(255, 255, 255);
             }
           }
         }
@@ -94,13 +94,13 @@ namespace ring_clock {
 
   void RingClock::clear_R1(light::AddressableLight & it) {
     for (int i = 0; i < R1_NUM_LEDS; i++) {
-      it[i] = light::ESPColor(0, 0, 0);
+      it[i] = Color(0, 0, 0);
     }
   }
 
   void RingClock::clear_R2(light::AddressableLight & it) {
     for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-      it[i] = light::ESPColor(0, 0, 0);
+      it[i] = Color(0, 0, 0);
     }
   }
 
@@ -126,10 +126,10 @@ namespace ring_clock {
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       //Hour Color
-      it[R1_NUM_LEDS + (hour * 4)] = light::ESPColor(r, g, b);
+      it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
       // Hour Default Red
-      it[R1_NUM_LEDS + (hour * 4)] = light::ESPColor(255, 0, 0);
+      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 0, 0);
     }
 
     if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
@@ -141,10 +141,10 @@ namespace ring_clock {
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       //Minute Color
-      it[now.minute] = light::ESPColor(r, g, b);
+      it[now.minute] = Color(r, g, b);
     } else {
       // Minute Default Green
-      it[now.minute] = light::ESPColor(0, 255, 0);
+      it[now.minute] = Color(0, 255, 0);
     }
 
 
@@ -159,10 +159,10 @@ namespace ring_clock {
           uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
           uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
           //Second Color
-          it[now.second] = light::ESPColor(r, g, b);
+          it[now.second] = Color(r, g, b);
         } else {
           // Second Default Blue
-          it[now.second] = light::ESPColor(0, 0, 255);
+          it[now.second] = Color(0, 0, 255);
         }
       }
     }

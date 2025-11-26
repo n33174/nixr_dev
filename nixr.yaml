@@ -14,10 +14,10 @@ esphome:
   on_boot:
     then:
       - pcf8563.read_time:
-            id: rtc_time
+          id: rtc_time
       - light.turn_on:
           id: ring_light
-          brightness: !lambda 'return id(standard_percentage).state/100;'
+          brightness: !lambda "return id(standard_percentage).state/100;"
           effect: Clock
 
 esp32:
@@ -37,7 +37,17 @@ logger:
 api:
 
 ota:
+  - platform: http_request
+  - platform: web_server
   - platform: esphome
+
+http_request:
+
+update:
+  - platform: http_request
+    name: Firmware Update
+    source: https://raw.githubusercontent.com/nix-labs/esp-firmware/latest/manifest.json
+    update_interval: 60s
 
 wifi:
   # Set up a wifi access point
@@ -58,7 +68,19 @@ improv_serial:
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/nixr.yaml@main
   import_full_config: false # or true
-    
+
+external_components:
+  - source: github://n33174/nixr_dev@main
+    components: [ring_clock]
+
+globals:
+  - id: minute_button_long_press
+    type: bool
+    initial_value: "false"
+  - id: hour_button_long_press
+    type: bool
+    initial_value: "false"
+
 web_server:
   port: 80
   version: 3
@@ -79,18 +101,6 @@ web_server:
       name: "System"
       sorting_weight: 50
 
-external_components:
-  - source: github://n33174/nixr_dev@main
-    components: [ ring_clock ]
-
-globals:
-  - id: minute_button_long_press
-    type: bool
-    initial_value: 'false'
-  - id: hour_button_long_press
-    type: bool
-    initial_value: 'false'
-
 ring_clock:
   id: RingClock
   time_id: rtc_time
@@ -102,17 +112,23 @@ ring_clock:
   second_hand_color: second_hand_color
   scale_color: scale_color
   notification_color: notification_color
+  on_ready:
+    then:
+      - light.turn_on:
+          id: ring_light
+          brightness: !lambda "return id(standard_percentage).state/100;"
+          effect: Clock
 
 i2c:
-  sda: GPIO01
-  scl: GPIO00
+  scl: GPIO5
+  sda: GPIO6
   scan: true
 
 uart:
   id: uart_bus
-  baud_rate:  256000
-  tx_pin: GPIO21
-  rx_pin: GPIO20
+  baud_rate: 256000
+  tx_pin: GPIO0
+  rx_pin: GPIO1
   parity: NONE
   stop_bits: 1
 
@@ -131,7 +147,7 @@ binary_sensor:
             then:
               - light.turn_on:
                   id: ring_light
-                  brightness:  !lambda 'return id(standard_percentage).state/100;'
+                  brightness: !lambda "return id(standard_percentage).state/100;"
                   transition_length: 1s
       on_release:
         - if:
@@ -140,7 +156,7 @@ binary_sensor:
             then:
               - light.turn_on:
                   id: ring_light
-                  brightness:  !lambda 'return id(low_percentage).state/100;'
+                  brightness: !lambda "return id(low_percentage).state/100;"
                   transition_length: 1s
     has_moving_target:
       name: Moving Target
@@ -151,27 +167,31 @@ binary_sensor:
       web_server:
         sorting_group_id: sorting_sensors
   - platform: gpio
+    pin: GPIO3
+    name: "Presence"
+    device_class: presence
+  - platform: gpio
     pin:
-      number: GPIO9
+      number: GPIO2
       inverted: True
       mode: INPUT_PULLUP
     name: "Mode Button"
     internal: true
     filters:
       delayed_on_off: 100ms # Debouncing
-    on_press: 
+    on_press:
       then:
         - switch.toggle: presense_detection
         - if:
             condition:
               - switch.is_on: presense_detection
             then:
-              - rtttl.play: 'double:d=4,o=5,b=100:16e6,16e6'
+              - rtttl.play: "double:d=4,o=5,b=100:16e6,16e6"
             else:
-              - rtttl.play: 'single:d=4,o=5,b=100:16e6'
+              - rtttl.play: "single:d=4,o=5,b=100:16e6"
   - platform: gpio
     pin:
-      number: GPIO7
+      number: GPIO8
       inverted: True
       mode: INPUT_PULLUP
     name: "Hour Button"
@@ -184,7 +204,7 @@ binary_sensor:
           - ON for 40ms to 1s
           - OFF for at least 50ms
         then:
-         - button.press: hour_increment
+          - button.press: hour_increment
       - timing:
           - ON for at least 1s
         then:
@@ -197,7 +217,7 @@ binary_sensor:
             id(hour_button_long_press) = false;
   - platform: gpio
     pin:
-      number: GPIO6
+      number: GPIO9
       inverted: True
       mode: INPUT_PULLUP
     name: "Minute Button"
@@ -210,7 +230,7 @@ binary_sensor:
           - ON for 40ms to 1s
           - OFF for at least 50ms
         then:
-         - button.press: minute_increment
+          - button.press: minute_increment
       - timing:
           - ON for at least 1s
         then:
@@ -234,20 +254,23 @@ interval:
         }
 
 sensor:
-  - platform: bme280_i2c
-    address: 0x76
+  - platform: aht10
+    variant: AHT20
+    address: 0x38
     temperature:
       name: Temperature
-      web_server:
-        sorting_group_id: sorting_sensors
-    pressure:
-      name: Pressure
       web_server:
         sorting_group_id: sorting_sensors
     humidity:
       name: Humidity
       web_server:
         sorting_group_id: sorting_sensors
+  - platform: adc
+    pin: GPIO4
+    name: "Brightness"
+    attenuation: 12db
+    samples: 8
+    update_interval: 1s
 
 text:
   - platform: template
@@ -266,7 +289,7 @@ number:
     optimistic: True
     restore_value: True
     unit_of_measurement: "%"
-    initial_value: 5
+    initial_value: 50
     min_value: 1
     max_value: 100
     step: 1
@@ -300,7 +323,7 @@ button:
     name: Buzzer
     web_server:
       sorting_group_id: sorting_other
-    on_press: 
+    on_press:
       then:
         - rtttl.play: siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e
   - platform: template
@@ -310,13 +333,13 @@ button:
       sorting_group_id: sorting_time
     on_press:
       then:
-        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+        - rtttl.play: "short:d=4,o=5,b=100:16e6"
         - switch.turn_off: sntp_switch
         - datetime.datetime.set:
-              id: custom_time
-              datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
+            id: custom_time
+            datetime: !lambda |-
+              auto time = id(rtc_time).now();
+              return time;
         - lambda: |-
             setenv("TZ", id(time_zone).state.c_str(), 1);
             tzset();
@@ -335,11 +358,11 @@ button:
         - pcf8563.write_time:
             id: rtc_time
         - datetime.datetime.set:
-              id: custom_time
-              datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
-        - logger.log: 
+            id: custom_time
+            datetime: !lambda |-
+              auto time = id(rtc_time).now();
+              return time;
+        - logger.log:
             format: "RTC incremented by 1 hour"
             level: INFO
   - platform: template
@@ -349,13 +372,13 @@ button:
       sorting_group_id: sorting_time
     on_press:
       then:
-        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+        - rtttl.play: "short:d=4,o=5,b=100:16e6"
         - switch.turn_off: sntp_switch
         - datetime.datetime.set:
-              id: custom_time
-              datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
+            id: custom_time
+            datetime: !lambda |-
+              auto time = id(rtc_time).now();
+              return time;
         - lambda: |-
             setenv("TZ", id(time_zone).state.c_str(), 1);
             tzset();
@@ -374,11 +397,11 @@ button:
         - pcf8563.write_time:
             id: rtc_time
         - datetime.datetime.set:
-              id: custom_time
-              datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
-        - logger.log: 
+            id: custom_time
+            datetime: !lambda |-
+              auto time = id(rtc_time).now();
+              return time;
+        - logger.log:
             format: "RTC incremented by 1 minute"
             level: INFO
   - platform: template
@@ -409,7 +432,7 @@ button:
                   ESP_LOGD("main", "System time set to: %s", ctime(&t));
               - pcf8563.write_time:
                   id: rtc_time
-              - logger.log: 
+              - logger.log:
                   format: "RTC updated with custom time"
                   level: INFO
             else:
@@ -447,7 +470,6 @@ switch:
     web_server:
       sorting_group_id: sorting_light
 
-
 datetime:
   - platform: template
     name: "Custom Time"
@@ -457,7 +479,6 @@ datetime:
     optimistic: True
     web_server:
       sorting_group_id: sorting_time
-
 
 time:
   - platform: pcf8563
@@ -471,8 +492,8 @@ time:
           - datetime.datetime.set:
               id: custom_time
               datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
+                auto time = id(rtc_time).now();
+                return time;
   - platform: sntp
     id: sntp_time
     on_time_sync:
@@ -483,7 +504,7 @@ time:
             then:
               - pcf8563.write_time:
                   id: rtc_time
-              - logger.log: 
+              - logger.log:
                   format: "SNTP Time Synchronised and RTC updated"
                   level: INFO
 
@@ -637,13 +658,12 @@ output:
     id: output_notification_blue
     type: float
     write_action: {}
-  #Buzzer Output  
+  #Buzzer Output
   - platform: ledc
-    pin: GPIO05
+    pin: GPIO7
     id: buzzer
 
 rtttl:
   output: buzzer
   id: buzzer_rtttl
   gain: 90%
-
