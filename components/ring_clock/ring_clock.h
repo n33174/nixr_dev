@@ -13,18 +13,6 @@
 #define R1_NUM_LEDS 60
 #define R2_NUM_LEDS 48
 
-
-
-// Define macros
-#define NUM_CHARS 4
-#define NUM_LEDS_PER_SEGMENT 9
-#define NUM_SEGMENTS_PER_CHAR 7
-#define NUM_LEDS_PER_CHAR (NUM_LEDS_PER_SEGMENT * NUM_SEGMENTS_PER_CHAR)
-#define NUM_LEDS_TOTAL (NUM_LEDS_PER_CHAR * NUM_CHARS)
-
-#define MATRIX_WIDTH 80
-#define MATRIX_HEIGHT 21
-
 namespace esphome {
 namespace ring_clock {
 

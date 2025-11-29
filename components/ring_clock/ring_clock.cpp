@@ -77,9 +77,18 @@ namespace ring_clock {
 
   void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
     if(_state == state::booting) {
-      return clear_R1(it);
-    }
-    else if(_state == state::time) {
+      clear_R1(it);
+      clear_R2(it);
+      it[0] = Color(0, 255, 0); //Green
+    } else if(_state == state::shutdown) {
+      clear_R1(it);
+      clear_R2(it);
+      it[0] = Color(255, 0, 0); //Red
+    } else if(_state == state::ota) {
+      clear_R1(it);
+      clear_R2(it);
+      it[0] = Color(0, 0, 255); //Blue
+    } else if(_state == state::time) {
       return render_time(it);
     }
   }
