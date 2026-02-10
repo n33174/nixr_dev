@@ -119,6 +119,9 @@ web_server:
     - id: sorting_other
       name: "Other"
       sorting_weight: 40
+    - id: sorting_timer
+      name: "Timer & Stopwatch"
+      sorting_weight: 45
     - id: sorting_system
       name: "System"
       sorting_weight: 50
@@ -345,7 +348,7 @@ number:
       sorting_group_id: sorting_clock
   - platform: template
     id: low_percentage
-    name: "Low/Off Brightness Percentage"
+    name: "Low or Off Brightness Percentage"
     optimistic: True
     restore_value: True
     unit_of_measurement: "%"
@@ -460,6 +463,63 @@ button:
         - logger.log: 
             format: "RTC incremented by 1 minute"
             level: INFO
+
+  - platform: template
+    name: "Start Timer"
+    id: start_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: |-
+            auto time = id(timer_time_box);
+            id(RingClock)->start_timer(time.hour, time.minute, time.second);
+        - light.turn_on:
+            id: ring_light
+            effect: Timer
+
+  - platform: template
+    name: "Stop Timer"
+    id: stop_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_timer();'
+        - light.turn_on:
+            id: ring_light
+            effect: Clock
+
+  - platform: template
+    name: "Start Stopwatch"
+    id: start_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->start_stopwatch();'
+        - light.turn_on:
+            id: ring_light
+            effect: Stopwatch
+
+  - platform: template
+    name: "Stop-Pause Stopwatch"
+    id: stop_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_stopwatch();'
+
+  - platform: template
+    name: "Reset Stopwatch"
+    id: reset_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->reset_stopwatch();'
+
   - platform: template
     name: "Set Custom Time"
     id: custom_sync
@@ -538,6 +598,15 @@ datetime:
     web_server:
       sorting_group_id: sorting_time
 
+  - platform: template
+    name: "Timer-Stopwatch Box"
+    id: timer_time_box
+    type: time
+    optimistic: True
+    initial_value: "00:00:00"
+    web_server:
+      sorting_group_id: sorting_timer
+
 
 time:
   - platform: pcf8563
@@ -600,6 +669,18 @@ light:
           update_interval: 33ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_rainbow);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      - addressable_lambda:
+          name: "Timer"
+          update_interval: 100ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::timer);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      - addressable_lambda:
+          name: "Stopwatch"
+          update_interval: 100ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::stopwatch);
             id(RingClock)->addressable_lights_lambdacall(it);
   # Customise Hour Hand
   - platform: rgb

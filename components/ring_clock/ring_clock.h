@@ -26,6 +26,8 @@ namespace ring_clock {
     time,
     time_fade,
     time_rainbow,
+    timer,
+    stopwatch,
     ota,
     shutdown
   };
@@ -56,6 +58,13 @@ namespace ring_clock {
       void set_scale_color_state(light::LightState* state);
       void set_notification_color_state(light::LightState* state);
       void set_blank_leds(std::vector<int> leds);
+      
+      // Timer and Stopwatch controls
+      void start_timer(int hours, int minutes, int seconds);
+      void stop_timer();
+      void start_stopwatch();
+      void stop_stopwatch();
+      void reset_stopwatch();
 
     protected:
       std::vector<int> _blanked_leds;
@@ -74,6 +83,18 @@ namespace ring_clock {
       switch_::Switch* enable_scale{nullptr};
       light::LightState* scale_color{nullptr};
       light::LightState* notification_color{nullptr};
+
+      void render_timer(light::AddressableLight & it);
+      void render_stopwatch(light::AddressableLight & it);
+
+      // Timer and Stopwatch state
+      bool _timer_active{false};
+      uint32_t _timer_target_ms{0};
+      uint32_t _timer_duration_ms{0};
+      
+      bool _stopwatch_active{false};
+      uint32_t _stopwatch_start_ms{0};
+      uint32_t _stopwatch_paused_ms{0};
   };
 
   class ReadyTrigger : public Trigger<> {

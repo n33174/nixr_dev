@@ -99,6 +99,10 @@ namespace ring_clock {
       render_time(it, true);
     } else if(_state == state::time_rainbow) {
       render_rainbow(it);
+    } else if(_state == state::timer) {
+      this->render_timer(it);
+    } else if(_state == state::stopwatch) {
+      this->render_stopwatch(it);
     }
     
     // Apply blanking for sensor reading if any LEDs are set to be blanked
@@ -111,15 +115,11 @@ namespace ring_clock {
     }
 
     // Calculate interference from LEDs 15 and 72 after all rendering is done
-    // These are physically located near the light sensor
-    // Using (R+G+B)/3 to estimate brightness contribution. Max per LED is 255.
-    // Summing both contributions gives a rough total interference metric.
     if (TOTAL_LEDS > 72) {
       auto c15 = it[15].get();
       auto c72 = it[72].get();
       float b15 = (c15.r + c15.g + c15.b) / 3.0f;
       float b72 = (c72.r + c72.g + c72.b) / 3.0f;
-      // Normalise to 0.0 - 1.0 range (255 max)
       this->_interference_factor = (b15 + b72) / 255.0f;
     }
   }
@@ -145,135 +145,11 @@ namespace ring_clock {
   }
 
   void RingClock::render_time(light::AddressableLight & it, bool fade) {
-
     clear_R1(it);
     clear_R2(it);
     draw_scale(it);
-    esphome::ESPTime now = _time->now(); // Corrected namespace for ESPTime
-
-    int hour = now.hour;
-    if (hour >= 12) {
-      hour = hour - 12;
-    }
-
-
-    if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
-      auto color_values = this->hour_hand_color->current_values;
-      // Get the brightness from the light component (0.0 to 1.0)
-      float brightness = color_values.get_brightness();
-      // Scale the RGB values by the brightness
-      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
-      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
-      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-      
-      if (color_values.get_red() > 0 && r < 20) r = 20;
-      if (color_values.get_green() > 0 && g < 20) g = 20;
-      if (color_values.get_blue() > 0 && b < 20) b = 20;
-      
-      //Hour Color
-      it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
-    } else {
-      // Hour Default Brand Orange
-      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0);
-    }
-
-    if (this->enable_seconds != nullptr) {
-      if (this->enable_seconds->state) {
-        Color second_color = Color(255, 255, 255); // Default White
-
-        if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
-          auto color_values = this->second_hand_color->current_values;
-          float brightness = color_values.get_brightness();
-          uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
-          uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
-          uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-          
-          if (color_values.get_red() > 0 && r < 20) r = 20;
-          if (color_values.get_green() > 0 && g < 20) g = 20;
-          if (color_values.get_blue() > 0 && b < 20) b = 20;
-
-          second_color = Color(r, g, b);
-        }
-
-        if (fade) {
-            // Smooth fade with spread (3 LEDs lit)
-            
-            // 1. Synchronize monotonic millis with integer seconds to prevent jumping
-            if (this->last_second != now.second) {
-                this->last_second = now.second;
-                this->last_second_timestamp = millis();
-            }
-
-            long dt = millis() - this->last_second_timestamp;
-            float progress = dt / 1000.0f;
-            // Clamp to avoid overshooting if clock tick is late
-            if (progress > 1.0f) progress = 1.0f;
-            
-            float precise_pos = now.second + progress;
-            
-            // 2. Iterate all LEDs to find neighbors (handling circular wrap)
-            for (int i = 0; i < 60; i++) {
-                float dist = abs(i - precise_pos);
-                // Handle circular distance (e.g. distance between 0 and 59 is 1)
-                if (dist > 30.0f) dist = 60.0f - dist;
-                
-                // Radius of 1.5 allows for 3 LEDs to be lit (Center + 1 neighbor on each side usually)
-                // dist 0 -> 100%, dist 1.5 -> 0%
-                if (dist < 1.5f) {
-                    float brightness_scale = 1.0f - (dist / 1.5f);
-                    
-                    Color c = Color(
-                        (uint8_t)(second_color.r * brightness_scale),
-                        (uint8_t)(second_color.g * brightness_scale),
-                        (uint8_t)(second_color.b * brightness_scale)
-                    );
-                    it[i] = c;
-                }
-            }
-            
-        } else {
-            // Standard step Logic
-            it[now.second] = second_color;
-        }
-      }
-    }
-
-    if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
-      auto color_values = this->minute_hand_color->current_values;
-      // Get the brightness from the light component (0.0 to 1.0)
-      float brightness = color_values.get_brightness();
-      // Scale the RGB values by the brightness
-      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
-      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
-      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-      
-      if (color_values.get_red() > 0 && r < 20) r = 20;
-      if (color_values.get_green() > 0 && g < 20) g = 20;
-      if (color_values.get_blue() > 0 && b < 20) b = 20;
-
-      //Minute Color
-      it[now.minute] = Color(r, g, b);
-    } else {
-      // Minute Default Cyan
-      it[now.minute] = Color(0, 255, 255);
-    }
-
-  }
-
-  void RingClock::render_rainbow(light::AddressableLight & it) {
-    if(!_has_time && _time->now().is_valid()) {
-      _has_time=true;
-      on_ready();
-      return;
-    }
-    
-    // Clear inner ring
-    clear_R2(it);
-    draw_scale(it);
-    
     esphome::ESPTime now = _time->now();
 
-    // 1. Draw Hour Hand
     int hour = now.hour;
     if (hour >= 12) hour = hour - 12;
 
@@ -283,94 +159,221 @@ namespace ring_clock {
       uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-      
       if (color_values.get_red() > 0 && r < 20) r = 20;
       if (color_values.get_green() > 0 && g < 20) g = 20;
       if (color_values.get_blue() > 0 && b < 20) b = 20;
-    
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
-      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0); // Default Brand Orange
+      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0);
     }
 
-    // 2. Draw Rainbow Second Hand with Fade Tail
-    // Note: Rainbow tail intentionally fades to 0 (black) for visual effect, so no min-brightness floor is applied here.
     if (this->enable_seconds != nullptr && this->enable_seconds->state) {
-      
-      // Calculate smooth position
-      if (this->last_second != now.second) {
+      Color second_color = Color(255, 255, 255);
+      if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
+        auto color_values = this->second_hand_color->current_values;
+        float brightness = color_values.get_brightness();
+        uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+        uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+        uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+        if (color_values.get_red() > 0 && r < 20) r = 20;
+        if (color_values.get_green() > 0 && g < 20) g = 20;
+        if (color_values.get_blue() > 0 && b < 20) b = 20;
+        second_color = Color(r, g, b);
+      }
+
+      if (fade) {
+        if (this->last_second != now.second) {
           this->last_second = now.second;
           this->last_second_timestamp = millis();
-      }
-      long dt = millis() - this->last_second_timestamp;
-      float progress = dt / 1000.0f;
-      if (progress > 1.0f) progress = 1.0f;
-      
-      // 'precise_pos' is the head of the comet
-      float precise_pos = now.second + progress;
-      
-      // Slowly changing rainbow offset based on minutes to ensure it's not identical every minute
-      // Using now.minute as offset creates a slow shift over the hour.
-      // 360 degrees / 60 minutes = 6 degrees shift per minute.
-      float hue_offset = now.minute * (360.0f/60.0f); 
-      
-      // Iterate previous 40 LED positions (tail length)
-      int tail_length = 40;
-      
-
-      
-      // Re-thinking loop: Iterate all 60 LEDs, determine if they are in the tail.
-      for (int i = 0; i < 60; i++) {
-        float dist = precise_pos - i;
-        if (dist < 0) dist += 60.0f; // Handle wrap: e.g. pos=1, i=59 -> dist = 1 - 59 = -58 => +60 = 2
-        
-        // If dist is small positive, we are BEHIND the head (in the tail)
-        if (dist >= 0 && dist < tail_length) {
-          float tail_intensity = 1.0f - (dist / (float)tail_length);
-          tail_intensity = tail_intensity * tail_intensity; // Gamma correction / nicer falloff
-          
-          // Calculate Rainbow Color
-          // Hue varies along the tail AND moves slowly over time
-          // Hue = (Base Offset + (i * hue_step)) 
-          // Let's make the head color cycle through rainbow? 
-          // Requirement: "seconds hand moving around changing colour through rainbow slowly"
-          // So head color depends on position (or time).
-          
-          // Rainbow based on position on the ring + time offset
-          float hue = (i * (360.0f / 60.0f)) + hue_offset; 
-          
-          float r_f, g_f, b_f;
-          esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
-          
-          // Apply brightness/fade
-          esphome::Color rgb = Color(
-              (uint8_t)(r_f * 255.0f * tail_intensity),
-              (uint8_t)(g_f * 255.0f * tail_intensity),
-              (uint8_t)(b_f * 255.0f * tail_intensity)
-          );
-          
-          it[i] = rgb;
         }
+        long dt = millis() - this->last_second_timestamp;
+        float progress = dt / 1000.0f;
+        if (progress > 1.0f) progress = 1.0f;
+        float precise_pos = now.second + progress;
+        for (int i = 0; i < 60; i++) {
+          float dist = abs(i - precise_pos);
+          if (dist > 30.0f) dist = 60.0f - dist;
+          if (dist < 1.5f) {
+            float brightness_scale = 1.0f - (dist / 1.5f);
+            it[i] = Color((uint8_t)(second_color.r * brightness_scale), (uint8_t)(second_color.g * brightness_scale), (uint8_t)(second_color.b * brightness_scale));
+          }
+        }
+      } else {
+        it[now.second] = second_color;
       }
     }
-    
-    // 3. Draw Minute Hand (on top)
+
     if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
       auto color_values = this->minute_hand_color->current_values;
       float brightness = color_values.get_brightness();
       uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-      
       if (color_values.get_red() > 0 && r < 20) r = 20;
       if (color_values.get_green() > 0 && g < 20) g = 20;
       if (color_values.get_blue() > 0 && b < 20) b = 20;
-
       it[now.minute] = Color(r, g, b);
     } else {
-      it[now.minute] = Color(0, 255, 255); // Default Cyan
+      it[now.minute] = Color(0, 255, 255);
+    }
+  }
+
+  void RingClock::render_rainbow(light::AddressableLight & it) {
+    clear_R2(it);
+    draw_scale(it);
+    esphome::ESPTime now = _time->now();
+    int hour = now.hour;
+    if (hour >= 12) hour = hour - 12;
+
+    if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
+      auto color_values = this->hour_hand_color->current_values;
+      float brightness = color_values.get_brightness();
+      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      if (color_values.get_red() > 0 && r < 20) r = 20;
+      if (color_values.get_green() > 0 && g < 20) g = 20;
+      if (color_values.get_blue() > 0 && b < 20) b = 20;
+      it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
+    } else {
+      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0);
     }
 
+    if (this->enable_seconds != nullptr && this->enable_seconds->state) {
+      if (this->last_second != now.second) {
+        this->last_second = now.second;
+        this->last_second_timestamp = millis();
+      }
+      long dt = millis() - this->last_second_timestamp;
+      float progress = dt / 1000.0f;
+      if (progress > 1.0f) progress = 1.0f;
+      float precise_pos = now.second + progress;
+      float hue_offset = now.minute * (360.0f/60.0f); 
+      int tail_length = 40;
+      for (int i = 0; i < 60; i++) {
+        float dist = precise_pos - i;
+        if (dist < 0) dist += 60.0f;
+        if (dist >= 0 && dist < tail_length) {
+          float tail_intensity = 1.0f - (dist / (float)tail_length);
+          tail_intensity = tail_intensity * tail_intensity;
+          float hue = (i * (360.0f / 60.0f)) + hue_offset; 
+          float r_f, g_f, b_f;
+          esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
+          it[i] = Color((uint8_t)(r_f * 255.0f * tail_intensity), (uint8_t)(g_f * 255.0f * tail_intensity), (uint8_t)(b_f * 255.0f * tail_intensity));
+        }
+      }
+    }
+    
+    if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
+      auto color_values = this->minute_hand_color->current_values;
+      float brightness = color_values.get_brightness();
+      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      if (color_values.get_red() > 0 && r < 20) r = 20;
+      if (color_values.get_green() > 0 && g < 20) g = 20;
+      if (color_values.get_blue() > 0 && b < 20) b = 20;
+      it[now.minute] = Color(r, g, b);
+    } else {
+      it[now.minute] = Color(0, 255, 255);
+    }
+  }
+
+  void RingClock::start_timer(int hours, int minutes, int seconds) {
+    _timer_duration_ms = (hours * 3600 + minutes * 60 + seconds) * 1000;
+    _timer_target_ms = millis() + _timer_duration_ms;
+    _timer_active = true;
+    _state = state::timer;
+  }
+
+  void RingClock::stop_timer() {
+    _timer_active = false;
+  }
+
+  void RingClock::start_stopwatch() {
+    if (!_stopwatch_active) {
+      _stopwatch_start_ms = millis() - _stopwatch_paused_ms;
+      _stopwatch_active = true;
+    }
+    _state = state::stopwatch;
+  }
+
+  void RingClock::stop_stopwatch() {
+    if (_stopwatch_active) {
+      _stopwatch_paused_ms = millis() - _stopwatch_start_ms;
+      _stopwatch_active = false;
+    }
+  }
+
+  void RingClock::reset_stopwatch() {
+    _stopwatch_start_ms = millis();
+    _stopwatch_paused_ms = 0;
+  }
+
+  void RingClock::render_timer(light::AddressableLight & it) {
+    clear_R1(it);
+    clear_R2(it);
+    draw_scale(it);
+
+    if (!_timer_active) return;
+
+    long remaining_ms = (long)_timer_target_ms - (long)millis();
+    if (remaining_ms < 0) remaining_ms = 0;
+
+    int total_seconds = remaining_ms / 1000;
+    int hours = total_seconds / 3600;
+    int minutes = (total_seconds % 3600) / 60;
+    int seconds = total_seconds % 60;
+
+    if (total_seconds > 0 && total_seconds < 60) {
+      // Less than 1 minute: Use outer ring for seconds and flash
+      bool flash_on = (millis() / 500) % 2 == 0;
+      if (flash_on) {
+        for (int i = 0; i < seconds; i++) {
+          it[i] = Color(255, 0, 0); 
+        }
+      }
+    } else {
+      // Show hours on R2
+      for (int i = 0; i < 12; i++) {
+        if (i < hours) {
+           int led_base = R1_NUM_LEDS + (i * 4);
+           for(int j=0; j<4; j++) it[led_base + j] = Color(255, 145, 0);
+        }
+      }
+      // Show minutes on R1
+      for (int i = 0; i < minutes; i++) {
+        it[i] = Color(0, 255, 255);
+      }
+    }
+    
+    if (total_seconds == 0 && _timer_active) {
+        bool flash_on = (millis() / 250) % 2 == 0;
+        if (flash_on) {
+            for(int i=0; i<TOTAL_LEDS; i++) it[i] = Color(255, 0, 0);
+        }
+    }
+  }
+
+  void RingClock::render_stopwatch(light::AddressableLight & it) {
+    clear_R1(it);
+    clear_R2(it);
+    draw_scale(it);
+
+    uint32_t elapsed_ms = _stopwatch_active ? (millis() - _stopwatch_start_ms) : _stopwatch_paused_ms;
+    int total_seconds = elapsed_ms / 1000;
+    int hours = total_seconds / 3600;
+    int minutes = (total_seconds % 3600) / 60;
+
+    for (int i = 0; i < 12; i++) {
+      if (i < hours) {
+        int led_base = R1_NUM_LEDS + (i * 4);
+        for(int j=0; j<4; j++) it[led_base + j] = Color(255, 145, 0);
+      }
+    }
+    for (int i = 0; i < minutes; i++) {
+      it[i] = Color(0, 255, 255);
+    }
   }
 
   void RingClock::set_time(time::RealTimeClock *time) {
@@ -381,8 +384,7 @@ namespace ring_clock {
     _clock_lights = it;
   }
 
-  // ReadyTrigger constructor implementation
-  ReadyTrigger::ReadyTrigger(RingClock *parent) { // Corrected type
+  ReadyTrigger::ReadyTrigger(RingClock *parent) {
     parent->add_on_ready_callback([this]() { this->trigger(); });
   }
 
