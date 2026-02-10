@@ -147,7 +147,7 @@ ring_clock:
           effect: Clock
   on_timer_finished:
     then:
-      - rtttl.play: "alarm:d=8,o=6,b=160:c,p,c,p,c,p,c,p"
+      - rtttl.play: "timer_alert:d=16,o=6,b=120:c,e,g,c7,p,g,e,c,p,c,e,g,c7,p,g,e,c,p,8c7,p,8c7,p,8c7"
       - delay: 10s
       - light.turn_on:
           id: ring_light
@@ -524,7 +524,7 @@ button:
             effect: Timer
 
   - platform: template
-    name: "Stop Timer"
+    name: "Stop Timer or Stopwatch"
     id: stop_timer_button
     web_server:
       sorting_group_id: sorting_timer
@@ -548,8 +548,8 @@ button:
             effect: Stopwatch
 
   - platform: template
-    name: "Stop-Pause Stopwatch"
-    id: stop_stopwatch_button
+    name: "Pause Stopwatch"
+    id: pause_stopwatch_button
     web_server:
       sorting_group_id: sorting_timer
     on_press:

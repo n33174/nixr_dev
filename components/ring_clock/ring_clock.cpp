@@ -425,8 +425,8 @@ namespace ring_clock {
 
         // Pulse logic: 0.3 to 1.0 (doesn't fade out completely)
         float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
-        Color sc = get_second_color();
-        Color pc = Color((uint8_t)(sc.r * pulse), (uint8_t)(sc.g * pulse), (uint8_t)(sc.b * pulse));
+        Color nc = get_notification_color(); // Fixed: Use notification color, not second hand
+        Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
         for (int i = 0; i < 12; i++) {
           int base = R1_NUM_LEDS + (i * 4);
           it[base + 1] = pc;
