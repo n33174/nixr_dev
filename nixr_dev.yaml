@@ -293,24 +293,21 @@ sensor:
     web_server:
       sorting_group_id: sorting_sensors
     attenuation: 12db
-    update_interval: 5s
+    update_interval: 1s
     unit_of_measurement: "%"
     filters:
       - calibrate_linear:
           - 0.0 -> 0.0
           - 3.0 -> 100.0
       - lambda: |-
-          // Get local interference factor (0.0 - 2.0 approx) 
-          // Calculated from brightness of LED 15 and 72
           float interference = id(RingClock)->get_interference_factor();
-
-          // Apply larger compensation
-          // If both LEDs are full white (2.0), this subtracts 100%? 
-          // Previous requested "larger adjustment". 
-          // Let's try subtracting 50% per full LED brightness.
-          float compensation = interference * 40.0; 
-
-          float adjusted_value = x - compensation;
+          
+          // 1. Subtract the additive bleed (approx 35% per full capped LED)
+          float clean_value = x - (interference * 35.0f);
+          
+          // 2. Multiplicative adjustment to restore range (approx 1.5x)
+          float adjusted_value = clean_value * (1.0f + interference * 0.5f);
+          
           return adjusted_value < 0 ? 0 : (adjusted_value > 100 ? 100 : adjusted_value);
       - sliding_window_moving_average:
           window_size: 5
