@@ -108,8 +108,11 @@ web_server:
       name: "Time Settings"
       sorting_weight: 10
     - id: sorting_light
-      name: "Light settings"
+      name: "Clock Settings"
       sorting_weight: 20
+    - id: sorting_clock_custom
+      name: "Clock Customisation"
+      sorting_weight: 25
     - id: sorting_sensors
       name: "Sensors"
       sorting_weight: 30
@@ -188,6 +191,8 @@ binary_sensor:
   - platform: gpio
     pin: GPIO3
     name: "Presence"
+    web_server:
+      sorting_group_id: sorting_sensors
     device_class: presence
   - platform: gpio
     pin:
@@ -278,10 +283,12 @@ sensor:
     address: 0x38
     temperature:
       name: Temperature
+      icon: mdi:thermometer
       web_server:
         sorting_group_id: sorting_sensors
     humidity:
       name: Humidity
+      icon: mdi:water-percent
       web_server:
         sorting_group_id: sorting_sensors
   - platform: adc
@@ -293,7 +300,7 @@ sensor:
     web_server:
       sorting_group_id: sorting_sensors
     attenuation: 12db
-    update_interval: 1s
+    update_interval: 5s
     unit_of_measurement: "%"
     filters:
       - calibrate_linear:
@@ -302,11 +309,11 @@ sensor:
       - lambda: |-
           float interference = id(RingClock)->get_interference_factor();
           
-          // 1. Subtract the additive bleed (approx 35% per full capped LED)
-          float clean_value = x - (interference * 35.0f);
+          // Multiplicative adjustment (as a divisor/factor)
+          // Using a softer weight of 1.8 to reflect the "slightly less" request
+          float factor = 1.0f / (1.0f + (interference * 1.8f));
           
-          // 2. Multiplicative adjustment to restore range (approx 1.5x)
-          float adjusted_value = clean_value * (1.0f + interference * 0.5f);
+          float adjusted_value = x * factor;
           
           return adjusted_value < 0 ? 0 : (adjusted_value > 100 ? 100 : adjusted_value);
       - sliding_window_moving_average:
@@ -366,7 +373,7 @@ button:
       sorting_group_id: sorting_other
     on_press: 
       then:
-        - rtttl.play: siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e
+        - rtttl.play: notification:d=16,o=6,b=160:c,e,g,c7
   - platform: template
     name: "Hour Increment"
     id: hour_increment
@@ -604,7 +611,7 @@ light:
     green: output_hour_green
     blue: output_hour_blue
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock_custom
   # Customise Minute Hand
   - platform: rgb
     id: minute_hand_color
@@ -615,7 +622,7 @@ light:
     green: output_minute_green
     blue: output_minute_blue
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock_custom
   # Customise Second Hand
   - platform: rgb
     id: second_hand_color
@@ -626,7 +633,7 @@ light:
     green: output_second_green
     blue: output_second_blue
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock_custom
   # Customise Scale
   - platform: rgb
     id: scale_color
@@ -637,7 +644,7 @@ light:
     green: output_scale_green
     blue: output_scale_blue
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock_custom
     effects:
       - random:
   # Remaining Inner Ring LEDs
@@ -650,7 +657,7 @@ light:
     green: output_notification_green
     blue: output_notification_blue
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock_custom
     effects:
       - random:
       - pulse:

@@ -98,7 +98,6 @@ namespace ring_clock {
     } else if(_state == state::time_fade) {
       render_time(it, true);
     } else if(_state == state::time_rainbow) {
-    } else if(_state == state::time_rainbow) {
       render_rainbow(it);
     }
     
@@ -315,8 +314,8 @@ namespace ring_clock {
       // 360 degrees / 60 minutes = 6 degrees shift per minute.
       float hue_offset = now.minute * (360.0f/60.0f); 
       
-      // Iterate previous 20 LED positions (tail length)
-      int tail_length = 20;
+      // Iterate previous 40 LED positions (tail length)
+      int tail_length = 40;
       
 
       
