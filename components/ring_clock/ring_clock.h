@@ -20,6 +20,13 @@ namespace ring_clock {
   // Declare TAG for logging (defined in .cpp)
   extern const char *TAG;
 
+  // Default Colors
+  static const Color DEFAULT_COLOR_HOUR(255, 145, 0);         // Brand Orange
+  static const Color DEFAULT_COLOR_MINUTE(0, 255, 255);       // Cyan
+  static const Color DEFAULT_COLOR_SECOND(255, 255, 255);     // White
+  static const Color DEFAULT_COLOR_NOTIFICATION(255, 0, 0);   // Red
+  static const Color DEFAULT_COLOR_SCALE(50, 50, 50);         // Dim White
+
   enum state
   {
     booting,
@@ -65,6 +72,13 @@ namespace ring_clock {
       void start_stopwatch();
       void stop_stopwatch();
       void reset_stopwatch();
+      
+      // Default color setters
+      void set_default_hour_color(Color color) { _default_hour_color = color; }
+      void set_default_minute_color(Color color) { _default_minute_color = color; }
+      void set_default_second_color(Color color) { _default_second_color = color; }
+      void set_default_notification_color(Color color) { _default_notification_color = color; }
+      void set_default_scale_color(Color color) { _default_scale_color = color; }
 
     protected:
       std::vector<int> _blanked_leds;
@@ -95,6 +109,13 @@ namespace ring_clock {
       bool _stopwatch_active{false};
       uint32_t _stopwatch_start_ms{0};
       uint32_t _stopwatch_paused_ms{0};
+
+      // Default colors (Initialized from constants above)
+      Color _default_hour_color = DEFAULT_COLOR_HOUR;
+      Color _default_minute_color = DEFAULT_COLOR_MINUTE;
+      Color _default_second_color = DEFAULT_COLOR_SECOND;
+      Color _default_notification_color = DEFAULT_COLOR_NOTIFICATION;
+      Color _default_scale_color = DEFAULT_COLOR_SCALE;
   };
 
   class ReadyTrigger : public Trigger<> {

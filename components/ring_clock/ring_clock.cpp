@@ -62,17 +62,17 @@ namespace ring_clock {
           if (color_values.get_green() > 0 && g < 20) g = 20;
           if (color_values.get_blue() > 0 && b < 20) b = 20;
 
-          // Set Scaled LEDs
+          // Set Scaled LEDs (The markers)
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-            if (i % (R2_NUM_LEDS/12) == 0) {
+            if ((i - R1_NUM_LEDS) % 4 == 0) {
               it[i] = Color(r, g, b);
             }
           }
         } else {
           // Set Default Scale Color
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-            if (i % (R2_NUM_LEDS/12) == 0) {
-              it[i] = Color(50, 50, 50); // Default Scale Dim White
+            if ((i - R1_NUM_LEDS) % 4 == 0) {
+              it[i] = _default_scale_color;
             }
           }
         }
@@ -84,7 +84,7 @@ namespace ring_clock {
     if(_state == state::booting) {
       clear_R1(it);
       clear_R2(it);
-      it[0] = Color(0, 255, 0); //Green
+      it[0] = Color(0, 255, 0); //Green - booting indicator
     } else if(_state == state::shutdown) {
       clear_R1(it);
       clear_R2(it);
@@ -164,11 +164,11 @@ namespace ring_clock {
       if (color_values.get_blue() > 0 && b < 20) b = 20;
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
-      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0);
+      it[R1_NUM_LEDS + (hour * 4)] = _default_hour_color;
     }
 
     if (this->enable_seconds != nullptr && this->enable_seconds->state) {
-      Color second_color = Color(255, 255, 255);
+      Color second_color = _default_second_color;
       if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
         auto color_values = this->second_hand_color->current_values;
         float brightness = color_values.get_brightness();
@@ -214,7 +214,7 @@ namespace ring_clock {
       if (color_values.get_blue() > 0 && b < 20) b = 20;
       it[now.minute] = Color(r, g, b);
     } else {
-      it[now.minute] = Color(0, 255, 255);
+      it[now.minute] = _default_minute_color;
     }
   }
 
@@ -236,7 +236,7 @@ namespace ring_clock {
       if (color_values.get_blue() > 0 && b < 20) b = 20;
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
-      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0);
+      it[R1_NUM_LEDS + (hour * 4)] = _default_hour_color;
     }
 
     if (this->enable_seconds != nullptr && this->enable_seconds->state) {
@@ -275,7 +275,7 @@ namespace ring_clock {
       if (color_values.get_blue() > 0 && b < 20) b = 20;
       it[now.minute] = Color(r, g, b);
     } else {
-      it[now.minute] = Color(0, 255, 255);
+      it[now.minute] = _default_minute_color;
     }
   }
 
@@ -325,32 +325,66 @@ namespace ring_clock {
     int minutes = (total_seconds % 3600) / 60;
     int seconds = total_seconds % 60;
 
+    // Helper functions for colors
+    auto get_hour_color = [&]() {
+      if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
+        auto cv = this->hour_hand_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_hour_color;
+    };
+
+    auto get_minute_color = [&]() {
+      if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
+        auto cv = this->minute_hand_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_minute_color;
+    };
+
+    auto get_notification_color = [&]() {
+       if (this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
+        auto cv = this->notification_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_notification_color;
+    };
+
     if (total_seconds > 0 && total_seconds < 60) {
-      // Less than 1 minute: Use outer ring for seconds and flash
+      // Less than 1 minute: Use outer ring for seconds and flash markers
       bool flash_on = (millis() / 500) % 2 == 0;
       if (flash_on) {
         for (int i = 0; i < seconds; i++) {
-          it[i] = Color(255, 0, 0); 
+          it[i] = get_notification_color();
         }
       }
     } else {
-      // Show hours on R2
+      // Show hours on R2 markers ONLY (0, 4, 8...)
       for (int i = 0; i < 12; i++) {
         if (i < hours) {
-           int led_base = R1_NUM_LEDS + (i * 4);
-           for(int j=0; j<4; j++) it[led_base + j] = Color(255, 145, 0);
+           it[R1_NUM_LEDS + (i * 4)] = get_hour_color();
         }
       }
       // Show minutes on R1
       for (int i = 0; i < minutes; i++) {
-        it[i] = Color(0, 255, 255);
+        it[i] = get_minute_color();
       }
     }
     
     if (total_seconds == 0 && _timer_active) {
+        // Timer finished: Flash "notification leds" (1-3, 5-7, etc)
         bool flash_on = (millis() / 250) % 2 == 0;
         if (flash_on) {
-            for(int i=0; i<TOTAL_LEDS; i++) it[i] = Color(255, 0, 0);
+            Color nc = get_notification_color();
+            for (int i = 0; i < 12; i++) {
+              int base = R1_NUM_LEDS + (i * 4);
+              it[base + 1] = nc;
+              it[base + 2] = nc;
+              it[base + 3] = nc;
+            }
         }
     }
   }
@@ -367,12 +401,11 @@ namespace ring_clock {
 
     for (int i = 0; i < 12; i++) {
       if (i < hours) {
-        int led_base = R1_NUM_LEDS + (i * 4);
-        for(int j=0; j<4; j++) it[led_base + j] = Color(255, 145, 0);
+        it[R1_NUM_LEDS + (i * 4)] = _default_hour_color; // Markers
       }
     }
     for (int i = 0; i < minutes; i++) {
-      it[i] = Color(0, 255, 255);
+      it[i] = _default_minute_color;
     }
   }
 

@@ -18,6 +18,7 @@ esphome:
             format: "Booting 123"
             level: DEBUG
         - lambda: 'id(RingClock)->set_state(ring_clock::state::booting);'
+
     - priority: 300
       then:
         - logger.log: 
@@ -472,8 +473,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            auto time = id(timer_time_box);
-            id(RingClock)->start_timer(time.hour, time.minute, time.second);
+            int h = (int)id(timer_hours).state;
+            int m = (int)id(timer_minutes).state;
+            int s = (int)id(timer_seconds).state;
+            id(RingClock)->start_timer(h, m, s);
         - light.turn_on:
             id: ring_light
             effect: Timer
@@ -598,15 +601,37 @@ datetime:
     web_server:
       sorting_group_id: sorting_time
 
+number:
   - platform: template
-    name: "Timer-Stopwatch Box"
-    id: timer_time_box
-    type: time
+    name: "Timer Hours"
+    id: timer_hours
+    min_value: 0
+    max_value: 23
+    step: 1
+    initial_value: 0
     optimistic: True
-    initial_value: "00:00:00"
     web_server:
       sorting_group_id: sorting_timer
-
+  - platform: template
+    name: "Timer Minutes"
+    id: timer_minutes
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+  - platform: template
+    name: "Timer Seconds"
+    id: timer_seconds
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
 
 time:
   - platform: pcf8563
