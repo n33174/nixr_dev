@@ -35,11 +35,15 @@ namespace ring_clock {
       // Get the brightness from the light component (0.0 to 1.0)
       float brightness = color_values.get_brightness();
       // Scale the RGB values by the brightness
-      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
-      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
-      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-      //Inner Ring Color
-      for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
+        uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+        uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+        uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+        
+        // Ensure minimum visibility
+        if (color_values.get_red() > 0 && r == 0) r = 1;
+        if (color_values.get_green() > 0 && g == 0) g = 1;
+        if (color_values.get_blue() > 0 && b == 0) b = 1;
+
         it[i] = Color(r, g, b);
       }
     } else {
@@ -53,11 +57,6 @@ namespace ring_clock {
           // Get the brightness from the light component (0.0 to 1.0)
           float brightness = color_values.get_brightness();
           // Scale the RGB values by the brightness
-          uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
-          uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
-          uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-          // Set LEDs
-          for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
             if (i % (R2_NUM_LEDS/12) == 0) {
               it[i] = Color(r, g, b);
             }
@@ -138,6 +137,11 @@ namespace ring_clock {
       uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      
+      if (color_values.get_red() > 0 && r == 0) r = 1;
+      if (color_values.get_green() > 0 && g == 0) g = 1;
+      if (color_values.get_blue() > 0 && b == 0) b = 1;
+      
       //Hour Color
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
@@ -155,6 +159,11 @@ namespace ring_clock {
           uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
           uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
           uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+          
+          if (color_values.get_red() > 0 && r == 0) r = 1;
+          if (color_values.get_green() > 0 && g == 0) g = 1;
+          if (color_values.get_blue() > 0 && b == 0) b = 1;
+
           second_color = Color(r, g, b);
         }
 
@@ -209,6 +218,11 @@ namespace ring_clock {
       uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      
+      if (color_values.get_red() > 0 && r == 0) r = 1;
+      if (color_values.get_green() > 0 && g == 0) g = 1;
+      if (color_values.get_blue() > 0 && b == 0) b = 1;
+
       //Minute Color
       it[now.minute] = Color(r, g, b);
     } else {
@@ -241,12 +255,18 @@ namespace ring_clock {
       uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      
+      if (color_values.get_red() > 0 && r == 0) r = 1;
+      if (color_values.get_green() > 0 && g == 0) g = 1;
+      if (color_values.get_blue() > 0 && b == 0) b = 1;
+    
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
       it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0); // Default Brand Orange
     }
 
     // 2. Draw Rainbow Second Hand with Fade Tail
+    // Note: Rainbow tail intentionally fades to 0 (black) for visual effect, so no min-brightness floor is applied here.
     if (this->enable_seconds != nullptr && this->enable_seconds->state) {
       
       // Calculate smooth position
@@ -313,6 +333,11 @@ namespace ring_clock {
       uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      
+      if (color_values.get_red() > 0 && r == 0) r = 1;
+      if (color_values.get_green() > 0 && g == 0) g = 1;
+      if (color_values.get_blue() > 0 && b == 0) b = 1;
+
       it[now.minute] = Color(r, g, b);
     } else {
       it[now.minute] = Color(0, 255, 255); // Default Cyan
