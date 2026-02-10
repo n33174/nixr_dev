@@ -92,6 +92,8 @@ namespace ring_clock {
       return render_time(it, false);
     } else if(_state == state::time_fade) {
       return render_time(it, true);
+    } else if(_state == state::time_rainbow) {
+      return render_rainbow(it);
     }
   }
 
@@ -216,7 +218,122 @@ namespace ring_clock {
 
   }
 
-  void RingClock::set_time(time::RealTimeClock *time) {
+  void RingClock::render_rainbow(light::AddressableLight & it) {
+    if(!_has_time && _time->now().is_valid()) {
+      _has_time=true;
+      on_ready();
+      return;
+    }
+    
+    // Clear inner ring
+    clear_R2(it);
+    draw_scale(it);
+    
+    esphome::ESPTime now = _time->now();
+
+    // 1. Draw Hour Hand
+    int hour = now.hour;
+    if (hour >= 12) hour = hour - 12;
+
+    if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
+      auto color_values = this->hour_hand_color->current_values;
+      float brightness = color_values.get_brightness();
+      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
+    } else {
+      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 0, 0); // Default Red
+    }
+
+    // 2. Draw Rainbow Second Hand with Fade Tail
+    if (this->enable_seconds != nullptr && this->enable_seconds->state) {
+      
+      // Calculate smooth position
+      if (this->last_second != now.second) {
+          this->last_second = now.second;
+          this->last_second_timestamp = millis();
+      }
+      long dt = millis() - this->last_second_timestamp;
+      float progress = dt / 1000.0f;
+      if (progress > 1.0f) progress = 1.0f;
+      
+      // 'precise_pos' is the head of the comet
+      float precise_pos = now.second + progress;
+      
+      // Slowly changing rainbow offset based on minutes to ensure it's not identical every minute
+      // Using now.minute as offset creates a slow shift over the hour.
+      // 360 degrees / 60 minutes = 6 degrees shift per minute.
+      float hue_offset = now.minute * (360.0f/60.0f); 
+      
+      // Iterate previous 20 LED positions (tail length)
+      int tail_length = 20;
+      
+      for (int i = 0; i < tail_length; i++) {
+          
+          float tail_pos_exact = precise_pos - i;
+          // Handle wrap around for exact position calculation
+          if (tail_pos_exact < 0) tail_pos_exact += 60.0f;
+          
+          int led_idx = (int)block_pos(tail_pos_exact); // Using floor of position
+          // Handle LED index wrap
+          if (led_idx < 0) led_idx += 60;
+          if (led_idx >= 60) led_idx -= 60;
+
+          // Brightness logic: Head is 100%, tail fades to 0
+          // But we want smooth sub-pixel rendering.
+          // Let's simplify: Just light up 'led_idx' based on how close it is to 'precise_pos'
+          
+      }
+      
+      // Re-thinking loop: Iterate all 60 LEDs, determine if they are in the tail.
+      for (int i = 0; i < 60; i++) {
+        float dist = precise_pos - i;
+        if (dist < 0) dist += 60.0f; // Handle wrap: e.g. pos=1, i=59 -> dist = 1 - 59 = -58 => +60 = 2
+        
+        // If dist is small positive, we are BEHIND the head (in the tail)
+        if (dist >= 0 && dist < tail_length) {
+          float tail_intensity = 1.0f - (dist / (float)tail_length);
+          tail_intensity = tail_intensity * tail_intensity; // Gamma correction / nicer falloff
+          
+          // Calculate Rainbow Color
+          // Hue varies along the tail AND moves slowly over time
+          // Hue = (Base Offset + (i * hue_step)) 
+          // Let's make the head color cycle through rainbow? 
+          // Requirement: "seconds hand moving around changing colour through rainbow slowly"
+          // So head color depends on position (or time).
+          
+          // Rainbow based on position on the ring + time offset
+          float hue = (i * (360.0f / 60.0f)) + hue_offset; 
+          esphome::Color rgb = esphome::hsv_to_rgb(hue, 1.0f, 1.0f); // Saturation 1.0, Value 1.0
+          
+          // Apply brightness/fade
+          rgb = Color(
+              (uint8_t)(rgb.r * tail_intensity),
+              (uint8_t)(rgb.g * tail_intensity),
+              (uint8_t)(rgb.b * tail_intensity)
+          );
+          
+          it[i] = rgb;
+        }
+      }
+    }
+    
+    // 3. Draw Minute Hand (on top)
+    if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
+      auto color_values = this->minute_hand_color->current_values;
+      float brightness = color_values.get_brightness();
+      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      it[now.minute] = Color(r, g, b);
+    } else {
+      it[now.minute] = Color(0, 255, 0); // Default Green
+    }
+
+  }
+
+
     _time = time;
   }
 

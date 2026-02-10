@@ -69,6 +69,7 @@ update:
     update_interval: 60s
 
 wifi:
+  power_save_mode: none
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   reboot_timeout: 0s
@@ -553,13 +554,21 @@ light:
     effects:
       - addressable_lambda:
           name: Clock
+          update_interval: 50ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
             id(RingClock)->addressable_lights_lambdacall(it);
       - addressable_lambda:
           name: "Clock (Fade)"
+          update_interval: 33ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_fade);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      - addressable_lambda:
+          name: "Clock (Rainbow)"
+          update_interval: 33ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::time_rainbow);
             id(RingClock)->addressable_lights_lambdacall(it);
   # Customise Hour Hand
   - platform: rgb
