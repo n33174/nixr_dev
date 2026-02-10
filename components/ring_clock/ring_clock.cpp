@@ -141,22 +141,6 @@ namespace ring_clock {
       it[R1_NUM_LEDS + (hour * 4)] = Color(255, 0, 0);
     }
 
-    if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
-      auto color_values = this->minute_hand_color->current_values;
-      // Get the brightness from the light component (0.0 to 1.0)
-      float brightness = color_values.get_brightness();
-      // Scale the RGB values by the brightness
-      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
-      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
-      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-      //Minute Color
-      it[now.minute] = Color(r, g, b);
-    } else {
-      // Minute Default Green
-      it[now.minute] = Color(0, 255, 0);
-    }
-
-
     if (this->enable_seconds != nullptr) {
       if (this->enable_seconds->state) {
         if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
@@ -174,6 +158,21 @@ namespace ring_clock {
           it[now.second] = Color(0, 0, 255);
         }
       }
+    }
+
+    if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
+      auto color_values = this->minute_hand_color->current_values;
+      // Get the brightness from the light component (0.0 to 1.0)
+      float brightness = color_values.get_brightness();
+      // Scale the RGB values by the brightness
+      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      //Minute Color
+      it[now.minute] = Color(r, g, b);
+    } else {
+      // Minute Default Green
+      it[now.minute] = Color(0, 255, 0);
     }
 
   }

@@ -17,7 +17,7 @@ esphome:
           id: rtc_time
       - light.turn_on:
           id: ring_light
-          brightness: !lambda "return id(standard_percentage).state/100;"
+          brightness: !lambda "return id(standard_percentage)->state/100;"
           effect: Clock
 
 esp32:
@@ -116,7 +116,7 @@ ring_clock:
     then:
       - light.turn_on:
           id: ring_light
-          brightness: !lambda "return id(standard_percentage).state/100;"
+          brightness: !lambda "return id(standard_percentage)->state/100;"
           effect: Clock
 
 i2c:
@@ -147,7 +147,7 @@ binary_sensor:
             then:
               - light.turn_on:
                   id: ring_light
-                  brightness: !lambda "return id(standard_percentage).state/100;"
+                  brightness: !lambda "return id(standard_percentage)->state/100;"
                   transition_length: 1s
       on_release:
         - if:
@@ -156,7 +156,7 @@ binary_sensor:
             then:
               - light.turn_on:
                   id: ring_light
-                  brightness: !lambda "return id(low_percentage).state/100;"
+                  brightness: !lambda "return id(low_percentage)->state/100;"
                   transition_length: 1s
     has_moving_target:
       name: Moving Target
@@ -247,10 +247,10 @@ interval:
     then:
       lambda: |-
         if (id(minute_button_long_press)) {
-          id(minute_increment).press();
+          id(minute_increment)->press();
         }
         if (id(hour_button_long_press)) {
-          id(hour_increment).press();
+          id(hour_increment)->press();
         }
 
 sensor:
@@ -341,15 +341,15 @@ button:
               auto time = id(rtc_time).now();
               return time;
         - lambda: |-
-            setenv("TZ", id(time_zone).state.c_str(), 1);
+            setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
             struct tm time_info;
-            time_info.tm_year = id(custom_time).year - 1900;
-            time_info.tm_mon = id(custom_time).month - 1;
-            time_info.tm_mday = id(custom_time).day;
-            time_info.tm_hour = id(custom_time).hour + 1;
-            time_info.tm_min = id(custom_time).minute;
-            time_info.tm_sec = id(custom_time).second;
+            time_info.tm_year = id(custom_time)->state.year - 1900;
+            time_info.tm_mon = id(custom_time)->state.month - 1;
+            time_info.tm_mday = id(custom_time)->state.day_of_month;
+            time_info.tm_hour = id(custom_time)->state.hour + 1;
+            time_info.tm_min = id(custom_time)->state.minute;
+            time_info.tm_sec = id(custom_time)->state.second;
             time_info.tm_isdst = -1;
             std::time_t t = mktime(&time_info);
             struct timeval tv = {t, 0};
@@ -380,15 +380,15 @@ button:
               auto time = id(rtc_time).now();
               return time;
         - lambda: |-
-            setenv("TZ", id(time_zone).state.c_str(), 1);
+            setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
             struct tm time_info;
-            time_info.tm_year = id(custom_time).year - 1900;
-            time_info.tm_mon = id(custom_time).month - 1;
-            time_info.tm_mday = id(custom_time).day;
-            time_info.tm_hour = id(custom_time).hour;
-            time_info.tm_min = id(custom_time).minute + 1;
-            time_info.tm_sec = id(custom_time).second;
+            time_info.tm_year = id(custom_time)->state.year - 1900;
+            time_info.tm_mon = id(custom_time)->state.month - 1;
+            time_info.tm_mday = id(custom_time)->state.day_of_month;
+            time_info.tm_hour = id(custom_time)->state.hour;
+            time_info.tm_min = id(custom_time)->state.minute + 1;
+            time_info.tm_sec = id(custom_time)->state.second;
             time_info.tm_isdst = -1;
             std::time_t t = mktime(&time_info);
             struct timeval tv = {t, 0};
@@ -416,15 +416,15 @@ button:
               - switch.is_off: sntp_switch
             then:
               - lambda: |-
-                  setenv("TZ", id(time_zone).state.c_str(), 1);
+                  setenv("TZ", id(time_zone)->state.c_str(), 1);
                   tzset();
                   struct tm time_info;
-                  time_info.tm_year = id(custom_time).year - 1900;
-                  time_info.tm_mon = id(custom_time).month - 1;
-                  time_info.tm_mday = id(custom_time).day;
-                  time_info.tm_hour = id(custom_time).hour;
-                  time_info.tm_min = id(custom_time).minute;
-                  time_info.tm_sec = id(custom_time).second;
+                  time_info.tm_year = id(custom_time)->state.year - 1900;
+                  time_info.tm_mon = id(custom_time)->state.month - 1;
+                  time_info.tm_mday = id(custom_time)->state.day_of_month;
+                  time_info.tm_hour = id(custom_time)->state.hour;
+                  time_info.tm_min = id(custom_time)->state.minute;
+                  time_info.tm_sec = id(custom_time)->state.second;
                   time_info.tm_isdst = -1;
                   std::time_t t = mktime(&time_info);
                   struct timeval tv = {t, 0};
@@ -525,7 +525,7 @@ light:
       - addressable_lambda:
           name: Clock
           lambda: |-
-            id(RingClock).addressable_lights_lambdacall(it);
+            id(RingClock)->addressable_lights_lambdacall(it);
   # Customise Hour Hand
   - platform: rgb
     id: hour_hand_color
