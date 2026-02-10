@@ -110,6 +110,19 @@ namespace ring_clock {
         }
       }
     }
+
+    // Calculate interference from LEDs 15 and 72 after all rendering is done
+    // These are physically located near the light sensor
+    // Using (R+G+B)/3 to estimate brightness contribution. Max per LED is 255.
+    // Summing both contributions gives a rough total interference metric.
+    if (TOTAL_LEDS > 72) {
+      auto c15 = it[15].get();
+      auto c72 = it[72].get();
+      float b15 = (c15.r + c15.g + c15.b) / 3.0f;
+      float b72 = (c72.r + c72.g + c72.b) / 3.0f;
+      // Normalise to 0.0 - 1.0 range (255 max)
+      this->_interference_factor = (b15 + b72) / 255.0f;
+    }
   }
 
   state RingClock::get_state() {
@@ -404,6 +417,10 @@ namespace ring_clock {
 
   void RingClock::set_blank_leds(std::vector<int> leds) {
     this->_blanked_leds = leds;
+  }
+
+  float RingClock::get_interference_factor() {
+    return this->_interference_factor;
   }
 
 } // namespace ring_clock

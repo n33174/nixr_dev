@@ -45,6 +45,7 @@ namespace ring_clock {
       void clear_R2(light::AddressableLight & it);
       void render_time(light::AddressableLight & it, bool fade);
       void render_rainbow(light::AddressableLight & it);
+      float get_interference_factor();
       void set_time(time::RealTimeClock *time);
       void set_clock_addressable_lights(light::LightState *it);
       void set_hour_hand_color_state(light::LightState* state);
@@ -60,6 +61,7 @@ namespace ring_clock {
       std::vector<int> _blanked_leds;
       CallbackManager<void()> _on_ready_callback_;
       bool _has_time{false};
+      float _interference_factor{0.0f};
       state _state{state::booting};
       light::LightState *_clock_lights;
       time::RealTimeClock *_time;
