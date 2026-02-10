@@ -269,22 +269,7 @@ namespace ring_clock {
       // Iterate previous 20 LED positions (tail length)
       int tail_length = 20;
       
-      for (int i = 0; i < tail_length; i++) {
-          
-          float tail_pos_exact = precise_pos - i;
-          // Handle wrap around for exact position calculation
-          if (tail_pos_exact < 0) tail_pos_exact += 60.0f;
-          
-          int led_idx = (int)block_pos(tail_pos_exact); // Using floor of position
-          // Handle LED index wrap
-          if (led_idx < 0) led_idx += 60;
-          if (led_idx >= 60) led_idx -= 60;
 
-          // Brightness logic: Head is 100%, tail fades to 0
-          // But we want smooth sub-pixel rendering.
-          // Let's simplify: Just light up 'led_idx' based on how close it is to 'precise_pos'
-          
-      }
       
       // Re-thinking loop: Iterate all 60 LEDs, determine if they are in the tail.
       for (int i = 0; i < 60; i++) {
@@ -305,13 +290,15 @@ namespace ring_clock {
           
           // Rainbow based on position on the ring + time offset
           float hue = (i * (360.0f / 60.0f)) + hue_offset; 
-          esphome::Color rgb = esphome::hsv_to_rgb(hue, 1.0f, 1.0f); // Saturation 1.0, Value 1.0
+          
+          float r_f, g_f, b_f;
+          esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
           
           // Apply brightness/fade
-          rgb = Color(
-              (uint8_t)(rgb.r * tail_intensity),
-              (uint8_t)(rgb.g * tail_intensity),
-              (uint8_t)(rgb.b * tail_intensity)
+          esphome::Color rgb = Color(
+              (uint8_t)(r_f * 255.0f * tail_intensity),
+              (uint8_t)(g_f * 255.0f * tail_intensity),
+              (uint8_t)(b_f * 255.0f * tail_intensity)
           );
           
           it[i] = rgb;
@@ -333,7 +320,7 @@ namespace ring_clock {
 
   }
 
-
+  void RingClock::set_time(time::RealTimeClock *time) {
     _time = time;
   }
 
