@@ -107,11 +107,11 @@ web_server:
     - id: sorting_time
       name: "Time Settings"
       sorting_weight: 10
-    - id: sorting_light
+    - id: sorting_clock
       name: "Clock Settings"
       sorting_weight: 20
-    - id: sorting_clock_custom
-      name: "Clock Customisation"
+    - id: sorting_clock_led
+      name: "Clock LED Customisation"
       sorting_weight: 25
     - id: sorting_sensors
       name: "Sensors"
@@ -342,7 +342,7 @@ number:
     max_value: 100
     step: 1
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock
   - platform: template
     id: low_percentage
     name: "Low/Off Brightness Percentage"
@@ -354,7 +354,7 @@ number:
     max_value: 100
     step: 1
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock
 
 button:
   - platform: restart
@@ -511,21 +511,21 @@ switch:
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock
   - platform: template
     name: "Enable Seconds"
     id: enable_seconds
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock
   - platform: template
     name: "Enable Scale"
     id: enable_scale
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock
 
 
 datetime:
@@ -581,7 +581,7 @@ light:
     # WARNING Increasing the values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
     color_correct: [75%, 75%, 75%]
     web_server:
-      sorting_group_id: sorting_light
+      sorting_group_id: sorting_clock
     effects:
       - addressable_lambda:
           name: Clock
@@ -611,7 +611,7 @@ light:
     green: output_hour_green
     blue: output_hour_blue
     web_server:
-      sorting_group_id: sorting_clock_custom
+      sorting_group_id: sorting_clock_led
   # Customise Minute Hand
   - platform: rgb
     id: minute_hand_color
@@ -622,7 +622,7 @@ light:
     green: output_minute_green
     blue: output_minute_blue
     web_server:
-      sorting_group_id: sorting_clock_custom
+      sorting_group_id: sorting_clock_led
   # Customise Second Hand
   - platform: rgb
     id: second_hand_color
@@ -633,7 +633,7 @@ light:
     green: output_second_green
     blue: output_second_blue
     web_server:
-      sorting_group_id: sorting_clock_custom
+      sorting_group_id: sorting_clock_led
   # Customise Scale
   - platform: rgb
     id: scale_color
@@ -644,7 +644,7 @@ light:
     green: output_scale_green
     blue: output_scale_blue
     web_server:
-      sorting_group_id: sorting_clock_custom
+      sorting_group_id: sorting_clock_led
     effects:
       - random:
   # Remaining Inner Ring LEDs
@@ -657,7 +657,7 @@ light:
     green: output_notification_green
     blue: output_notification_blue
     web_server:
-      sorting_group_id: sorting_clock_custom
+      sorting_group_id: sorting_clock_led
     effects:
       - random:
       - pulse:
