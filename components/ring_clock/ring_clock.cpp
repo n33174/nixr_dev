@@ -89,7 +89,9 @@ namespace ring_clock {
       clear_R2(it);
       it[0] = Color(0, 0, 255); //Blue
     } else if(_state == state::time) {
-      return render_time(it);
+      return render_time(it, false);
+    } else if(_state == state::time_fade) {
+      return render_time(it, true);
     }
   }
 
@@ -113,7 +115,7 @@ namespace ring_clock {
     }
   }
 
-  void RingClock::render_time(light::AddressableLight & it) {
+  void RingClock::render_time(light::AddressableLight & it, bool fade) {
 
     clear_R1(it);
     clear_R2(it);
@@ -143,19 +145,73 @@ namespace ring_clock {
 
     if (this->enable_seconds != nullptr) {
       if (this->enable_seconds->state) {
+        Color second_color = Color(0, 0, 255); // Default Blue
+
         if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
           auto color_values = this->second_hand_color->current_values;
-          // Get the brightness from the light component (0.0 to 1.0)
           float brightness = color_values.get_brightness();
-          // Scale the RGB values by the brightness
           uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
           uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
           uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-          //Second Color
-          it[now.second] = Color(r, g, b);
+          second_color = Color(r, g, b);
+        }
+
+        if (fade) {
+            // Smooth fade between seconds
+            int current_second = now.second;
+            int next_second = (current_second + 1) % 60;
+            
+            // Get milliseconds from system time for smooth transition
+            // We use the fractional part of the current second based on millis()
+            // Note: This assumes connection to an SNTP server or similar that keeps system time updated
+            // Alternatively, we could track millis() locally if needed, but ESPHome's time usually syncs well.
+            // A simpler approach for animation smoothness is using millis() % 1000
+            
+            long now_millis = millis();
+            float progress = (now_millis % 1000) / 1000.0f;
+
+            // Apply colors
+            // Current LED fades out: (1.0 - progress)
+            // Next LED fades in: progress
+             
+            // We need to blend with whatever is currently on the LED (scale/ticks)
+            // But 'it' allows setting color directly. 
+            // To do this properly additive, we should retrieve the current color, but here we will just overwrite
+            // or we can implement a simple helper if we want to blend with background ticks.
+            // For now, simple overwrite or simplistic blending if you want to keep ticks visible.
+            // Assuming we overwrite for the hands layer as per previous logic.
+
+            Color current_led_color = Color(
+                (uint8_t)(second_color.r * (1.0f - progress)), 
+                (uint8_t)(second_color.g * (1.0f - progress)), 
+                (uint8_t)(second_color.b * (1.0f - progress))
+            );
+            
+            Color next_led_color = Color(
+                (uint8_t)(second_color.r * progress), 
+                (uint8_t)(second_color.g * progress), 
+                (uint8_t)(second_color.b * progress)
+            );
+
+            // Add to existing color (simple addition to merge with scale if any)
+            // Note: AddressableLight usage usually overwrites. 
+            // If you want to BLEND with the scale (which was drawn earlier), 
+            // you might want to get the current color first: it[x].get() 
+            // However, esphome sometimes doesn't support reading back in all contexts.
+            // Let's just set it for now, similar to how the non-fade version does logic.
+            
+            // Actually, to look good, we often want the hand to be 'on top'.
+            // But for fading, we might want to just add the brightness.
+            // Let's straightforwardly set it, assuming hands obscure the scale.
+            
+            // Note: if R1_NUM_LEDS is 60, indexes 0-59 are the minute/second ring.
+            
+            it[current_second] = current_led_color;
+            it[next_second] = next_led_color;
+            
         } else {
-          // Second Default Blue
-          it[now.second] = Color(0, 0, 255);
+            // Standard step Logic
+            it[now.second] = second_color;
         }
       }
     }

@@ -49,12 +49,17 @@ logger:
 
 # Enable Home Assistant API
 api:
+  encryption:
+    key: "jYr77i2VI8BEcxGuhQvnX9RpRumx7WCYoZVv4piHWxI="
+  # Confirm this setting
+  reboot_timeout: 0s
 
 ota:
   - platform: http_request
   - platform: web_server
   - platform: esphome
-
+    password: "59ddefdfc18e3fa945ca6e45eb73ef47"
+    
 http_request:
 
 update:
@@ -64,28 +69,27 @@ update:
     update_interval: 60s
 
 wifi:
-  # Set up a wifi access point
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  reboot_timeout: 0s
+
+  manual_ip:
+    static_ip: 192.168.20.57
+    gateway: 192.168.20.1
+    subnet: 255.255.255.0
+    dns1: 192.168.20.1
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    password: "12345678"
+    ssid: "Nixr Fallback Hotspot"
+    password: "SPt0OFUb7nPR"
 
 captive_portal:
 
-# Sets up Bluetooth LE (Only on ESP32) to allow the user
-# to provision wifi credentials to the device.
-esp32_improv:
-  authorizer: none
-
-# Sets up the improv via serial client for Wi-Fi provisioning
-improv_serial:
-
-# This should point to the public location of this yaml file.
-dashboard_import:
-  package_import_url: github://n33174/nixr_dev/nixr.yaml@main
-  import_full_config: false # or true
-
 external_components:
   - source: github://n33174/nixr_dev@main
-    components: [ring_clock]
+    components: [ ring_clock ]
+    refresh: 10s
 
 globals:
   - id: minute_button_long_press
@@ -130,7 +134,7 @@ ring_clock:
     then:
       - light.turn_on:
           id: ring_light
-          brightness: !lambda 'return id(standard_percentage)->state/100;'
+          brightness: !lambda 'return id(standard_percentage).state/100;'
           effect: Clock
 
 i2c:
@@ -361,7 +365,7 @@ button:
             setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
             struct tm time_info;
-            auto *time = id(custom_time); // Get TemplateDateTime pointer
+            auto *time = id(custom_time);
             time_info.tm_year = time->year - 1900;
             time_info.tm_mon = time->month - 1;
             time_info.tm_mday = time->day;
@@ -698,3 +702,4 @@ rtttl:
   output: buzzer
   id: buzzer_rtttl
   gain: 90%
+

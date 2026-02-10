@@ -23,6 +23,7 @@ namespace ring_clock {
   {
     booting,
     time,
+    time_fade,
     ota,
     shutdown
   };
@@ -40,7 +41,7 @@ namespace ring_clock {
       void set_state(state state);
       void clear_R1(light::AddressableLight & it);
       void clear_R2(light::AddressableLight & it);
-      void render_time(light::AddressableLight & it);
+      void render_time(light::AddressableLight & it, bool fade);
       void set_time(time::RealTimeClock *time);
       void set_clock_addressable_lights(light::LightState *it);
       void set_hour_hand_color_state(light::LightState* state);
