@@ -29,34 +29,41 @@ namespace ring_clock {
   }
 
   void RingClock::draw_scale(light::AddressableLight & it) {
-
     if (this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
       auto color_values = this->notification_color->current_values;
-      // Get the brightness from the light component (0.0 to 1.0)
       float brightness = color_values.get_brightness();
-      // Scale the RGB values by the brightness
-        uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
-        uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
-        uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
-        
-        // Ensure minimum visibility
-        if (color_values.get_red() > 0 && r == 0) r = 1;
-        if (color_values.get_green() > 0 && g == 0) g = 1;
-        if (color_values.get_blue() > 0 && b == 0) b = 1;
+      
+      uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+      uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+      uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+      
+      // Ensure minimum visibility
+      if (color_values.get_red() > 0 && r == 0) r = 1;
+      if (color_values.get_green() > 0 && g == 0) g = 1;
+      if (color_values.get_blue() > 0 && b == 0) b = 1;
 
+      // Inner Ring Color Loop
+      for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
         it[i] = Color(r, g, b);
       }
-    } else {
-      // Not Lit
     }
 
     if (this->enable_scale != nullptr) {
       if (this->enable_scale->state) {
         if (this->scale_color != nullptr && this->scale_color->current_values.get_state()) {
           auto color_values = this->scale_color->current_values;
-          // Get the brightness from the light component (0.0 to 1.0)
           float brightness = color_values.get_brightness();
-          // Scale the RGB values by the brightness
+          
+          uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
+          uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
+          uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
+          
+          if (color_values.get_red() > 0 && r == 0) r = 1;
+          if (color_values.get_green() > 0 && g == 0) g = 1;
+          if (color_values.get_blue() > 0 && b == 0) b = 1;
+
+          // Set Scaled LEDs
+          for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
             if (i % (R2_NUM_LEDS/12) == 0) {
               it[i] = Color(r, g, b);
             }
@@ -71,7 +78,6 @@ namespace ring_clock {
         }
       }
     }
-
   }
 
   void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
