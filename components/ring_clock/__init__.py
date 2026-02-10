@@ -20,6 +20,7 @@ ns = cg.esphome_ns.namespace("ring_clock")
 RingClock = ns.class_("RingClock", cg.Component)
 ReadyTrigger = ns.class_('ReadyTrigger', automation.Trigger.template())
 TimerFinishedTrigger = ns.class_('TimerFinishedTrigger', automation.Trigger.template())
+StopwatchMinuteTrigger = ns.class_('StopwatchMinuteTrigger', automation.Trigger.template())
 
 CONFIG_SCHEMA = cv.Schema({
     #ID
