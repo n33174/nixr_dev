@@ -66,7 +66,7 @@ namespace ring_clock {
           // Set Default Scale Color
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
             if (i % (R2_NUM_LEDS/12) == 0) {
-              it[i] = Color(255, 255, 255);
+              it[i] = Color(50, 50, 50); // Default Scale Dim White
             }
           }
         }
@@ -141,13 +141,13 @@ namespace ring_clock {
       //Hour Color
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
-      // Hour Default Red
-      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 0, 0);
+      // Hour Default Brand Orange
+      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0);
     }
 
     if (this->enable_seconds != nullptr) {
       if (this->enable_seconds->state) {
-        Color second_color = Color(0, 0, 255); // Default Blue
+        Color second_color = Color(255, 255, 255); // Default White
 
         if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
           auto color_values = this->second_hand_color->current_values;
@@ -212,8 +212,8 @@ namespace ring_clock {
       //Minute Color
       it[now.minute] = Color(r, g, b);
     } else {
-      // Minute Default Green
-      it[now.minute] = Color(0, 255, 0);
+      // Minute Default Cyan
+      it[now.minute] = Color(0, 255, 255);
     }
 
   }
@@ -243,7 +243,7 @@ namespace ring_clock {
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
-      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 0, 0); // Default Red
+      it[R1_NUM_LEDS + (hour * 4)] = Color(255, 145, 0); // Default Brand Orange
     }
 
     // 2. Draw Rainbow Second Hand with Fade Tail
@@ -315,7 +315,7 @@ namespace ring_clock {
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       it[now.minute] = Color(r, g, b);
     } else {
-      it[now.minute] = Color(0, 255, 0); // Default Green
+      it[now.minute] = Color(0, 255, 255); // Default Cyan
     }
 
   }
