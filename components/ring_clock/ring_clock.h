@@ -72,6 +72,11 @@ namespace ring_clock {
       void start_stopwatch();
       void stop_stopwatch();
       void reset_stopwatch();
+      void add_on_timer_finished_callback(std::function<void()> callback);
+      void on_timer_finished();
+      void add_on_stopwatch_minute_callback(std::function<void()> callback);
+      void on_stopwatch_minute();
+
       
       // Default color setters
       void set_default_hour_color(Color color) { _default_hour_color = color; }
@@ -110,6 +115,14 @@ namespace ring_clock {
       uint32_t _stopwatch_start_ms{0};
       uint32_t _stopwatch_paused_ms{0};
 
+      CallbackManager<void()> _on_timer_finished_callback_;
+      uint32_t _timer_finished_ms{0};
+      bool _timer_finishing_dispatched{false};
+      
+      CallbackManager<void()> _on_stopwatch_minute_callback_;
+      int _stopwatch_last_minute{-1};
+
+
       // Default colors (Initialized from constants above)
       Color _default_hour_color = DEFAULT_COLOR_HOUR;
       Color _default_minute_color = DEFAULT_COLOR_MINUTE;
@@ -120,10 +133,18 @@ namespace ring_clock {
 
   class ReadyTrigger : public Trigger<> {
     public:
-      // Corrected constructor parameter type
       explicit ReadyTrigger(RingClock *parent);
   };
 
+  class TimerFinishedTrigger : public Trigger<> {
+    public:
+      explicit TimerFinishedTrigger(RingClock *parent);
+  };
+
+  class StopwatchMinuteTrigger : public Trigger<> {
+    public:
+      explicit StopwatchMinuteTrigger(RingClock *parent);
+  };
 
 } // namespace ring_clock
 } // namespace esphome

@@ -28,6 +28,22 @@ namespace ring_clock {
     this->_on_ready_callback_.call();
   }
 
+  void RingClock::add_on_timer_finished_callback(std::function<void()> callback) {
+    this->_on_timer_finished_callback_.add(std::move(callback));
+  }
+
+  void RingClock::on_timer_finished() {
+    this->_on_timer_finished_callback_.call();
+  }
+
+  void RingClock::add_on_stopwatch_minute_callback(std::function<void()> callback) {
+    this->_on_stopwatch_minute_callback_.add(std::move(callback));
+  }
+
+  void RingClock::on_stopwatch_minute() {
+    this->_on_stopwatch_minute_callback_.call();
+  }
+
   void RingClock::draw_scale(light::AddressableLight & it) {
     if (this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
       auto color_values = this->notification_color->current_values;
@@ -280,9 +296,16 @@ namespace ring_clock {
   }
 
   void RingClock::start_timer(int hours, int minutes, int seconds) {
+    // Limit to 12h 59m 59s
+    if (hours > 12) hours = 12;
+    if (hours == 12 && minutes > 59) minutes = 59;
+    if (hours == 12 && minutes == 59 && seconds > 59) seconds = 59;
+
     _timer_duration_ms = (hours * 3600 + minutes * 60 + seconds) * 1000;
     _timer_target_ms = millis() + _timer_duration_ms;
     _timer_active = true;
+    _timer_finished_ms = 0;
+    _timer_finishing_dispatched = false;
     _state = state::timer;
   }
 
@@ -294,6 +317,7 @@ namespace ring_clock {
     if (!_stopwatch_active) {
       _stopwatch_start_ms = millis() - _stopwatch_paused_ms;
       _stopwatch_active = true;
+      _stopwatch_last_minute = -1;
     }
     _state = state::stopwatch;
   }
@@ -308,12 +332,12 @@ namespace ring_clock {
   void RingClock::reset_stopwatch() {
     _stopwatch_start_ms = millis();
     _stopwatch_paused_ms = 0;
+    _stopwatch_last_minute = -1;
   }
 
   void RingClock::render_timer(light::AddressableLight & it) {
     clear_R1(it);
     clear_R2(it);
-    // Scales turned off as requested
 
     if (!_timer_active) return;
 
@@ -370,7 +394,7 @@ namespace ring_clock {
           it[i] = get_notification_color();
         }
       }
-    } else {
+    } else if (total_seconds > 0) {
       // Show hours on R2 markers ONLY (0, 4, 8...)
       for (int i = 0; i < 12; i++) {
         if (i < hours) {
@@ -381,10 +405,29 @@ namespace ring_clock {
       for (int i = 0; i < minutes; i++) {
         it[i] = get_minute_color();
       }
+      // Show seconds "below" (priority over minute)
+      it[seconds] = get_second_color();
     }
     
     if (total_seconds == 0 && _timer_active) {
-        // Timer finished: Gentle pulse using second hand color
+        if (_timer_finished_ms == 0) {
+          _timer_finished_ms = millis();
+        }
+        
+        // Dispatch sound trigger once
+        if (!_timer_finishing_dispatched) {
+          this->on_timer_finished();
+          _timer_finishing_dispatched = true;
+        }
+
+        // Auto return to clock after 10s
+        if (millis() - _timer_finished_ms > 10000) {
+          _timer_active = false;
+          _state = state::time;
+          return;
+        }
+
+        // Gentle pulse using second hand color
         float pulse = (sinf(millis() * 0.003f) + 1.0f) / 2.0f; // 0.0 to 1.0
         Color sc = get_second_color();
         Color pc = Color((uint8_t)(sc.r * pulse), (uint8_t)(sc.g * pulse), (uint8_t)(sc.b * pulse));
@@ -400,13 +443,26 @@ namespace ring_clock {
   void RingClock::render_stopwatch(light::AddressableLight & it) {
     clear_R1(it);
     clear_R2(it);
-    // Scales turned off as requested
 
     uint32_t elapsed_ms = _stopwatch_active ? (millis() - _stopwatch_start_ms) : _stopwatch_paused_ms;
+    
+    // Limit to 11h 59m 59s
+    if (elapsed_ms >= 12 * 3600 * 1000) {
+        elapsed_ms = 12 * 3600 * 1000 - 1;
+    }
+
     int total_seconds = elapsed_ms / 1000;
     int hours = total_seconds / 3600;
     int minutes = (total_seconds % 3600) / 60;
     int seconds = total_seconds % 60;
+
+    // Minute chime trigger
+    if (minutes != _stopwatch_last_minute && _stopwatch_active) {
+      if (_stopwatch_last_minute != -1) {
+          this->on_stopwatch_minute();
+      }
+      _stopwatch_last_minute = minutes;
+    }
 
     auto get_hour_color = [&]() {
       if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
@@ -445,7 +501,7 @@ namespace ring_clock {
     for (int i = 0; i < minutes; i++) {
       it[i] = get_minute_color();
     }
-    // Seconds (moving LED on outer ring)
+    // Seconds (priority over minute)
     it[seconds] = get_second_color();
   }
 
@@ -459,6 +515,14 @@ namespace ring_clock {
 
   ReadyTrigger::ReadyTrigger(RingClock *parent) {
     parent->add_on_ready_callback([this]() { this->trigger(); });
+  }
+
+  TimerFinishedTrigger::TimerFinishedTrigger(RingClock *parent) {
+    parent->add_on_timer_finished_callback([this]() { this->trigger(); });
+  }
+
+  StopwatchMinuteTrigger::StopwatchMinuteTrigger(RingClock *parent) {
+    parent->add_on_stopwatch_minute_callback([this]() { this->trigger(); });
   }
 
   void RingClock::set_hour_hand_color_state(light::LightState* state) {

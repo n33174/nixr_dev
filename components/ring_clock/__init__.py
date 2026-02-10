@@ -7,6 +7,8 @@ from esphome.components import time as time_, light, switch
 DEPENDENCIES = ["network"]
 
 CONF_ON_READY = 'on_ready'
+CONF_ON_TIMER_FINISHED = 'on_timer_finished'
+CONF_ON_STOPWATCH_MINUTE = 'on_stopwatch_minute'
 
 light_ns = cg.esphome_ns.namespace("light")
 LightState = light_ns.class_("LightState", cg.Component)
@@ -17,6 +19,7 @@ AddressableLightState = light_ns.class_("LightState", LightState)
 ns = cg.esphome_ns.namespace("ring_clock")
 RingClock = ns.class_("RingClock", cg.Component)
 ReadyTrigger = ns.class_('ReadyTrigger', automation.Trigger.template())
+TimerFinishedTrigger = ns.class_('TimerFinishedTrigger', automation.Trigger.template())
 
 CONFIG_SCHEMA = cv.Schema({
     #ID
@@ -37,6 +40,12 @@ CONFIG_SCHEMA = cv.Schema({
 
     cv.Optional(CONF_ON_READY): automation.validate_automation({
         cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ReadyTrigger),
+    }),
+    cv.Optional(CONF_ON_TIMER_FINISHED): automation.validate_automation({
+        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(TimerFinishedTrigger),
+    }),
+    cv.Optional(CONF_ON_STOPWATCH_MINUTE): automation.validate_automation({
+        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(StopwatchMinuteTrigger),
     }),
 }).extend(cv.COMPONENT_SCHEMA)
 
@@ -64,5 +73,15 @@ async def to_code(config):
     cg.add(var.set_scale_color_state(wrapped_scale_color))
     wrapped_notification_color = await cg.get_variable(config["notification_color"])
     cg.add(var.set_notification_color_state(wrapped_notification_color))
+
+    for conf in config.get(CONF_ON_READY, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+    for conf in config.get(CONF_ON_TIMER_FINISHED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+    for conf in config.get(CONF_ON_STOPWATCH_MINUTE, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
 
     await cg.register_component(var, config)
