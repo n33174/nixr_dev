@@ -313,7 +313,7 @@ namespace ring_clock {
   void RingClock::render_timer(light::AddressableLight & it) {
     clear_R1(it);
     clear_R2(it);
-    draw_scale(it);
+    // Scales turned off as requested
 
     if (!_timer_active) return;
 
@@ -342,6 +342,15 @@ namespace ring_clock {
         return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
       }
       return _default_minute_color;
+    };
+
+    auto get_second_color = [&]() {
+      if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
+        auto cv = this->second_hand_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_second_color;
     };
 
     auto get_notification_color = [&]() {
@@ -375,16 +384,15 @@ namespace ring_clock {
     }
     
     if (total_seconds == 0 && _timer_active) {
-        // Timer finished: Flash "notification leds" (1-3, 5-7, etc)
-        bool flash_on = (millis() / 250) % 2 == 0;
-        if (flash_on) {
-            Color nc = get_notification_color();
-            for (int i = 0; i < 12; i++) {
-              int base = R1_NUM_LEDS + (i * 4);
-              it[base + 1] = nc;
-              it[base + 2] = nc;
-              it[base + 3] = nc;
-            }
+        // Timer finished: Gentle pulse using second hand color
+        float pulse = (sinf(millis() * 0.003f) + 1.0f) / 2.0f; // 0.0 to 1.0
+        Color sc = get_second_color();
+        Color pc = Color((uint8_t)(sc.r * pulse), (uint8_t)(sc.g * pulse), (uint8_t)(sc.b * pulse));
+        for (int i = 0; i < 12; i++) {
+          int base = R1_NUM_LEDS + (i * 4);
+          it[base + 1] = pc;
+          it[base + 2] = pc;
+          it[base + 3] = pc;
         }
     }
   }
@@ -392,21 +400,53 @@ namespace ring_clock {
   void RingClock::render_stopwatch(light::AddressableLight & it) {
     clear_R1(it);
     clear_R2(it);
-    draw_scale(it);
+    // Scales turned off as requested
 
     uint32_t elapsed_ms = _stopwatch_active ? (millis() - _stopwatch_start_ms) : _stopwatch_paused_ms;
     int total_seconds = elapsed_ms / 1000;
     int hours = total_seconds / 3600;
     int minutes = (total_seconds % 3600) / 60;
+    int seconds = total_seconds % 60;
 
+    auto get_hour_color = [&]() {
+      if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
+        auto cv = this->hour_hand_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_hour_color;
+    };
+
+    auto get_minute_color = [&]() {
+      if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
+        auto cv = this->minute_hand_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_minute_color;
+    };
+
+    auto get_second_color = [&]() {
+      if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
+        auto cv = this->second_hand_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_second_color;
+    };
+
+    // Hours
     for (int i = 0; i < 12; i++) {
       if (i < hours) {
-        it[R1_NUM_LEDS + (i * 4)] = _default_hour_color; // Markers
+        it[R1_NUM_LEDS + (i * 4)] = get_hour_color(); // Markers
       }
     }
+    // Minutes
     for (int i = 0; i < minutes; i++) {
-      it[i] = _default_minute_color;
+      it[i] = get_minute_color();
     }
+    // Seconds (moving LED on outer ring)
+    it[seconds] = get_second_color();
   }
 
   void RingClock::set_time(time::RealTimeClock *time) {

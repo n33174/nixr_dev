@@ -360,6 +360,37 @@ number:
     web_server:
       sorting_group_id: sorting_clock
 
+  - platform: template
+    name: "Timer Hours"
+    id: timer_hours
+    min_value: 0
+    max_value: 12
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+  - platform: template
+    name: "Timer Minutes"
+    id: timer_minutes
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+  - platform: template
+    name: "Timer Seconds"
+    id: timer_seconds
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+
 button:
   - platform: restart
     name: Restart
@@ -601,37 +632,7 @@ datetime:
     web_server:
       sorting_group_id: sorting_time
 
-number:
-  - platform: template
-    name: "Timer Hours"
-    id: timer_hours
-    min_value: 0
-    max_value: 23
-    step: 1
-    initial_value: 0
-    optimistic: True
-    web_server:
-      sorting_group_id: sorting_timer
-  - platform: template
-    name: "Timer Minutes"
-    id: timer_minutes
-    min_value: 0
-    max_value: 59
-    step: 1
-    initial_value: 0
-    optimistic: True
-    web_server:
-      sorting_group_id: sorting_timer
-  - platform: template
-    name: "Timer Seconds"
-    id: timer_seconds
-    min_value: 0
-    max_value: 59
-    step: 1
-    initial_value: 0
-    optimistic: True
-    web_server:
-      sorting_group_id: sorting_timer
+
 
 time:
   - platform: pcf8563
