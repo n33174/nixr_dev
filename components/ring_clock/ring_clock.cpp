@@ -157,57 +157,40 @@ namespace ring_clock {
         }
 
         if (fade) {
-            // Smooth fade between seconds
-            int current_second = now.second;
-            int next_second = (current_second + 1) % 60;
+            // Smooth fade with spread (3 LEDs lit)
             
-            // Get milliseconds from system time for smooth transition
-            // We use the fractional part of the current second based on millis()
-            // Note: This assumes connection to an SNTP server or similar that keeps system time updated
-            // Alternatively, we could track millis() locally if needed, but ESPHome's time usually syncs well.
-            // A simpler approach for animation smoothness is using millis() % 1000
-            
-            long now_millis = millis();
-            float progress = (now_millis % 1000) / 1000.0f;
+            // 1. Synchronize monotonic millis with integer seconds to prevent jumping
+            if (this->last_second != now.second) {
+                this->last_second = now.second;
+                this->last_second_timestamp = millis();
+            }
 
-            // Apply colors
-            // Current LED fades out: (1.0 - progress)
-            // Next LED fades in: progress
-             
-            // We need to blend with whatever is currently on the LED (scale/ticks)
-            // But 'it' allows setting color directly. 
-            // To do this properly additive, we should retrieve the current color, but here we will just overwrite
-            // or we can implement a simple helper if we want to blend with background ticks.
-            // For now, simple overwrite or simplistic blending if you want to keep ticks visible.
-            // Assuming we overwrite for the hands layer as per previous logic.
-
-            Color current_led_color = Color(
-                (uint8_t)(second_color.r * (1.0f - progress)), 
-                (uint8_t)(second_color.g * (1.0f - progress)), 
-                (uint8_t)(second_color.b * (1.0f - progress))
-            );
+            long dt = millis() - this->last_second_timestamp;
+            float progress = dt / 1000.0f;
+            // Clamp to avoid overshooting if clock tick is late
+            if (progress > 1.0f) progress = 1.0f;
             
-            Color next_led_color = Color(
-                (uint8_t)(second_color.r * progress), 
-                (uint8_t)(second_color.g * progress), 
-                (uint8_t)(second_color.b * progress)
-            );
-
-            // Add to existing color (simple addition to merge with scale if any)
-            // Note: AddressableLight usage usually overwrites. 
-            // If you want to BLEND with the scale (which was drawn earlier), 
-            // you might want to get the current color first: it[x].get() 
-            // However, esphome sometimes doesn't support reading back in all contexts.
-            // Let's just set it for now, similar to how the non-fade version does logic.
+            float precise_pos = now.second + progress;
             
-            // Actually, to look good, we often want the hand to be 'on top'.
-            // But for fading, we might want to just add the brightness.
-            // Let's straightforwardly set it, assuming hands obscure the scale.
-            
-            // Note: if R1_NUM_LEDS is 60, indexes 0-59 are the minute/second ring.
-            
-            it[current_second] = current_led_color;
-            it[next_second] = next_led_color;
+            // 2. Iterate all LEDs to find neighbors (handling circular wrap)
+            for (int i = 0; i < 60; i++) {
+                float dist = abs(i - precise_pos);
+                // Handle circular distance (e.g. distance between 0 and 59 is 1)
+                if (dist > 30.0f) dist = 60.0f - dist;
+                
+                // Radius of 1.5 allows for 3 LEDs to be lit (Center + 1 neighbor on each side usually)
+                // dist 0 -> 100%, dist 1.5 -> 0%
+                if (dist < 1.5f) {
+                    float brightness_scale = 1.0f - (dist / 1.5f);
+                    
+                    Color c = Color(
+                        (uint8_t)(second_color.r * brightness_scale),
+                        (uint8_t)(second_color.g * brightness_scale),
+                        (uint8_t)(second_color.b * brightness_scale)
+                    );
+                    it[i] = c;
+                }
+            }
             
         } else {
             // Standard step Logic

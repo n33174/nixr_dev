@@ -58,6 +58,8 @@ namespace ring_clock {
       state _state{state::booting};
       light::LightState *_clock_lights;
       time::RealTimeClock *_time;
+      int last_second{-1};
+      uint32_t last_second_timestamp{0};
       light::LightState* hour_hand_color{nullptr};
       light::LightState* minute_hand_color{nullptr};
       switch_::Switch* enable_seconds{nullptr};
