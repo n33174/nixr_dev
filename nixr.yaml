@@ -303,7 +303,8 @@ sensor:
       - calibrate_linear:
           - 0.0 -> 0.0
           - 3.0 -> 100.0
-      - lambda: return x < 0 ? 0 : (x > 100 ? 100 : x);
+      - lambda: |-
+          return x < 0 ? 0 : (x > 100 ? 100 : x);
 
 text:
   - platform: template
@@ -561,7 +562,7 @@ light:
     chipset: ws2812
     pin: GPIO10
     num_leds: 108
-    gamma_correct: 1.0
+    gamma_correct: 2.2
     # WARNING Increasing the values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
     color_correct: [75%, 75%, 75%]
     web_server:

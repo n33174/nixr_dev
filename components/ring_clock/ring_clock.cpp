@@ -38,9 +38,9 @@ namespace ring_clock {
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       
       // Ensure minimum visibility
-      if (color_values.get_red() > 0 && r == 0) r = 1;
-      if (color_values.get_green() > 0 && g == 0) g = 1;
-      if (color_values.get_blue() > 0 && b == 0) b = 1;
+      if (color_values.get_red() > 0 && r < 20) r = 20;
+      if (color_values.get_green() > 0 && g < 20) g = 20;
+      if (color_values.get_blue() > 0 && b < 20) b = 20;
 
       // Inner Ring Color Loop
       for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
@@ -58,9 +58,9 @@ namespace ring_clock {
           uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
           uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
           
-          if (color_values.get_red() > 0 && r == 0) r = 1;
-          if (color_values.get_green() > 0 && g == 0) g = 1;
-          if (color_values.get_blue() > 0 && b == 0) b = 1;
+          if (color_values.get_red() > 0 && r < 20) r = 20;
+          if (color_values.get_green() > 0 && g < 20) g = 20;
+          if (color_values.get_blue() > 0 && b < 20) b = 20;
 
           // Set Scaled LEDs
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
@@ -154,9 +154,9 @@ namespace ring_clock {
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       
-      if (color_values.get_red() > 0 && r == 0) r = 1;
-      if (color_values.get_green() > 0 && g == 0) g = 1;
-      if (color_values.get_blue() > 0 && b == 0) b = 1;
+      if (color_values.get_red() > 0 && r < 20) r = 20;
+      if (color_values.get_green() > 0 && g < 20) g = 20;
+      if (color_values.get_blue() > 0 && b < 20) b = 20;
       
       //Hour Color
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
@@ -176,9 +176,9 @@ namespace ring_clock {
           uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
           uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
           
-          if (color_values.get_red() > 0 && r == 0) r = 1;
-          if (color_values.get_green() > 0 && g == 0) g = 1;
-          if (color_values.get_blue() > 0 && b == 0) b = 1;
+          if (color_values.get_red() > 0 && r < 20) r = 20;
+          if (color_values.get_green() > 0 && g < 20) g = 20;
+          if (color_values.get_blue() > 0 && b < 20) b = 20;
 
           second_color = Color(r, g, b);
         }
@@ -235,9 +235,9 @@ namespace ring_clock {
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       
-      if (color_values.get_red() > 0 && r == 0) r = 1;
-      if (color_values.get_green() > 0 && g == 0) g = 1;
-      if (color_values.get_blue() > 0 && b == 0) b = 1;
+      if (color_values.get_red() > 0 && r < 20) r = 20;
+      if (color_values.get_green() > 0 && g < 20) g = 20;
+      if (color_values.get_blue() > 0 && b < 20) b = 20;
 
       //Minute Color
       it[now.minute] = Color(r, g, b);
@@ -272,9 +272,9 @@ namespace ring_clock {
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       
-      if (color_values.get_red() > 0 && r == 0) r = 1;
-      if (color_values.get_green() > 0 && g == 0) g = 1;
-      if (color_values.get_blue() > 0 && b == 0) b = 1;
+      if (color_values.get_red() > 0 && r < 20) r = 20;
+      if (color_values.get_green() > 0 && g < 20) g = 20;
+      if (color_values.get_blue() > 0 && b < 20) b = 20;
     
       it[R1_NUM_LEDS + (hour * 4)] = Color(r, g, b);
     } else {
@@ -350,9 +350,9 @@ namespace ring_clock {
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       
-      if (color_values.get_red() > 0 && r == 0) r = 1;
-      if (color_values.get_green() > 0 && g == 0) g = 1;
-      if (color_values.get_blue() > 0 && b == 0) b = 1;
+      if (color_values.get_red() > 0 && r < 20) r = 20;
+      if (color_values.get_green() > 0 && g < 20) g = 20;
+      if (color_values.get_blue() > 0 && b < 20) b = 20;
 
       it[now.minute] = Color(r, g, b);
     } else {
