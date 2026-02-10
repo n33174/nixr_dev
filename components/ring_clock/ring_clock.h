@@ -7,6 +7,7 @@
 #include "esphome/components/switch/switch.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
+#include <vector>
 
 // Define Ring
 #define TOTAL_LEDS 108
@@ -53,8 +54,10 @@ namespace ring_clock {
       void set_enable_scale_state(switch_::Switch *enable_scale);
       void set_scale_color_state(light::LightState* state);
       void set_notification_color_state(light::LightState* state);
+      void set_blank_leds(std::vector<int> leds);
 
     protected:
+      std::vector<int> _blanked_leds;
       CallbackManager<void()> _on_ready_callback_;
       bool _has_time{false};
       state _state{state::booting};

@@ -94,11 +94,21 @@ namespace ring_clock {
       clear_R2(it);
       it[0] = Color(0, 0, 255); //Blue
     } else if(_state == state::time) {
-      return render_time(it, false);
+      render_time(it, false);
     } else if(_state == state::time_fade) {
-      return render_time(it, true);
+      render_time(it, true);
     } else if(_state == state::time_rainbow) {
-      return render_rainbow(it);
+    } else if(_state == state::time_rainbow) {
+      render_rainbow(it);
+    }
+    
+    // Apply blanking for sensor reading if any LEDs are set to be blanked
+    if (!_blanked_leds.empty()) {
+      for (int led_index : _blanked_leds) {
+        if (led_index >= 0 && led_index < TOTAL_LEDS) {
+          it[led_index] = Color(0, 0, 0);
+        }
+      }
     }
   }
 
@@ -390,6 +400,10 @@ namespace ring_clock {
 
   void RingClock::set_notification_color_state(light::LightState* state) {
     this->notification_color = state;
+  }
+
+  void RingClock::set_blank_leds(std::vector<int> leds) {
+    this->_blanked_leds = leds;
   }
 
 } // namespace ring_clock

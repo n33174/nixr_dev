@@ -271,6 +271,17 @@ interval:
         if (id(hour_button_long_press)) {
           id(hour_increment)->press();
         }
+  - interval: 30s
+    then:
+      - lambda: |-
+          // Blank index 15 (15 min) and 72 (3 hour) to allow accurate sensor reading
+          std::vector<int> leds = {15, 72};
+          id(RingClock)->set_blank_leds(leds);
+      - delay: 100ms
+      - component.update: brightness_sensor
+      - lambda: |-
+          std::vector<int> leds = {};
+          id(RingClock)->set_blank_leds(leds);
 
 sensor:
   - platform: aht10
@@ -287,9 +298,16 @@ sensor:
   - platform: adc
     pin: GPIO4
     name: "Brightness"
+    id: brightness_sensor
     attenuation: 12db
-    samples: 8
-    update_interval: 1s
+    samples: 1
+    update_interval: never
+    unit_of_measurement: "%"
+    filters:
+      - calibrate_linear:
+          - 0.0 -> 0.0
+          - 3.0 -> 100.0
+      - lambda: return x < 0 ? 0 : (x > 100 ? 100 : x);
 
 text:
   - platform: template
@@ -547,6 +565,7 @@ light:
     chipset: ws2812
     pin: GPIO10
     num_leds: 108
+    gamma_correct: 1.0
     # WARNING Increasing the values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
     color_correct: [75%, 75%, 75%]
     web_server:
