@@ -24,7 +24,7 @@ namespace ring_clock {
   static const Color DEFAULT_COLOR_HOUR(255, 145, 0);         // Brand Orange
   static const Color DEFAULT_COLOR_MINUTE(0, 255, 255);       // Cyan
   static const Color DEFAULT_COLOR_SECOND(255, 255, 255);     // White
-  static const Color DEFAULT_COLOR_NOTIFICATION(255, 0, 0);   // Red
+  static const Color DEFAULT_COLOR_NOTIFICATION(255, 145, 0); // Brand Orange
   static const Color DEFAULT_COLOR_SCALE(50, 50, 50);         // Dim White
 
   enum state
@@ -76,6 +76,7 @@ namespace ring_clock {
       void on_timer_finished();
       void add_on_stopwatch_minute_callback(std::function<void()> callback);
       void on_stopwatch_minute();
+      void set_sound_enabled_state(switch_::Switch *sound_enabled) { this->_sound_enabled_switch = sound_enabled; }
 
       
       // Default color setters
@@ -121,6 +122,7 @@ namespace ring_clock {
       
       CallbackManager<void()> _on_stopwatch_minute_callback_;
       int _stopwatch_last_minute{-1};
+      switch_::Switch* _sound_enabled_switch{nullptr};
 
 
       // Default colors (Initialized from constants above)

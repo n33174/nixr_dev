@@ -138,6 +138,7 @@ ring_clock:
   second_hand_color: second_hand_color
   scale_color: scale_color
   notification_color: notification_color
+  sound_enabled_switch: timer_sounds
   on_ready:
     then:
       - light.turn_on:
@@ -146,10 +147,14 @@ ring_clock:
           effect: Clock
   on_timer_finished:
     then:
-      - rtttl.play: "notification:d=4,o=5,b=120:16c,16e,16g,8c6"
+      - rtttl.play: "alarm:d=8,o=6,b=160:c,p,c,p,c,p,c,p"
+      - delay: 10s
+      - light.turn_on:
+          id: ring_light
+          effect: Clock
   on_stopwatch_minute:
     then:
-      - rtttl.play: "minute:d=16,o=5,b=120:c6"
+      - rtttl.play: "chime:d=16,o=6,b=120:c"
 
 i2c:
   scl: GPIO5
@@ -626,6 +631,13 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_clock
+  - platform: template
+    name: "Timer or Stopwatch Sounds"
+    id: timer_sounds
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_timer
 
 
 datetime:

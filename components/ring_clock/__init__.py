@@ -38,6 +38,8 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Required("second_hand_color"): cv.use_id(light.LightState),
     cv.Required("scale_color"): cv.use_id(light.LightState),
     cv.Required("notification_color"): cv.use_id(light.LightState),
+    cv.Required("sound_enabled_switch"): cv.use_id(switch.Switch),
+
 
     cv.Optional(CONF_ON_READY): automation.validate_automation({
         cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ReadyTrigger),
@@ -74,6 +76,8 @@ async def to_code(config):
     cg.add(var.set_scale_color_state(wrapped_scale_color))
     wrapped_notification_color = await cg.get_variable(config["notification_color"])
     cg.add(var.set_notification_color_state(wrapped_notification_color))
+    wrapped_sound_enabled = await cg.get_variable(config["sound_enabled_switch"])
+    cg.add(var.set_sound_enabled_state(wrapped_sound_enabled))
 
     for conf in config.get(CONF_ON_READY, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)

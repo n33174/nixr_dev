@@ -33,7 +33,10 @@ namespace ring_clock {
   }
 
   void RingClock::on_timer_finished() {
-    this->_on_timer_finished_callback_.call();
+    // Check if sound is enabled before dispatching
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) {
+      this->_on_timer_finished_callback_.call();
+    }
   }
 
   void RingClock::add_on_stopwatch_minute_callback(std::function<void()> callback) {
@@ -41,7 +44,10 @@ namespace ring_clock {
   }
 
   void RingClock::on_stopwatch_minute() {
-    this->_on_stopwatch_minute_callback_.call();
+    // Check if sound is enabled before dispatching
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) {
+      this->_on_stopwatch_minute_callback_.call();
+    }
   }
 
   void RingClock::draw_scale(light::AddressableLight & it) {
@@ -387,12 +393,9 @@ namespace ring_clock {
     };
 
     if (total_seconds > 0 && total_seconds < 60) {
-      // Less than 1 minute: Use outer ring for seconds and flash markers
-      bool flash_on = (millis() / 500) % 2 == 0;
-      if (flash_on) {
-        for (int i = 0; i < seconds; i++) {
-          it[i] = get_notification_color();
-        }
+      // Less than 1 minute: Steady second hand color on outer ring
+      for (int i = 0; i < seconds; i++) {
+        it[i] = get_second_color();
       }
     } else if (total_seconds > 0) {
       // Show hours on R2 markers ONLY (0, 4, 8...)
@@ -420,15 +423,8 @@ namespace ring_clock {
           _timer_finishing_dispatched = true;
         }
 
-        // Auto return to clock after 10s
-        if (millis() - _timer_finished_ms > 10000) {
-          _timer_active = false;
-          _state = state::time;
-          return;
-        }
-
-        // Gentle pulse using second hand color
-        float pulse = (sinf(millis() * 0.003f) + 1.0f) / 2.0f; // 0.0 to 1.0
+        // Pulse logic: 0.3 to 1.0 (doesn't fade out completely)
+        float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
         Color sc = get_second_color();
         Color pc = Color((uint8_t)(sc.r * pulse), (uint8_t)(sc.g * pulse), (uint8_t)(sc.b * pulse));
         for (int i = 0; i < 12; i++) {
