@@ -59,10 +59,10 @@ namespace ring_clock {
       if (effect == "Sensors: Bars") {
         this->render_sensors_bars(it);
         sensor_effect_active = true;
-      } else if (effect == "Sensors: Temp Glow") {
+      } else if (effect == "Sensors: Temperature Glow") {
         this->render_sensors_temp_glow(it);
         sensor_effect_active = true;
-      } else if (effect == "Sensors: Humid Glow") {
+      } else if (effect == "Sensors: Humidity Glow") {
         this->render_sensors_humid_glow(it);
         sensor_effect_active = true;
       } else if (effect == "Sensors: Ticks") {
@@ -544,43 +544,48 @@ namespace ring_clock {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
 
-    // Helper for Temp Color (-10 to 50C) - Richer variation
+    // Helper for Temp Color (-10 to 50C) - Windy.com Style
     auto get_t_color = [](float t) {
-        float p = (t + 10.0f) / 60.0f;
-        if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
-        
-        if (p < 0.25f) { // -10 to 5 (First 15 degrees): Deep Blue to Cyan-Blue
-            float p2 = p / 0.25f;
-            return Color(0, (uint8_t)(p2 * 100), 255);
-        } else if (p < 0.5f) { // 5 to 20 (Next 15 degrees): Cyan-Blue to Orange
-            float p2 = (p - 0.25f) / 0.25f;
-            return Color((uint8_t)(p2 * 255), (uint8_t)(100 + p2 * 40), (uint8_t)((1.0f - p2) * 255));
-        } else if (p < 0.75f) { // 20 to 35 (Next 15 degrees): Orange to Pink-Red
-            float p2 = (p - 0.5f) / 0.25f;
-            return Color(255, (uint8_t)((1.0f - p2) * 140), (uint8_t)(p2 * 100));
-        } else { // 35 to 50 (Last 15 degrees): Pink-Red to Deep Red
-            float p2 = (p - 0.75f) / 0.25f;
-            return Color(255, 0, (uint8_t)((1.0f - p2) * 100));
+        if (t <= -10.0f) return Color(26, 22, 73);    // #1a1649 - Deep Purple/Blue
+        if (t <= 0.0f) {
+            float p = (t + 10.0f) / 10.0f;
+            return Color((uint8_t)(26 + p * (18-26)), (uint8_t)(22 + p * (94-22)), (uint8_t)(73 + p * (131-73)));
         }
+        if (t <= 10.0f) {
+            float p = t / 10.0f;
+            return Color((uint8_t)(18 + p * (60-18)), (uint8_t)(94 + p * (157-94)), (uint8_t)(131 + p * (116-131)));
+        }
+        if (t <= 20.0f) {
+            float p = (t - 10.0f) / 10.0f;
+            return Color((uint8_t)(60 + p * (207-60)), (uint8_t)(157 + p * (216-157)), (uint8_t)(116 + p * (113-116)));
+        }
+        if (t <= 30.0f) {
+            float p = (t - 20.0f) / 10.0f;
+            return Color((uint8_t)(207 + p * (223-207)), (uint8_t)(216 + p * (158-216)), (uint8_t)(113 + p * (60-113)));
+        }
+        if (t <= 40.0f) {
+            float p = (t - 30.0f) / 10.0f;
+            return Color((uint8_t)(223 + p * (193-223)), (uint8_t)(158 + p * (59-158)), (uint8_t)(60 + p * (44-60)));
+        }
+        if (t <= 50.0f) {
+            float p = (t - 40.0f) / 10.0f;
+            return Color((uint8_t)(193 + p * (136-193)), (uint8_t)(59 + p * (26-59)), (uint8_t)(44 + p * (23-44)));
+        }
+        return Color(136, 26, 23); // #881a17 - Dark Red
     };
 
-    // Helper for Humid Color (Yellow -> Lime -> Green -> Teal -> Cyan)
+    // Helper for Humid Color - Windy.com Style
     auto get_h_color = [](float h) {
-        float p = h / 100.0f;
-        if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
-        
-        if (p < 0.25f) { // Yellow to Lime
-            float p2 = p / 0.25f;
-            return Color((uint8_t)((1.0f - p2 / 2.0f) * 255), 255, 0);
-        } else if (p < 0.5f) { // Lime to Green
-            float p2 = (p - 0.25f) / 0.25f;
-            return Color((uint8_t)((0.5f - p2 / 2.0f) * 255), 255, 0);
-        } else if (p < 0.75f) { // Green to Teal
-            float p2 = (p - 0.5f) / 0.25f;
-            return Color(0, 255, (uint8_t)(p2 * 128));
-        } else { // Teal to Cyan
-            float p2 = (p - 0.75f) / 0.25f;
-            return Color(0, 255, (uint8_t)(128 + p2 * 127));
+        if (h <= 30.0f) { // Dry: Brown/Yellow
+            float p = h / 30.0f;
+            return Color((uint8_t)(190 - p * 30), (uint8_t)(155 + p * 40), (uint8_t)(47 - p * 20));
+        } else if (h <= 70.0f) { // Comfort: Yellow-Green to Green
+            float p = (h - 30.0f) / 40.0f;
+            return Color((uint8_t)(160 - p * 100), (uint8_t)(195 + p * 20), (uint8_t)(27 + p * 100));
+        } else { // Humid: Green to Deep Blue
+            float p = (h - 70.0f) / 30.0f;
+            if (p > 1.0f) p = 1.0f;
+            return Color((uint8_t)(60 - p * 40), (uint8_t)(215 - p * 120), (uint8_t)(127 + p * 100));
         }
     };
 
