@@ -122,6 +122,8 @@ namespace ring_clock {
       void render_stopwatch(light::AddressableLight & it);
       void render_sensors_bars(light::AddressableLight & it);
       void render_sensors_ticks(light::AddressableLight & it);
+      void render_sensors_temp_glow(light::AddressableLight & it);
+      void render_sensors_humid_glow(light::AddressableLight & it);
       void render_sensors_dual_glow(light::AddressableLight & it);
       void render_sensors_bar_individual(light::AddressableLight & it, bool is_temp);
       void render_sensors_tick_individual(light::AddressableLight & it, bool is_temp);

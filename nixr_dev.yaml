@@ -26,10 +26,11 @@ esphome:
             level: DEBUG
         - pcf8563.read_time:
               id: rtc_time
-        - light.turn_on:
-            id: ring_light
-            brightness: !lambda 'return id(standard_percentage)->state/100;'
-            effect: Clock
+        - lambda: |-
+            auto call = id(ring_light).turn_on();
+            call.set_brightness(id(standard_percentage).state / 100.0f);
+            call.set_effect(id(last_clock_effect));
+            call.perform();
   on_shutdown:
     - priority: 700
       then:
@@ -100,6 +101,10 @@ globals:
   - id: hour_button_long_press
     type: bool
     initial_value: 'false'
+  - id: last_clock_effect
+    type: std::string
+    restore_value: yes
+    initial_value: '"Clock"'
 
 web_server:
   port: 80
@@ -699,6 +704,14 @@ light:
     color_correct: [75%, 75%, 75%]
     web_server:
       sorting_group_id: sorting_clock
+    on_state_change:
+      - lambda: |-
+          if (id(ring_light).remote_values.is_on()) {
+            std::string effect = id(ring_light).get_effect_name();
+            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)") {
+              id(last_clock_effect) = effect;
+            }
+          }
     effects:
       - addressable_lambda:
           name: Clock
