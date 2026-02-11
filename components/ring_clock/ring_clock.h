@@ -5,6 +5,7 @@
 #include "esphome/components/light/addressable_light.h"
 #include "esphome/components/time/real_time_clock.h"
 #include "esphome/components/switch/switch.h"
+#include "esphome/components/sensor/sensor.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 #include <vector>
@@ -23,7 +24,7 @@ namespace ring_clock {
   // Default Colors
   static const Color DEFAULT_COLOR_HOUR(255, 145, 0);         // Brand Orange
   static const Color DEFAULT_COLOR_MINUTE(0, 255, 255);       // Cyan
-  static const Color DEFAULT_COLOR_SECOND(255, 255, 255);     // White
+  static const Color DEFAULT_COLOR_SECOND(200, 200, 200);     // White
   static const Color DEFAULT_COLOR_NOTIFICATION(255, 145, 0); // Brand Orange
   static const Color DEFAULT_COLOR_SCALE(50, 50, 50);         // Dim White
 
@@ -36,7 +37,11 @@ namespace ring_clock {
     timer,
     stopwatch,
     ota,
-    shutdown
+    shutdown,
+    sensors_bars,
+    sensors_temp_glow,
+    sensors_humid_glow,
+    sensors_ticks
   };
 
   class RingClock : public Component {
@@ -77,6 +82,8 @@ namespace ring_clock {
       void add_on_stopwatch_minute_callback(std::function<void()> callback);
       void on_stopwatch_minute();
       void set_sound_enabled_state(switch_::Switch *sound_enabled) { this->_sound_enabled_switch = sound_enabled; }
+      void set_temperature_sensor(sensor::Sensor *temp) { this->_temp_sensor = temp; }
+      void set_humidity_sensor(sensor::Sensor *humid) { this->_humidity_sensor = humid; }
 
       
       // Default color setters
@@ -106,6 +113,10 @@ namespace ring_clock {
 
       void render_timer(light::AddressableLight & it);
       void render_stopwatch(light::AddressableLight & it);
+      void render_sensors_bars(light::AddressableLight & it);
+      void render_sensors_temp_glow(light::AddressableLight & it);
+      void render_sensors_humid_glow(light::AddressableLight & it);
+      void render_sensors_ticks(light::AddressableLight & it);
 
       // Timer and Stopwatch state
       bool _timer_active{false};
@@ -123,6 +134,8 @@ namespace ring_clock {
       CallbackManager<void()> _on_stopwatch_minute_callback_;
       int _stopwatch_last_minute{-1};
       switch_::Switch* _sound_enabled_switch{nullptr};
+      sensor::Sensor* _temp_sensor{nullptr};
+      sensor::Sensor* _humidity_sensor{nullptr};
 
 
       // Default colors (Initialized from constants above)

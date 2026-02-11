@@ -51,7 +51,28 @@ namespace ring_clock {
   }
 
   void RingClock::draw_scale(light::AddressableLight & it) {
-    if (this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
+    bool sensor_effect_active = false;
+
+    if (this->notification_color != nullptr) {
+      std::string effect = this->notification_color->get_effect_name();
+      
+      if (effect == "Sensors: Bars") {
+        this->render_sensors_bars(it);
+        sensor_effect_active = true;
+      } else if (effect == "Sensors: Temp Glow") {
+        this->render_sensors_temp_glow(it);
+        sensor_effect_active = true;
+      } else if (effect == "Sensors: Humid Glow") {
+        this->render_sensors_humid_glow(it);
+        sensor_effect_active = true;
+      } else if (effect == "Sensors: Ticks") {
+        this->render_sensors_ticks(it);
+        sensor_effect_active = true;
+      }
+    }
+
+    // Default solid color logic if no sensor effect is active
+    if (!sensor_effect_active && this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
       auto color_values = this->notification_color->current_values;
       float brightness = color_values.get_brightness();
       
@@ -59,14 +80,19 @@ namespace ring_clock {
       uint8_t g = static_cast<uint8_t>(color_values.get_green() * 255 * brightness);
       uint8_t b = static_cast<uint8_t>(color_values.get_blue() * 255 * brightness);
       
-      // Ensure minimum visibility
       if (color_values.get_red() > 0 && r < 20) r = 20;
       if (color_values.get_green() > 0 && g < 20) g = 20;
       if (color_values.get_blue() > 0 && b < 20) b = 20;
 
-      // Inner Ring Color Loop
+      // Only fill the 'spare' LEDs if scale is enabled, otherwise fill all
       for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-        it[i] = Color(r, g, b);
+        if (this->enable_scale != nullptr && this->enable_scale->state) {
+            if ((i - R1_NUM_LEDS) % 4 != 0) {
+                it[i] = Color(r, g, b);
+            }
+        } else {
+            it[i] = Color(r, g, b);
+        }
       }
     }
 
@@ -125,6 +151,14 @@ namespace ring_clock {
       this->render_timer(it);
     } else if(_state == state::stopwatch) {
       this->render_stopwatch(it);
+    } else if(_state == state::sensors_bars) {
+      this->render_sensors_bars(it);
+    } else if(_state == state::sensors_temp_glow) {
+      this->render_sensors_temp_glow(it);
+    } else if(_state == state::sensors_humid_glow) {
+      this->render_sensors_humid_glow(it);
+    } else if(_state == state::sensors_ticks) {
+      this->render_sensors_ticks(it);
     }
     
     // Apply blanking for sensor reading if any LEDs are set to be blanked
@@ -499,6 +533,91 @@ namespace ring_clock {
     }
     // Seconds (priority over minute)
     it[seconds] = get_second_color();
+  }
+
+  void RingClock::render_sensors_bars(light::AddressableLight & it) {
+    float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
+    float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
+
+    // Humidity Bar (Right Side: Hours 1, 2, 3, 4, 5)
+    int humid_leds = (int)((humid / 100.0f) * 15.0f);
+    if (humid_leds > 15) humid_leds = 15;
+    
+    int count = 0;
+    for (int h = 1; h <= 5; h++) {
+        for (int s = 1; s <= 3; s++) {
+            if (count < humid_leds) {
+                it[R1_NUM_LEDS + (h * 4) + s] = Color(0, 255, 255); // Cyan
+            }
+            count++;
+        }
+    }
+
+    // Temperature Bar (Left Side: Hours 7, 8, 9, 10, 11)
+    int temp_leds = (int)(temp - 15.0f);
+    if (temp_leds < 0) temp_leds = 0;
+    if (temp_leds > 15) temp_leds = 15;
+
+    count = 0;
+    int hours_left[] = {7, 8, 9, 10, 11};
+    for (int h : hours_left) {
+        for (int s = 1; s <= 3; s++) {
+            if (count < temp_leds) {
+                float p = (float)count / 15.0f;
+                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(p * 255), (uint8_t)(100 + p * 50), (uint8_t)((1.0f - p) * 255));
+            }
+            count++;
+        }
+    }
+  }
+
+  void RingClock::render_sensors_temp_glow(light::AddressableLight & it) {
+    float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
+    float p = (temp - 15.0f) / 15.0f;
+    if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
+
+    Color glow;
+    if (p < 0.5f) {
+        float p2 = p * 2.0f;
+        glow = Color((uint8_t)(0), (uint8_t)(p2 * 255), (uint8_t)((1.0f - p2) * 255));
+    } else {
+        float p2 = (p - 0.5f) * 2.0f;
+        glow = Color((uint8_t)(p2 * 255), (uint8_t)((1.0f - p2) * 255), (uint8_t)(0));
+    }
+
+    for (int i = 0; i < 12; i++) {
+        it[R1_NUM_LEDS + (i * 4) + 1] = glow;
+        it[R1_NUM_LEDS + (i * 4) + 2] = glow;
+        it[R1_NUM_LEDS + (i * 4) + 3] = glow;
+    }
+  }
+
+  void RingClock::render_sensors_humid_glow(light::AddressableLight & it) {
+    float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
+    float p = humid / 100.0f;
+    if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
+
+    Color glow = Color((uint8_t)((1.0f - p) * 255), 255, (uint8_t)(p * 255));
+
+    for (int i = 0; i < 12; i++) {
+        it[R1_NUM_LEDS + (i * 4) + 1] = glow;
+        it[R1_NUM_LEDS + (i * 4) + 2] = glow;
+        it[R1_NUM_LEDS + (i * 4) + 3] = glow;
+    }
+  }
+
+  void RingClock::render_sensors_ticks(light::AddressableLight & it) {
+    float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
+    float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
+
+    // Mapping to spare slots (s=1, 2, or 3)
+    int h_pos = (int)((humid / 100.0f) * 11.99f); 
+    it[R1_NUM_LEDS + (h_pos * 4) + 2] = Color(0, 255, 255);
+
+    float t_norm = (temp - 15.0f) / 20.0f;
+    if (t_norm < 0) t_norm = 0; if (t_norm > 1.0f) t_norm = 1.0f;
+    int t_pos = (int)(t_norm * 11.99f);
+    it[R1_NUM_LEDS + (t_pos * 4) + 1] = Color(255, 200, 0);
   }
 
   void RingClock::set_time(time::RealTimeClock *time) {

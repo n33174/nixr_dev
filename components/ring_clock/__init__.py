@@ -2,7 +2,7 @@ import esphome.config_validation as cv
 import esphome.codegen as cg
 from esphome import automation
 from esphome.const import CONF_ID, CONF_TRIGGER_ID
-from esphome.components import time as time_, light, switch
+from esphome.components import time as time_, light, switch, sensor
 
 DEPENDENCIES = ["network"]
 
@@ -39,6 +39,11 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Required("scale_color"): cv.use_id(light.LightState),
     cv.Required("notification_color"): cv.use_id(light.LightState),
     cv.Required("sound_enabled_switch"): cv.use_id(switch.Switch),
+
+
+    # Sensors
+    cv.Optional("temperature_sensor"): cv.use_id(sensor.Sensor),
+    cv.Optional("humidity_sensor"): cv.use_id(sensor.Sensor),
 
 
     cv.Optional(CONF_ON_READY): automation.validate_automation({
@@ -78,6 +83,13 @@ async def to_code(config):
     cg.add(var.set_notification_color_state(wrapped_notification_color))
     wrapped_sound_enabled = await cg.get_variable(config["sound_enabled_switch"])
     cg.add(var.set_sound_enabled_state(wrapped_sound_enabled))
+
+    if "temperature_sensor" in config:
+        sens = await cg.get_variable(config["temperature_sensor"])
+        cg.add(var.set_temperature_sensor(sens))
+    if "humidity_sensor" in config:
+        sens = await cg.get_variable(config["humidity_sensor"])
+        cg.add(var.set_humidity_sensor(sens))
 
     for conf in config.get(CONF_ON_READY, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)

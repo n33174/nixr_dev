@@ -139,6 +139,8 @@ ring_clock:
   scale_color: scale_color
   notification_color: notification_color
   sound_enabled_switch: timer_sounds
+  temperature_sensor: temp_sensor
+  humidity_sensor: humidity_sensor
   on_ready:
     then:
       - light.turn_on:
@@ -297,11 +299,13 @@ sensor:
     variant: AHT20
     address: 0x38
     temperature:
+      id: temp_sensor
       name: Temperature
       icon: mdi:thermometer
       web_server:
         sorting_group_id: sorting_sensors
     humidity:
+      id: humidity_sensor
       name: Humidity
       icon: mdi:water-percent
       web_server:
@@ -795,6 +799,14 @@ light:
           name: "Slow Pulse"
           transition_length: 500ms
           update_interval: 2s
+      - automation:
+          name: "Sensors: Bars"
+      - automation:
+          name: "Sensors: Temp Glow"
+      - automation:
+          name: "Sensors: Humid Glow"
+      - automation:
+          name: "Sensors: Ticks"
 
 output:
   # Dummy LED Outputs
