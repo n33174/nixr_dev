@@ -801,12 +801,16 @@ light:
           update_interval: 2s
       - automation:
           name: "Sensors: Bars"
+          sequence: []
       - automation:
           name: "Sensors: Temp Glow"
+          sequence: []
       - automation:
           name: "Sensors: Humid Glow"
+          sequence: []
       - automation:
           name: "Sensors: Ticks"
+          sequence: []
 
 output:
   # Dummy LED Outputs
