@@ -161,7 +161,7 @@ ring_clock:
           condition:
             - switch.is_on: alarm_sound
           then:
-            - rtttl.play: "alarm:d=16,o=7,b=160:c,e,g,c8,p,g,e,c,p,e,g,b,e8,p,b,g,e,p,c,e,g,c8,p,g,e,c,p,e,g,b,e8,p,b,g,e,p,8c8,p,8c8,p,8c8,p,4c8"
+            - rtttl.play: "alarm:d=16,o=6,b=140:c,e,g,c7,g,e,c,g,e,g,b,e7,b,g,e,b,4c7,p,4c7,p,4c7,p"
   on_timer_finished:
     then:
       - rtttl.play: "timer_alert:d=16,o=6,b=120:c,e,g,c7,p,g,e,c,p,c,e,g,c7,p,g,e,c,p,8c7,p,8c7,p,8c7"
