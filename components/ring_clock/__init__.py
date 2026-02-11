@@ -10,6 +10,11 @@ CONF_ON_READY = 'on_ready'
 CONF_ON_TIMER_FINISHED = 'on_timer_finished'
 CONF_ON_STOPWATCH_MINUTE = 'on_stopwatch_minute'
 CONF_ON_ALARM_TRIGGERED = 'on_alarm_triggered'
+CONF_ON_TIMER_STARTED = 'on_timer_started'
+CONF_ON_TIMER_STOPPED = 'on_timer_stopped'
+CONF_ON_STOPWATCH_STARTED = 'on_stopwatch_started'
+CONF_ON_STOPWATCH_PAUSED = 'on_stopwatch_paused'
+CONF_ON_STOPWATCH_RESET = 'on_stopwatch_reset'
 
 light_ns = cg.esphome_ns.namespace("light")
 LightState = light_ns.class_("LightState", cg.Component)
@@ -23,6 +28,11 @@ ReadyTrigger = ns.class_('ReadyTrigger', automation.Trigger.template())
 TimerFinishedTrigger = ns.class_('TimerFinishedTrigger', automation.Trigger.template())
 StopwatchMinuteTrigger = ns.class_('StopwatchMinuteTrigger', automation.Trigger.template())
 AlarmTriggeredTrigger = ns.class_('AlarmTriggeredTrigger', automation.Trigger.template())
+TimerStartedTrigger = ns.class_('TimerStartedTrigger', automation.Trigger.template())
+TimerStoppedTrigger = ns.class_('TimerStoppedTrigger', automation.Trigger.template())
+StopwatchStartedTrigger = ns.class_('StopwatchStartedTrigger', automation.Trigger.template())
+StopwatchPausedTrigger = ns.class_('StopwatchPausedTrigger', automation.Trigger.template())
+StopwatchResetTrigger = ns.class_('StopwatchResetTrigger', automation.Trigger.template())
 
 CONFIG_SCHEMA = cv.Schema({
     #ID
@@ -59,6 +69,21 @@ CONFIG_SCHEMA = cv.Schema({
     }),
     cv.Optional(CONF_ON_ALARM_TRIGGERED): automation.validate_automation({
         cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(AlarmTriggeredTrigger),
+    }),
+    cv.Optional(CONF_ON_TIMER_STARTED): automation.validate_automation({
+        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(TimerStartedTrigger),
+    }),
+    cv.Optional(CONF_ON_TIMER_STOPPED): automation.validate_automation({
+        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(TimerStoppedTrigger),
+    }),
+    cv.Optional(CONF_ON_STOPWATCH_STARTED): automation.validate_automation({
+        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(StopwatchStartedTrigger),
+    }),
+    cv.Optional(CONF_ON_STOPWATCH_PAUSED): automation.validate_automation({
+        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(StopwatchPausedTrigger),
+    }),
+    cv.Optional(CONF_ON_STOPWATCH_RESET): automation.validate_automation({
+        cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(StopwatchResetTrigger),
     }),
 }).extend(cv.COMPONENT_SCHEMA)
 
@@ -106,6 +131,21 @@ async def to_code(config):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [], conf)
     for conf in config.get(CONF_ON_ALARM_TRIGGERED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+    for conf in config.get(CONF_ON_TIMER_STARTED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+    for conf in config.get(CONF_ON_TIMER_STOPPED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+    for conf in config.get(CONF_ON_STOPWATCH_STARTED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+    for conf in config.get(CONF_ON_STOPWATCH_PAUSED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+    for conf in config.get(CONF_ON_STOPWATCH_RESET, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [], conf)
 

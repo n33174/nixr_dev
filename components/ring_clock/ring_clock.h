@@ -89,6 +89,17 @@ namespace ring_clock {
       void on_timer_finished();
       void add_on_stopwatch_minute_callback(std::function<void()> callback);
       void on_stopwatch_minute();
+      
+      void add_on_timer_started_callback(std::function<void()> callback);
+      void on_timer_started();
+      void add_on_timer_stopped_callback(std::function<void()> callback);
+      void on_timer_stopped();
+      void add_on_stopwatch_started_callback(std::function<void()> callback);
+      void on_stopwatch_started();
+      void add_on_stopwatch_paused_callback(std::function<void()> callback);
+      void on_stopwatch_paused();
+      void add_on_stopwatch_reset_callback(std::function<void()> callback);
+      void on_stopwatch_reset();
 
       // Alarm controls
       void start_alarm();
@@ -155,10 +166,17 @@ namespace ring_clock {
       CallbackManager<void()> _on_stopwatch_minute_callback_;
       int _stopwatch_last_minute{-1};
 
+      CallbackManager<void()> _on_timer_started_callback_;
+      CallbackManager<void()> _on_timer_stopped_callback_;
+      CallbackManager<void()> _on_stopwatch_started_callback_;
+      CallbackManager<void()> _on_stopwatch_paused_callback_;
+      CallbackManager<void()> _on_stopwatch_reset_callback_;
+
       // Alarm state
       CallbackManager<void()> _on_alarm_triggered_callback_;
       uint32_t _alarm_triggered_ms{0};
       bool _alarm_dispatched{false};
+      bool _alarm_active{false};
 
       switch_::Switch* _sound_enabled_switch{nullptr};
       sensor::Sensor* _temp_sensor{nullptr};
@@ -191,6 +209,27 @@ namespace ring_clock {
   class AlarmTriggeredTrigger : public Trigger<> {
     public:
       explicit AlarmTriggeredTrigger(RingClock *parent);
+  };
+
+  class TimerStartedTrigger : public Trigger<> {
+    public:
+      explicit TimerStartedTrigger(RingClock *parent);
+  };
+  class TimerStoppedTrigger : public Trigger<> {
+    public:
+      explicit TimerStoppedTrigger(RingClock *parent);
+  };
+  class StopwatchStartedTrigger : public Trigger<> {
+    public:
+      explicit StopwatchStartedTrigger(RingClock *parent);
+  };
+  class StopwatchPausedTrigger : public Trigger<> {
+    public:
+      explicit StopwatchPausedTrigger(RingClock *parent);
+  };
+  class StopwatchResetTrigger : public Trigger<> {
+    public:
+      explicit StopwatchResetTrigger(RingClock *parent);
   };
 
 } // namespace ring_clock

@@ -17,14 +17,14 @@ namespace ring_clock {
       return;
     }
 
-    if (_state == state::alarm) {
+    if (_alarm_active) {
       if (!_alarm_dispatched) {
         this->on_alarm_triggered();
         _alarm_dispatched = true;
       }
 
       if (millis() - _alarm_triggered_ms > 10000) {
-        _state = state::time; // Default back to time, YAML can override this
+        _alarm_active = false;
       }
     }
   }
@@ -61,10 +61,21 @@ namespace ring_clock {
     }
   }
 
+  void RingClock::add_on_timer_started_callback(std::function<void()> callback) { this->_on_timer_started_callback_.add(std::move(callback)); }
+  void RingClock::on_timer_started() { if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_timer_started_callback_.call(); }
+  void RingClock::add_on_timer_stopped_callback(std::function<void()> callback) { this->_on_timer_stopped_callback_.add(std::move(callback)); }
+  void RingClock::on_timer_stopped() { if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_timer_stopped_callback_.call(); }
+  void RingClock::add_on_stopwatch_started_callback(std::function<void()> callback) { this->_on_stopwatch_started_callback_.add(std::move(callback)); }
+  void RingClock::on_stopwatch_started() { if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_stopwatch_started_callback_.call(); }
+  void RingClock::add_on_stopwatch_paused_callback(std::function<void()> callback) { this->_on_stopwatch_paused_callback_.add(std::move(callback)); }
+  void RingClock::on_stopwatch_paused() { if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_stopwatch_paused_callback_.call(); }
+  void RingClock::add_on_stopwatch_reset_callback(std::function<void()> callback) { this->_on_stopwatch_reset_callback_.add(std::move(callback)); }
+  void RingClock::on_stopwatch_reset() { if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_stopwatch_reset_callback_.call(); }
+
   void RingClock::start_alarm() {
     _alarm_triggered_ms = millis();
     _alarm_dispatched = false;
-    _state = state::alarm;
+    _alarm_active = true;
   }
 
   void RingClock::add_on_alarm_triggered_callback(std::function<void()> callback) {
@@ -169,7 +180,9 @@ namespace ring_clock {
   }
 
   void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
-    if(_state == state::booting) {
+    if(_alarm_active) {
+      this->render_alarm(it);
+    } else if(_state == state::booting) {
       clear_R1(it);
       clear_R2(it);
       it[0] = Color(0, 255, 0); //Green - booting indicator
@@ -191,8 +204,6 @@ namespace ring_clock {
       this->render_timer(it);
     } else if(_state == state::stopwatch) {
       this->render_stopwatch(it);
-    } else if(_state == state::alarm) {
-      this->render_alarm(it);
     } else if(_state == state::sensors_dual_bar || _state == state::sensors_bars) {
       this->render_sensors_bars(it);
     } else if(_state == state::sensors_temp_bar) {
@@ -399,10 +410,12 @@ namespace ring_clock {
     _timer_finished_ms = 0;
     _timer_finishing_dispatched = false;
     _state = state::timer;
+    this->on_timer_started();
   }
 
   void RingClock::stop_timer() {
     _timer_active = false;
+    this->on_timer_stopped();
   }
 
   void RingClock::start_stopwatch() {
@@ -410,6 +423,7 @@ namespace ring_clock {
       _stopwatch_start_ms = millis() - _stopwatch_paused_ms;
       _stopwatch_active = true;
       _stopwatch_last_minute = -1;
+      this->on_stopwatch_started();
     }
     _state = state::stopwatch;
   }
@@ -418,6 +432,7 @@ namespace ring_clock {
     if (_stopwatch_active) {
       _stopwatch_paused_ms = millis() - _stopwatch_start_ms;
       _stopwatch_active = false;
+      this->on_stopwatch_paused();
     }
   }
 
@@ -425,6 +440,7 @@ namespace ring_clock {
     _stopwatch_start_ms = millis();
     _stopwatch_paused_ms = 0;
     _stopwatch_last_minute = -1;
+    this->on_stopwatch_reset();
   }
 
   void RingClock::render_timer(light::AddressableLight & it) {
@@ -600,7 +616,7 @@ namespace ring_clock {
       return _default_notification_color;
     };
 
-    // Pulse logic: 0.3 to 1.0 (doesn't fade out completely)
+    // Pulse logic: 0.3 to 1.0 (same as timer, doesn't fade out completely)
     float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
     Color nc = get_notification_color();
     Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
@@ -813,21 +829,15 @@ namespace ring_clock {
     _clock_lights = it;
   }
 
-  ReadyTrigger::ReadyTrigger(RingClock *parent) {
-    parent->add_on_ready_callback([this]() { this->trigger(); });
-  }
-
-  TimerFinishedTrigger::TimerFinishedTrigger(RingClock *parent) {
-    parent->add_on_timer_finished_callback([this]() { this->trigger(); });
-  }
-
-  StopwatchMinuteTrigger::StopwatchMinuteTrigger(RingClock *parent) {
-    parent->add_on_stopwatch_minute_callback([this]() { this->trigger(); });
-  }
-
-  AlarmTriggeredTrigger::AlarmTriggeredTrigger(RingClock *parent) {
-    parent->add_on_alarm_triggered_callback([this]() { this->trigger(); });
-  }
+  ReadyTrigger::ReadyTrigger(RingClock *parent) { parent->add_on_ready_callback([this]() { this->trigger(); }); }
+  TimerFinishedTrigger::TimerFinishedTrigger(RingClock *parent) { parent->add_on_timer_finished_callback([this]() { this->trigger(); }); }
+  StopwatchMinuteTrigger::StopwatchMinuteTrigger(RingClock *parent) { parent->add_on_stopwatch_minute_callback([this]() { this->trigger(); }); }
+  AlarmTriggeredTrigger::AlarmTriggeredTrigger(RingClock *parent) { parent->add_on_alarm_triggered_callback([this]() { this->trigger(); }); }
+  TimerStartedTrigger::TimerStartedTrigger(RingClock *parent) { parent->add_on_timer_started_callback([this]() { this->trigger(); }); }
+  TimerStoppedTrigger::TimerStoppedTrigger(RingClock *parent) { parent->add_on_timer_stopped_callback([this]() { this->trigger(); }); }
+  StopwatchStartedTrigger::StopwatchStartedTrigger(RingClock *parent) { parent->add_on_stopwatch_started_callback([this]() { this->trigger(); }); }
+  StopwatchPausedTrigger::StopwatchPausedTrigger(RingClock *parent) { parent->add_on_stopwatch_paused_callback([this]() { this->trigger(); }); }
+  StopwatchResetTrigger::StopwatchResetTrigger(RingClock *parent) { parent->add_on_stopwatch_reset_callback([this]() { this->trigger(); }); }
 
   void RingClock::set_hour_hand_color_state(light::LightState* state) {
     this->hour_hand_color = state;

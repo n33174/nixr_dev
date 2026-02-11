@@ -91,7 +91,7 @@ captive_portal:
 external_components:
   - source: github://n33174/nixr_dev@main
     components: [ ring_clock ]
-    refresh: 10s
+    refresh: 1s
 
 globals:
   - id: minute_button_long_press
@@ -161,7 +161,7 @@ ring_clock:
           condition:
             - switch.is_on: alarm_sound
           then:
-            - rtttl.play: "alarm:d=8,o=6,b=120:c7,p,g6,p,c7,p,g6,p"
+            - rtttl.play: "alarm:d=8,o=7,b=200:c,e,g,c8,p,c8,g,e,c,p,c,e,g,c8,p,c8,g,e,c,p,4c8"
   on_timer_finished:
     then:
       - rtttl.play: "timer_alert:d=16,o=6,b=120:c,e,g,c7,p,g,e,c,p,c,e,g,c7,p,g,e,c,p,8c7,p,8c7,p,8c7"
@@ -173,6 +173,21 @@ ring_clock:
   on_stopwatch_minute:
     then:
       - rtttl.play: "chime:d=16,o=6,b=120:c"
+  on_timer_started:
+    then:
+      - rtttl.play: "timer_start:d=16,o=6,b=120:c,e,g"
+  on_timer_stopped:
+    then:
+      - rtttl.play: "timer_stop:d=16,o=6,b=120:g,e,c"
+  on_stopwatch_started:
+    then:
+      - rtttl.play: "sw_start:d=16,o=6,b=120:c7"
+  on_stopwatch_paused:
+    then:
+      - rtttl.play: "sw_pause:d=16,o=6,b=120:c7,p,c7"
+  on_stopwatch_reset:
+    then:
+      - rtttl.play: "sw_reset:d=16,o=6,b=120:c,d,e,f,g"
 
 i2c:
   scl: GPIO5
@@ -666,15 +681,15 @@ switch:
     web_server:
       sorting_group_id: sorting_alarm
   - platform: template
-    name: "Use Sound for Alarm"
+    name: "Alarm Sounds"
     id: alarm_sound
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_alarm
   - platform: template
-    name: "Alarm Run Once"
-    id: alarm_run_once
+    name: "Alarm Once"
+    id: alarm_once
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
@@ -722,9 +737,9 @@ time:
           - lambda: |-
               auto now = id(rtc_time).now();
               auto alarm = id(alarm_time);
-              if (id(alarm_enabled).state && now.hour == alarm.hour && now.minute == alarm.minute) {
+              if (id(alarm_enabled).state && now.hour == alarm->hour && now.minute == alarm->minute) {
                 id(RingClock)->start_alarm();
-                if (id(alarm_run_once).state) {
+                if (id(alarm_once).state) {
                   id(alarm_enabled).turn_off();
                 }
               }
