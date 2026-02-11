@@ -109,7 +109,6 @@ web_server:
   port: 80
   version: 3
   css_url: https://raw.githack.com/n33174/nixr_dev/main/style/app.css
-  js_url: https://raw.githack.com/n33174/nixr_dev/main/style/app.js
   sorting_groups:
     - id: sorting_time
       name: "Time Settings"

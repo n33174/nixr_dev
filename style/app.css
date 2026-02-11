@@ -1,111 +1,174 @@
 @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Inter:wght@400;600&display=swap');
 
 /* 
- * NIX labs AL60 - "Shadow Penetrator" Theme
- * Target: ESPHome v3 (Lit / MWC Components)
+ * NIX labs AL60 - Premium Brand Theme (v3 Optimized)
+ * Matches nixlabs.com.au
  */
 
 :root {
-  /* 1. BRAND COLORS */
-  --primary-color: #ff9100 !important;
-  --bg-dark: #030712 !important;
-  --surface-dark: #111827 !important;
-  --text-main: #f9fafb !important;
-
-  /* 
-     2. THE "KEY" OVERRIDES 
-     ESPHome v3 UI specific variables that reach inside the Shadow DOM
-  */
-  --mdc-theme-primary: var(--primary-color) !important;
-  /* Icons, Toggles */
-  --mdc-theme-secondary: var(--primary-color) !important;
-  /* Active States */
-  --mdc-theme-on-primary: var(--primary-color) !important;
-  /* THE HEADER TITLE COLOR */
-  --mdc-theme-surface: var(--surface-dark) !important;
-  /* Card Backgrounds */
-  --mdc-theme-on-surface: var(--text-main) !important;
-  /* Card Text */
-  --mdc-theme-background: var(--bg-dark) !important;
-  /* Page Background */
-
-  /* App Bar (Header) Overrides */
-  --app-bar-background-color: var(--surface-dark) !important;
-  --app-bar-text-color: var(--primary-color) !important;
-
-  /* Typography Variables */
-  --mdc-typography-font-family: 'Inter', sans-serif !important;
-  --mdc-typography-headline6-font-family: 'Exo 2', sans-serif !important;
+  --primary-color: #ff9100;
+  --primary-hover: #ffa733;
+  --bg-dark: #030712;
+  /* Tailwind Gray-950 */
+  --surface-dark: #111827;
+  /* Tailwind Gray-900 */
+  --surface-lighter: #1f2937;
+  /* Tailwind Gray-800 */
+  --text-main: #f9fafb;
+  /* Tailwind Gray-50 */
+  --text-dim: #9ca3af;
+  /* Tailwind Gray-400 */
+  --border-color: #374151;
+  /* Tailwind Gray-700 */
 }
 
-/* 
-   3. GLOBAL TYPOGRAPHY 
-   Forces the Shadow DOM components to respect the brand fonts
-*/
+/* 1. Global Reset & Base Typography */
 html,
-body,
-esp-app {
+body {
   background-color: var(--bg-dark) !important;
   color: var(--text-main) !important;
   font-family: 'Inter', sans-serif !important;
-  --primary-text-color: var(--text-main) !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-/* Force everything to inherit font-family */
-* {
-  font-family: inherit;
+/* 2. Header & Main Title */
+header {
+  background-color: var(--surface-dark) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 1rem 2rem !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 1rem !important;
 }
 
-/* 
-   4. COMPONENT OVERRIDES 
-*/
-
-/* Target the brand font specifically for headings */
-h1,
-h2,
-h3,
-h4,
-.title,
-[slot="title"],
-.header-title {
+header h1 {
   font-family: 'Exo 2', sans-serif !important;
   color: var(--primary-color) !important;
+  font-size: 1.5rem !important;
   font-weight: 700 !important;
+  margin: 0 !important;
+  letter-spacing: -0.025em !important;
 }
 
-/* HIDE THEME SWITCHER (Force removed from DOM) */
-mwc-icon-button[icon="mode_night"],
-mwc-icon-button[icon="light_mode"],
-#theme-switch,
-esp-header mwc-icon-button:nth-last-of-type(1) {
+/* Hide Logo & Theme Toggle */
+#logo,
+#scheme {
   display: none !important;
-  width: 0 !important;
 }
 
-/* CARDS */
-esphome-card {
-  --mdc-theme-surface: var(--surface-dark) !important;
-  border: 1px solid #374151 !important;
+/* 3. Section Headers (Configuration, Clock Settings, etc.) */
+.tab-header {
+  font-family: 'Exo 2', sans-serif !important;
+  color: var(--primary-color) !important;
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin-top: 2rem !important;
+  margin-bottom: 1rem !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* 4. Entity Rows & Cards */
+.entity-row,
+.tab-container {
   background-color: var(--surface-dark) !important;
-  border-radius: 12px !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  padding: 1rem !important;
+  margin-bottom: 0.5rem !important;
 }
 
-esphome-card:hover {
+.entity-row:hover {
+  background-color: var(--surface-lighter) !important;
   border-color: var(--primary-color) !important;
-  background-color: #1f2937 !important;
-  /* Tailwind Gray-800 */
 }
 
-/* ICONS */
+/* 5. Icons */
+iconify-icon,
 mwc-icon,
-[slot="graphic"],
-mwc-icon-button {
+.material-icons {
   color: var(--primary-color) !important;
 }
 
-/* SLIDERS & SWITCHES */
-mwc-switch,
-mwc-slider,
-mwc-checkbox {
-  --mdc-theme-secondary: var(--primary-color) !important;
+/* Heartbeat icon pulse color override if needed */
+#beat.connected {
+  color: var(--primary-color) !important;
+}
+
+/* 6. Buttons */
+.abutton,
+.btn,
+button,
+input[type="submit"] {
+  background-color: var(--primary-color) !important;
+  color: #000 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 0.5rem 1rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  text-transform: uppercase !important;
+  font-size: 0.8rem !important;
+}
+
+.abutton:hover,
+.btn:hover,
+button:hover {
+  background-color: var(--primary-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(255, 145, 0, 0.2) !important;
+}
+
+/* 7. Inputs & Ranges */
+input[type="text"],
+input[type="datetime-local"],
+input[type="time"],
+select {
+  background-color: var(--surface-lighter) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  padding: 0.4rem !important;
+}
+
+/* 8. Logs */
+esp-log,
+#log {
+  background-color: #000 !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  font-family: monospace !important;
+}
+
+/* 9. Layout Adjustments */
+main {
+  padding: 2rem !important;
+  background-color: var(--bg-dark) !important;
+}
+
+.flex-grid-half {
+  gap: 2rem !important;
+}
+
+/* 10. Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
 }
