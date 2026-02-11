@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Inter:wght@400;600&display=swap');
+
+/* 
+ * NIX labs AL60 - ESPHome Web Server v3 Custom Theme
+ * Used in conjunction with patched www-custom.js
+ */
+
+:root {
+  --primary-color: #ff9100 !important;
+  --mdc-theme-primary: var(--primary-color) !important;
+  --mdc-theme-secondary: var(--primary-color) !important;
+  --mdc-theme-on-primary: var(--primary-color) !important;
+  --mdc-typography-font-family: 'Inter', sans-serif !important;
+  --mdc-typography-headline6-font-family: 'Exo 2', sans-serif !important;
+}
+
+body {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Force headings to Exo 2 */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.title,
+[slot="title"],
+.header-title {
+  font-family: 'Exo 2', sans-serif !important;
+  color: var(--primary-color) !important;
+}
+
+/* Icons & Material Design components */
+mwc-icon,
+.material-icons,
+i,
+[slot="graphic"],
+mwc-icon-button {
+  color: var(--primary-color) !important;
+}
+
+/* Specifically target the top app bar title */
+esp-header,
+.header,
+esp-app {
+  --mdc-theme-on-primary: var(--primary-color) !important;
+  --app-bar-text-color: var(--primary-color) !important;
+}
+
+/* Hide theme toggle */
+mwc-icon-button[icon="mode_night"],
+mwc-icon-button[icon="light_mode"],
+#theme-switch {
+  display: none !important;
+}
+
+/* Cards elevation and theme */
+esphome-card {
+  --mdc-theme-surface: #111827 !important;
+  --mdc-theme-on-surface: #f9fafb !important;
+  border: 1px solid #374151 !important;
+}
+
+esphome-card:hover {
+  border-color: var(--primary-color) !important;
+}
