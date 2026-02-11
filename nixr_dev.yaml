@@ -1,5 +1,5 @@
 substitutions:
-  name: "AL60"
+  name: "al60"
   friendly_name: "NIX labs AL60 Clock"
   time_zone: "Australia/Brisbane"
 
@@ -108,7 +108,7 @@ globals:
 web_server:
   port: 80
   version: 3
-  css_url: https://raw.githubusercontent.com/n33174/nixr_dev/main/style/web_server.css
+  css_url: https://cdn.jsdelivr.net/gh/n33174/nixr_dev@main/style/web_server.css
   sorting_groups:
     - id: sorting_time
       name: "Time Settings"
