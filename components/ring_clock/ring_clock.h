@@ -41,7 +41,8 @@ namespace ring_clock {
     sensors_bars,
     sensors_temp_glow,
     sensors_humid_glow,
-    sensors_ticks
+    sensors_ticks,
+    sensors_dual_glow
   };
 
   class RingClock : public Component {
@@ -117,6 +118,7 @@ namespace ring_clock {
       void render_sensors_temp_glow(light::AddressableLight & it);
       void render_sensors_humid_glow(light::AddressableLight & it);
       void render_sensors_ticks(light::AddressableLight & it);
+      void render_sensors_dual_glow(light::AddressableLight & it);
 
       // Timer and Stopwatch state
       bool _timer_active{false};

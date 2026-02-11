@@ -803,13 +803,16 @@ light:
           name: "Sensors: Bars"
           sequence: []
       - automation:
-          name: "Sensors: Temp Glow"
-          sequence: []
-      - automation:
-          name: "Sensors: Humid Glow"
-          sequence: []
-      - automation:
           name: "Sensors: Ticks"
+          sequence: []
+      - automation:
+          name: "Sensors: Dual Glow"
+          sequence: []
+      - automation:
+          name: "Sensors: Temperature Glow"
+          sequence: []
+      - automation:
+          name: "Sensors: Humidity Glow"
           sequence: []
 
 output:
