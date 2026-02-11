@@ -108,7 +108,7 @@ globals:
 web_server:
   port: 80
   version: 3
-  css_url: https://cdn.jsdelivr.net/gh/n33174/nixr_dev@main/style/wwww.css
+  css_url: https://cdn.jsdelivr.net/gh/n33174/nixr_dev@main/style/www.css
   sorting_groups:
     - id: sorting_time
       name: "Time Settings"
