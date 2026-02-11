@@ -36,6 +36,7 @@ namespace ring_clock {
     time_rainbow,
     timer,
     stopwatch,
+    alarm,
     ota,
     shutdown,
     sensors_bars,
@@ -88,6 +89,12 @@ namespace ring_clock {
       void on_timer_finished();
       void add_on_stopwatch_minute_callback(std::function<void()> callback);
       void on_stopwatch_minute();
+
+      // Alarm controls
+      void start_alarm();
+      void add_on_alarm_triggered_callback(std::function<void()> callback);
+      void on_alarm_triggered();
+
       void set_sound_enabled_state(switch_::Switch *sound_enabled) { this->_sound_enabled_switch = sound_enabled; }
       void set_temperature_sensor(sensor::Sensor *temp) { this->_temp_sensor = temp; }
       void set_humidity_sensor(sensor::Sensor *humid) { this->_humidity_sensor = humid; }
@@ -120,6 +127,7 @@ namespace ring_clock {
 
       void render_timer(light::AddressableLight & it);
       void render_stopwatch(light::AddressableLight & it);
+      void render_alarm(light::AddressableLight & it);
       void render_sensors_bars(light::AddressableLight & it);
       void render_sensors_ticks(light::AddressableLight & it);
       void render_sensors_temp_glow(light::AddressableLight & it);
@@ -146,6 +154,12 @@ namespace ring_clock {
       
       CallbackManager<void()> _on_stopwatch_minute_callback_;
       int _stopwatch_last_minute{-1};
+
+      // Alarm state
+      CallbackManager<void()> _on_alarm_triggered_callback_;
+      uint32_t _alarm_triggered_ms{0};
+      bool _alarm_dispatched{false};
+
       switch_::Switch* _sound_enabled_switch{nullptr};
       sensor::Sensor* _temp_sensor{nullptr};
       sensor::Sensor* _humidity_sensor{nullptr};
@@ -172,6 +186,11 @@ namespace ring_clock {
   class StopwatchMinuteTrigger : public Trigger<> {
     public:
       explicit StopwatchMinuteTrigger(RingClock *parent);
+  };
+
+  class AlarmTriggeredTrigger : public Trigger<> {
+    public:
+      explicit AlarmTriggeredTrigger(RingClock *parent);
   };
 
 } // namespace ring_clock

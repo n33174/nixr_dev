@@ -68,7 +68,6 @@ update:
   - platform: http_request
     name: Firmware Update
     source: https://raw.githubusercontent.com/nix-labs/esp-firmware/latest/manifest.json
-    update_interval: 60s
 
 wifi:
   power_save_mode: none
@@ -128,6 +127,9 @@ web_server:
     - id: sorting_timer
       name: "Timer & Stopwatch"
       sorting_weight: 45
+    - id: sorting_alarm
+      name: "Alarm"
+      sorting_weight: 46
     - id: sorting_system
       name: "System"
       sorting_weight: 50
@@ -148,17 +150,26 @@ ring_clock:
   humidity_sensor: humidity_sensor
   on_ready:
     then:
-      - light.turn_on:
-          id: ring_light
-          brightness: !lambda 'return id(standard_percentage).state/100;'
-          effect: Clock
+      - lambda: |-
+          auto call = id(ring_light).turn_on();
+          call.set_brightness(id(standard_percentage).state / 100.0f);
+          call.set_effect(id(last_clock_effect));
+          call.perform();
+  on_alarm_triggered:
+    then:
+      - if:
+          condition:
+            - switch.is_on: alarm_sound
+          then:
+            - rtttl.play: "alarm:d=8,o=6,b=120:c7,p,g6,p,c7,p,g6,p"
   on_timer_finished:
     then:
       - rtttl.play: "timer_alert:d=16,o=6,b=120:c,e,g,c7,p,g,e,c,p,c,e,g,c7,p,g,e,c,p,8c7,p,8c7,p,8c7"
       - delay: 10s
-      - light.turn_on:
-          id: ring_light
-          effect: Clock
+      - lambda: |-
+          auto call = id(ring_light).turn_on();
+          call.set_effect(id(last_clock_effect));
+          call.perform();
   on_stopwatch_minute:
     then:
       - rtttl.play: "chime:d=16,o=6,b=120:c"
@@ -533,7 +544,7 @@ button:
             effect: Timer
 
   - platform: template
-    name: "Stop Timer or Stopwatch"
+    name: "Stop Timer & Stopwatch"
     id: stop_timer_button
     web_server:
       sorting_group_id: sorting_timer
@@ -647,6 +658,27 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_timer
+  - platform: template
+    name: "Alarm Enabled"
+    id: alarm_enabled
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    web_server:
+      sorting_group_id: sorting_alarm
+  - platform: template
+    name: "Use Sound for Alarm"
+    id: alarm_sound
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_alarm
+  - platform: template
+    name: "Alarm Run Once"
+    id: alarm_run_once
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    web_server:
+      sorting_group_id: sorting_alarm
 
 
 datetime:
@@ -658,6 +690,15 @@ datetime:
     optimistic: True
     web_server:
       sorting_group_id: sorting_time
+  - platform: template
+    name: "Alarm Time"
+    id: alarm_time
+    type: time
+    initial_value: "07:00:00"
+    optimistic: True
+    restore_value: True
+    web_server:
+      sorting_group_id: sorting_alarm
 
 
 
@@ -675,6 +716,18 @@ time:
               datetime: !lambda |-
                   auto time = id(rtc_time).now();
                   return time;
+      - seconds: 0
+        minutes: /1
+        then:
+          - lambda: |-
+              auto now = id(rtc_time).now();
+              auto alarm = id(alarm_time);
+              if (id(alarm_enabled).state && now.hour == alarm.hour && now.minute == alarm.minute) {
+                id(RingClock)->start_alarm();
+                if (id(alarm_run_once).state) {
+                  id(alarm_enabled).turn_off();
+                }
+              }
 
   - platform: sntp
     id: sntp_time
@@ -704,7 +757,7 @@ light:
     color_correct: [75%, 75%, 75%]
     web_server:
       sorting_group_id: sorting_clock
-    on_state_change:
+    on_state:
       - lambda: |-
           if (id(ring_light).remote_values.is_on()) {
             std::string effect = id(ring_light).get_effect_name();

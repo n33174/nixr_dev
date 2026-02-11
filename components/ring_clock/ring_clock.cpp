@@ -16,6 +16,17 @@ namespace ring_clock {
       on_ready();
       return;
     }
+
+    if (_state == state::alarm) {
+      if (!_alarm_dispatched) {
+        this->on_alarm_triggered();
+        _alarm_dispatched = true;
+      }
+
+      if (millis() - _alarm_triggered_ms > 10000) {
+        _state = state::time; // Default back to time, YAML can override this
+      }
+    }
   }
 
   void RingClock::add_on_ready_callback(std::function<void()> callback) {
@@ -48,6 +59,20 @@ namespace ring_clock {
     if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) {
       this->_on_stopwatch_minute_callback_.call();
     }
+  }
+
+  void RingClock::start_alarm() {
+    _alarm_triggered_ms = millis();
+    _alarm_dispatched = false;
+    _state = state::alarm;
+  }
+
+  void RingClock::add_on_alarm_triggered_callback(std::function<void()> callback) {
+    this->_on_alarm_triggered_callback_.add(std::move(callback));
+  }
+
+  void RingClock::on_alarm_triggered() {
+    this->_on_alarm_triggered_callback_.call();
   }
 
   void RingClock::draw_scale(light::AddressableLight & it) {
@@ -166,6 +191,8 @@ namespace ring_clock {
       this->render_timer(it);
     } else if(_state == state::stopwatch) {
       this->render_stopwatch(it);
+    } else if(_state == state::alarm) {
+      this->render_alarm(it);
     } else if(_state == state::sensors_dual_bar || _state == state::sensors_bars) {
       this->render_sensors_bars(it);
     } else if(_state == state::sensors_temp_bar) {
@@ -560,6 +587,31 @@ namespace ring_clock {
     it[seconds] = get_second_color();
   }
 
+  void RingClock::render_alarm(light::AddressableLight & it) {
+    clear_R1(it);
+    clear_R2(it);
+
+    auto get_notification_color = [&]() {
+       if (this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
+        auto cv = this->notification_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return _default_notification_color;
+    };
+
+    // Pulse logic: 0.3 to 1.0 (doesn't fade out completely)
+    float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
+    Color nc = get_notification_color();
+    Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
+    for (int i = 0; i < 12; i++) {
+      int base = R1_NUM_LEDS + (i * 4);
+      it[base + 1] = pc;
+      it[base + 2] = pc;
+      it[base + 3] = pc;
+    }
+  }
+
   Color RingClock::get_temp_color(float t) {
     if (t <= -10.0f) return Color(26, 22, 73);
     if (t <= 0.0f) {
@@ -771,6 +823,10 @@ namespace ring_clock {
 
   StopwatchMinuteTrigger::StopwatchMinuteTrigger(RingClock *parent) {
     parent->add_on_stopwatch_minute_callback([this]() { this->trigger(); });
+  }
+
+  AlarmTriggeredTrigger::AlarmTriggeredTrigger(RingClock *parent) {
+    parent->add_on_alarm_triggered_callback([this]() { this->trigger(); });
   }
 
   void RingClock::set_hour_hand_color_state(light::LightState* state) {

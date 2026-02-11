@@ -18,6 +18,7 @@ esphome:
             format: "Booting 123"
             level: DEBUG
         - lambda: 'id(RingClock)->set_state(ring_clock::state::booting);'
+
     - priority: 300
       then:
         - logger.log: 
@@ -25,10 +26,11 @@ esphome:
             level: DEBUG
         - pcf8563.read_time:
               id: rtc_time
-        - light.turn_on:
-            id: ring_light
-            brightness: !lambda 'return id(standard_percentage)->state/100;'
-            effect: Clock
+        - lambda: |-
+            auto call = id(ring_light).turn_on();
+            call.set_brightness(id(standard_percentage).state / 100.0f);
+            call.set_effect(id(last_clock_effect));
+            call.perform();
   on_shutdown:
     - priority: 700
       then:
@@ -61,7 +63,6 @@ update:
   - platform: http_request
     name: Firmware Update
     source: https://raw.githubusercontent.com/nix-labs/esp-firmware/latest/manifest.json
-    update_interval: 60s
 
 wifi:
   power_save_mode: none
@@ -95,6 +96,10 @@ globals:
   - id: hour_button_long_press
     type: bool
     initial_value: 'false'
+  - id: last_clock_effect
+    type: std::string
+    restore_value: yes
+    initial_value: '"Clock"'
 
 web_server:
   port: 80
@@ -115,6 +120,9 @@ web_server:
     - id: sorting_other
       name: "Other"
       sorting_weight: 40
+    - id: sorting_timer
+      name: "Timer & Stopwatch"
+      sorting_weight: 45
     - id: sorting_system
       name: "System"
       sorting_weight: 50
@@ -130,12 +138,27 @@ ring_clock:
   second_hand_color: second_hand_color
   scale_color: scale_color
   notification_color: notification_color
+  sound_enabled_switch: timer_sounds
+  temperature_sensor: temp_sensor
+  humidity_sensor: humidity_sensor
   on_ready:
     then:
-      - light.turn_on:
-          id: ring_light
-          brightness: !lambda 'return id(standard_percentage)->state/100;'
-          effect: Clock
+      - lambda: |-
+          auto call = id(ring_light).turn_on();
+          call.set_brightness(id(standard_percentage).state / 100.0f);
+          call.set_effect(id(last_clock_effect));
+          call.perform();
+  on_timer_finished:
+    then:
+      - rtttl.play: "timer_alert:d=16,o=6,b=120:c,e,g,c7,p,g,e,c,p,c,e,g,c7,p,g,e,c,p,8c7,p,8c7,p,8c7"
+      - delay: 10s
+      - lambda: |-
+          auto call = id(ring_light).turn_on();
+          call.set_effect(id(last_clock_effect));
+          call.perform();
+  on_stopwatch_minute:
+    then:
+      - rtttl.play: "chime:d=16,o=6,b=120:c"
 
 i2c:
   scl: GPIO5
@@ -278,11 +301,13 @@ sensor:
     variant: AHT20
     address: 0x38
     temperature:
+      id: temp_sensor
       name: Temperature
       icon: mdi:thermometer
       web_server:
         sorting_group_id: sorting_sensors
     humidity:
+      id: humidity_sensor
       name: Humidity
       icon: mdi:water-percent
       web_server:
@@ -341,7 +366,7 @@ number:
       sorting_group_id: sorting_clock
   - platform: template
     id: low_percentage
-    name: "Low/Off Brightness Percentage"
+    name: "Low or Off Brightness Percentage"
     optimistic: True
     restore_value: True
     unit_of_measurement: "%"
@@ -351,6 +376,37 @@ number:
     step: 1
     web_server:
       sorting_group_id: sorting_clock
+
+  - platform: template
+    name: "Timer Hours"
+    id: timer_hours
+    min_value: 0
+    max_value: 12
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+  - platform: template
+    name: "Timer Minutes"
+    id: timer_minutes
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+  - platform: template
+    name: "Timer Seconds"
+    id: timer_seconds
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
 
 button:
   - platform: restart
@@ -456,6 +512,65 @@ button:
         - logger.log: 
             format: "RTC incremented by 1 minute"
             level: INFO
+
+  - platform: template
+    name: "Start Timer"
+    id: start_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: |-
+            int h = (int)id(timer_hours).state;
+            int m = (int)id(timer_minutes).state;
+            int s = (int)id(timer_seconds).state;
+            id(RingClock)->start_timer(h, m, s);
+        - light.turn_on:
+            id: ring_light
+            effect: Timer
+
+  - platform: template
+    name: "Stop Timer & Stopwatch"
+    id: stop_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_timer();'
+        - light.turn_on:
+            id: ring_light
+            effect: Clock
+
+  - platform: template
+    name: "Start Stopwatch"
+    id: start_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->start_stopwatch();'
+        - light.turn_on:
+            id: ring_light
+            effect: Stopwatch
+
+  - platform: template
+    name: "Pause Stopwatch"
+    id: pause_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_stopwatch();'
+
+  - platform: template
+    name: "Reset Stopwatch"
+    id: reset_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->reset_stopwatch();'
+
   - platform: template
     name: "Set Custom Time"
     id: custom_sync
@@ -522,6 +637,13 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_clock
+  - platform: template
+    name: "Timer or Stopwatch Sounds"
+    id: timer_sounds
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_timer
 
 
 datetime:
@@ -578,6 +700,14 @@ light:
     color_correct: [75%, 75%, 75%]
     web_server:
       sorting_group_id: sorting_clock
+    on_state:
+      - lambda: |-
+          if (id(ring_light).remote_values.is_on()) {
+            std::string effect = id(ring_light).get_effect_name();
+            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)") {
+              id(last_clock_effect) = effect;
+            }
+          }
     effects:
       - addressable_lambda:
           name: Clock
@@ -596,6 +726,18 @@ light:
           update_interval: 33ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_rainbow);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      - addressable_lambda:
+          name: "Timer"
+          update_interval: 100ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::timer);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      - addressable_lambda:
+          name: "Stopwatch"
+          update_interval: 100ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::stopwatch);
             id(RingClock)->addressable_lights_lambdacall(it);
   # Customise Hour Hand
   - platform: rgb
@@ -666,6 +808,33 @@ light:
           name: "Slow Pulse"
           transition_length: 500ms
           update_interval: 2s
+      - automation:
+          name: "Sensors: Dual Bars"
+          sequence: []
+      - automation:
+          name: "Sensors: Temperature Bar"
+          sequence: []
+      - automation:
+          name: "Sensors: Humidity Bar"
+          sequence: []
+      - automation:
+          name: "Sensors: Dual Ticks"
+          sequence: []
+      - automation:
+          name: "Sensors: Temperature Tick"
+          sequence: []
+      - automation:
+          name: "Sensors: Humidity Tick"
+          sequence: []
+      - automation:
+          name: "Sensors: Dual Glow"
+          sequence: []
+      - automation:
+          name: "Sensors: Temperature Glow"
+          sequence: []
+      - automation:
+          name: "Sensors: Humidity Glow"
+          sequence: []
 
 output:
   # Dummy LED Outputs
