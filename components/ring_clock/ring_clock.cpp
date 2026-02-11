@@ -180,9 +180,7 @@ namespace ring_clock {
   }
 
   void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
-    if(_alarm_active) {
-      this->render_alarm(it);
-    } else if(_state == state::booting) {
+    if(_state == state::booting) {
       clear_R1(it);
       clear_R2(it);
       it[0] = Color(0, 255, 0); //Green - booting indicator
@@ -222,6 +220,11 @@ namespace ring_clock {
       this->render_sensors_tick_individual(it, true);
     } else if(_state == state::sensors_humid_tick) {
       this->render_sensors_tick_individual(it, false);
+    }
+    
+    // Apply Alarm as an overlay if active
+    if (_alarm_active) {
+      this->render_alarm(it);
     }
     
     // Apply blanking for sensor reading if any LEDs are set to be blanked
@@ -604,9 +607,6 @@ namespace ring_clock {
   }
 
   void RingClock::render_alarm(light::AddressableLight & it) {
-    clear_R1(it);
-    clear_R2(it);
-
     auto get_notification_color = [&]() {
        if (this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
         auto cv = this->notification_color->current_values;
