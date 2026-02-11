@@ -103,33 +103,9 @@ globals:
 
 web_server:
   port: 80
-  version: 3
+  version: 1
   css_url: https://gh.githack.com/n33174/nixr_dev/main/style/app.css
-  sorting_groups:
-    - id: sorting_time
-      name: "Time Settings"
-      sorting_weight: 10
-    - id: sorting_clock
-      name: "Clock Settings"
-      sorting_weight: 20
-    - id: sorting_clock_led
-      name: "Clock LED Customisation"
-      sorting_weight: 25
-    - id: sorting_sensors
-      name: "Sensors"
-      sorting_weight: 30
-    - id: sorting_other
-      name: "Other"
-      sorting_weight: 40
-    - id: sorting_timer
-      name: "Timer & Stopwatch"
-      sorting_weight: 45
-    - id: sorting_alarm
-      name: "Alarm"
-      sorting_weight: 46
-    - id: sorting_system
-      name: "System"
-      sorting_weight: 50
+
 
 ring_clock:
   id: RingClock
@@ -206,7 +182,6 @@ binary_sensor:
     has_target:
       name: Occupancy
       web_server:
-        sorting_group_id: sorting_sensors
       on_press:
         - if:
             condition:
@@ -228,16 +203,13 @@ binary_sensor:
     has_moving_target:
       name: Moving Target
       web_server:
-        sorting_group_id: sorting_sensors
     has_still_target:
       name: Still Target
       web_server:
-        sorting_group_id: sorting_sensors
   - platform: gpio
     pin: GPIO3
     name: "Presence"
     web_server:
-      sorting_group_id: sorting_sensors
     device_class: presence
   - platform: gpio
     pin:
@@ -331,13 +303,11 @@ sensor:
       name: Temperature
       icon: mdi:thermometer
       web_server:
-        sorting_group_id: sorting_sensors
     humidity:
       id: humidity_sensor
       name: Humidity
       icon: mdi:water-percent
       web_server:
-        sorting_group_id: sorting_sensors
   - platform: adc
     pin: GPIO4
     name: "Brightness"
@@ -345,7 +315,6 @@ sensor:
     icon: mdi:brightness-6
     accuracy_decimals: 0
     web_server:
-      sorting_group_id: sorting_sensors
     attenuation: 12db
     update_interval: 5s
     unit_of_measurement: "%"
@@ -375,7 +344,6 @@ text:
     optimistic: true
     initial_value: ${time_zone}
     web_server:
-      sorting_group_id: sorting_time
 
 number:
   - platform: template
@@ -389,7 +357,6 @@ number:
     max_value: 100
     step: 1
     web_server:
-      sorting_group_id: sorting_clock
   - platform: template
     id: low_percentage
     name: "Low or Off Brightness Percentage"
@@ -401,7 +368,6 @@ number:
     max_value: 100
     step: 1
     web_server:
-      sorting_group_id: sorting_clock
 
   - platform: template
     name: "Timer Hours"
@@ -412,7 +378,6 @@ number:
     initial_value: 0
     optimistic: True
     web_server:
-      sorting_group_id: sorting_timer
   - platform: template
     name: "Timer Minutes"
     id: timer_minutes
@@ -422,7 +387,6 @@ number:
     initial_value: 0
     optimistic: True
     web_server:
-      sorting_group_id: sorting_timer
   - platform: template
     name: "Timer Seconds"
     id: timer_seconds
@@ -432,23 +396,19 @@ number:
     initial_value: 0
     optimistic: True
     web_server:
-      sorting_group_id: sorting_timer
 
 button:
   - platform: restart
     name: Restart
     id: restart_esp
     web_server:
-      sorting_group_id: sorting_system
   - platform: factory_reset
     name: Reset with Default Settings
     disabled_by_default: True
     web_server:
-      sorting_group_id: sorting_system
   - platform: template
     name: Buzzer
     web_server:
-      sorting_group_id: sorting_other
     on_press: 
       then:
         - rtttl.play: notification:d=16,o=6,b=160:c,e,g,c7
@@ -456,7 +416,6 @@ button:
     name: "Hour Increment"
     id: hour_increment
     web_server:
-      sorting_group_id: sorting_time
     on_press:
       then:
         - rtttl.play: 'short:d=4,o=5,b=100:16e6'
@@ -499,7 +458,6 @@ button:
     name: "Minute Increment"
     id: minute_increment
     web_server:
-      sorting_group_id: sorting_time
     on_press:
       then:
         - rtttl.play: 'short:d=4,o=5,b=100:16e6'
@@ -543,7 +501,6 @@ button:
     name: "Start Timer"
     id: start_timer_button
     web_server:
-      sorting_group_id: sorting_timer
     on_press:
       then:
         - lambda: |-
@@ -559,7 +516,6 @@ button:
     name: "Stop Timer & Stopwatch"
     id: stop_timer_button
     web_server:
-      sorting_group_id: sorting_timer
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_timer();'
@@ -571,7 +527,6 @@ button:
     name: "Start Stopwatch"
     id: start_stopwatch_button
     web_server:
-      sorting_group_id: sorting_timer
     on_press:
       then:
         - lambda: 'id(RingClock)->start_stopwatch();'
@@ -583,7 +538,6 @@ button:
     name: "Pause Stopwatch"
     id: pause_stopwatch_button
     web_server:
-      sorting_group_id: sorting_timer
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_stopwatch();'
@@ -592,7 +546,6 @@ button:
     name: "Reset Stopwatch"
     id: reset_stopwatch_button
     web_server:
-      sorting_group_id: sorting_timer
     on_press:
       then:
         - lambda: 'id(RingClock)->reset_stopwatch();'
@@ -601,7 +554,6 @@ button:
     name: "Set Custom Time"
     id: custom_sync
     web_server:
-      sorting_group_id: sorting_time
     on_press:
       then:
         - if:
@@ -641,56 +593,48 @@ switch:
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
-      sorting_group_id: sorting_time
   - platform: template
     name: "Presense Detection Dimming"
     id: presense_detection
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
-      sorting_group_id: sorting_clock
   - platform: template
     name: "Enable Seconds"
     id: enable_seconds
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
-      sorting_group_id: sorting_clock
   - platform: template
     name: "Enable Markers"
     id: enable_markers
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
-      sorting_group_id: sorting_clock
   - platform: template
     name: "Timer or Stopwatch Sounds"
     id: timer_sounds
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
-      sorting_group_id: sorting_timer
   - platform: template
     name: "Alarm Enabled"
     id: alarm_enabled
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
-      sorting_group_id: sorting_alarm
   - platform: template
     name: "Alarm Sounds"
     id: alarm_sound
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
-      sorting_group_id: sorting_alarm
   - platform: template
     name: "Alarm Once"
     id: alarm_once
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
-      sorting_group_id: sorting_alarm
 
 
 datetime:
@@ -701,7 +645,6 @@ datetime:
     initial_value: "2025-01-01 12:00:00"
     optimistic: True
     web_server:
-      sorting_group_id: sorting_time
   - platform: template
     name: "Alarm Time"
     id: alarm_time
@@ -710,7 +653,6 @@ datetime:
     optimistic: True
     restore_value: True
     web_server:
-      sorting_group_id: sorting_alarm
 
 
 time:
@@ -767,7 +709,6 @@ light:
     # WARNING Increasing the values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
     color_correct: [75%, 75%, 75%]
     web_server:
-      sorting_group_id: sorting_clock
     on_state:
       - lambda: |-
           if (id(ring_light).remote_values.is_on()) {
@@ -817,7 +758,6 @@ light:
     green: output_hour_green
     blue: output_hour_blue
     web_server:
-      sorting_group_id: sorting_clock_led
   # Customise Minute Hand
   - platform: rgb
     id: minute_hand_color
@@ -828,7 +768,6 @@ light:
     green: output_minute_green
     blue: output_minute_blue
     web_server:
-      sorting_group_id: sorting_clock_led
   # Customise Second Hand
   - platform: rgb
     id: second_hand_color
@@ -839,7 +778,6 @@ light:
     green: output_second_green
     blue: output_second_blue
     web_server:
-      sorting_group_id: sorting_clock_led
   # Customise Markers
   - platform: rgb
     id: marker_color
@@ -850,7 +788,6 @@ light:
     green: output_marker_green
     blue: output_marker_blue
     web_server:
-      sorting_group_id: sorting_clock_led
     effects:
       - random:
   # Remaining Inner Ring LEDs
@@ -863,7 +800,6 @@ light:
     green: output_notification_green
     blue: output_notification_blue
     web_server:
-      sorting_group_id: sorting_clock_led
     effects:
       - random:
       - pulse:
