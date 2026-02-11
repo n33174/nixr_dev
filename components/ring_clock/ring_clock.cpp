@@ -56,8 +56,14 @@ namespace ring_clock {
     if (this->notification_color != nullptr) {
       std::string effect = this->notification_color->get_effect_name();
       
-      if (effect == "Sensors: Bars") {
+      if (effect == "Sensors: Dual Bars") {
         this->render_sensors_bars(it);
+        sensor_effect_active = true;
+      } else if (effect == "Sensors: Temperature Bar") {
+        this->render_sensors_bar_individual(it, true);
+        sensor_effect_active = true;
+      } else if (effect == "Sensors: Humidity Bar") {
+        this->render_sensors_bar_individual(it, false);
         sensor_effect_active = true;
       } else if (effect == "Sensors: Temperature Glow") {
         this->render_sensors_temp_glow(it);
@@ -65,8 +71,14 @@ namespace ring_clock {
       } else if (effect == "Sensors: Humidity Glow") {
         this->render_sensors_humid_glow(it);
         sensor_effect_active = true;
-      } else if (effect == "Sensors: Ticks") {
+      } else if (effect == "Sensors: Dual Ticks") {
         this->render_sensors_ticks(it);
+        sensor_effect_active = true;
+      } else if (effect == "Sensors: Temperature Tick") {
+        this->render_sensors_tick_individual(it, true);
+        sensor_effect_active = true;
+      } else if (effect == "Sensors: Humidity Tick") {
+        this->render_sensors_tick_individual(it, false);
         sensor_effect_active = true;
       } else if (effect == "Sensors: Dual Glow") {
         this->render_sensors_dual_glow(it);
@@ -154,16 +166,24 @@ namespace ring_clock {
       this->render_timer(it);
     } else if(_state == state::stopwatch) {
       this->render_stopwatch(it);
-    } else if(_state == state::sensors_bars) {
+    } else if(_state == state::sensors_dual_bar || _state == state::sensors_bars) {
       this->render_sensors_bars(it);
+    } else if(_state == state::sensors_temp_bar) {
+      this->render_sensors_bar_individual(it, true);
+    } else if(_state == state::sensors_humid_bar) {
+      this->render_sensors_bar_individual(it, false);
     } else if(_state == state::sensors_temp_glow) {
       this->render_sensors_temp_glow(it);
     } else if(_state == state::sensors_humid_glow) {
       this->render_sensors_humid_glow(it);
-    } else if(_state == state::sensors_ticks) {
-      this->render_sensors_ticks(it);
     } else if(_state == state::sensors_dual_glow) {
       this->render_sensors_dual_glow(it);
+    } else if(_state == state::sensors_dual_tick || _state == state::sensors_ticks) {
+      this->render_sensors_ticks(it);
+    } else if(_state == state::sensors_temp_tick) {
+      this->render_sensors_tick_individual(it, true);
+    } else if(_state == state::sensors_humid_tick) {
+      this->render_sensors_tick_individual(it, false);
     }
     
     // Apply blanking for sensor reading if any LEDs are set to be blanked
@@ -540,76 +560,70 @@ namespace ring_clock {
     it[seconds] = get_second_color();
   }
 
+  Color RingClock::get_temp_color(float t) {
+    if (t <= -10.0f) return Color(26, 22, 73);
+    if (t <= 0.0f) {
+        float p = (t + 10.0f) / 10.0f;
+        return Color((uint8_t)(26 + p * (18-26)), (uint8_t)(22 + p * (94-22)), (uint8_t)(73 + p * (131-73)));
+    }
+    if (t <= 10.0f) {
+        float p = t / 10.0f;
+        return Color((uint8_t)(18 + p * (60-18)), (uint8_t)(94 + p * (157-94)), (uint8_t)(131 + p * (116-131)));
+    }
+    if (t <= 20.0f) {
+        float p = (t - 10.0f) / 10.0f;
+        return Color((uint8_t)(60 + p * (207-60)), (uint8_t)(157 + p * (216-157)), (uint8_t)(116 + p * (113-116)));
+    }
+    if (t <= 30.0f) {
+        float p = (t - 20.0f) / 10.0f;
+        return Color((uint8_t)(207 + p * (223-207)), (uint8_t)(216 + p * (158-216)), (uint8_t)(113 + p * (60-113)));
+    }
+    if (t <= 40.0f) {
+        float p = (t - 30.0f) / 10.0f;
+        return Color((uint8_t)(223 + p * (193-223)), (uint8_t)(158 + p * (59-158)), (uint8_t)(60 + p * (44-60)));
+    }
+    if (t <= 50.0f) {
+        float p = (t - 40.0f) / 10.0f;
+        return Color((uint8_t)(193 + p * (136-193)), (uint8_t)(59 + p * (26-59)), (uint8_t)(44 + p * (23-44)));
+    }
+    return Color(136, 26, 23);
+  }
+
+  Color RingClock::get_humid_color(float h) {
+    if (h <= 30.0f) {
+        float p = h / 30.0f;
+        return Color((uint8_t)(190 - p * 30), (uint8_t)(155 + p * 40), (uint8_t)(47 - p * 20));
+    } else if (h <= 70.0f) {
+        float p = (h - 30.0f) / 40.0f;
+        return Color((uint8_t)(160 - p * 100), (uint8_t)(195 + p * 20), (uint8_t)(27 + p * 100));
+    } else {
+        float p = (h - 70.0f) / 30.0f;
+        if (p > 1.0f) p = 1.0f;
+        return Color((uint8_t)(60 - p * 40), (uint8_t)(215 - p * 120), (uint8_t)(127 + p * 100));
+    }
+  }
+
   void RingClock::render_sensors_bars(light::AddressableLight & it) {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
 
-    // Helper for Temp Color (-10 to 50C) - Windy.com Style
-    auto get_t_color = [](float t) {
-        if (t <= -10.0f) return Color(26, 22, 73);    // #1a1649 - Deep Purple/Blue
-        if (t <= 0.0f) {
-            float p = (t + 10.0f) / 10.0f;
-            return Color((uint8_t)(26 + p * (18-26)), (uint8_t)(22 + p * (94-22)), (uint8_t)(73 + p * (131-73)));
-        }
-        if (t <= 10.0f) {
-            float p = t / 10.0f;
-            return Color((uint8_t)(18 + p * (60-18)), (uint8_t)(94 + p * (157-94)), (uint8_t)(131 + p * (116-131)));
-        }
-        if (t <= 20.0f) {
-            float p = (t - 10.0f) / 10.0f;
-            return Color((uint8_t)(60 + p * (207-60)), (uint8_t)(157 + p * (216-157)), (uint8_t)(116 + p * (113-116)));
-        }
-        if (t <= 30.0f) {
-            float p = (t - 20.0f) / 10.0f;
-            return Color((uint8_t)(207 + p * (223-207)), (uint8_t)(216 + p * (158-216)), (uint8_t)(113 + p * (60-113)));
-        }
-        if (t <= 40.0f) {
-            float p = (t - 30.0f) / 10.0f;
-            return Color((uint8_t)(223 + p * (193-223)), (uint8_t)(158 + p * (59-158)), (uint8_t)(60 + p * (44-60)));
-        }
-        if (t <= 50.0f) {
-            float p = (t - 40.0f) / 10.0f;
-            return Color((uint8_t)(193 + p * (136-193)), (uint8_t)(59 + p * (26-59)), (uint8_t)(44 + p * (23-44)));
-        }
-        return Color(136, 26, 23); // #881a17 - Dark Red
-    };
-
-    // Helper for Humid Color - Windy.com Style
-    auto get_h_color = [](float h) {
-        if (h <= 30.0f) { // Dry: Brown/Yellow
-            float p = h / 30.0f;
-            return Color((uint8_t)(190 - p * 30), (uint8_t)(155 + p * 40), (uint8_t)(47 - p * 20));
-        } else if (h <= 70.0f) { // Comfort: Yellow-Green to Green
-            float p = (h - 30.0f) / 40.0f;
-            return Color((uint8_t)(160 - p * 100), (uint8_t)(195 + p * 20), (uint8_t)(27 + p * 100));
-        } else { // Humid: Green to Deep Blue
-            float p = (h - 70.0f) / 30.0f;
-            if (p > 1.0f) p = 1.0f;
-            return Color((uint8_t)(60 - p * 40), (uint8_t)(215 - p * 120), (uint8_t)(127 + p * 100));
-        }
-    };
-
-    // 1. Temperature Bar (Right Side: Hour 5 spares up to Hour 0 spares)
-    // Range -5 to 40 (45 degrees) over 18 LEDs = 2.5 degrees per LED
-    float t_p = (temp + 5.0f) / 45.0f;
+    // 1. Temperature Bar (Right Side: 12 down to 6)
+    float t_p = (temp + 10.0f) / 60.0f;
     int t_leds = (int)(t_p * 18.0f);
     if (t_leds < 0) t_leds = 0; if (t_leds > 18) t_leds = 18;
 
     int count = 0;
-    // Walk backwards from Hour 5 down to 0 to grow "upwards"
     for (int h = 5; h >= 0; h--) {
         for (int s = 3; s >= 1; s--) {
             if (count < t_leds) {
-                // Calculate color at this specific point of the bar
-                float val = -5.0f + (count * 2.5f);
-                it[R1_NUM_LEDS + (h * 4) + s] = get_t_color(val);
+                float val = -10.0f + (count * 3.33f);
+                it[R1_NUM_LEDS + (h * 4) + s] = get_temp_color(val);
             }
             count++;
         }
     }
 
-    // 2. Humidity Bar (Left Side: Hour 6 spares up to Hour 11 spares)
-    // 0-100% over 18 LEDs = 5.5% per LED
+    // 2. Humidity Bar (Left Side: 12 up to 6)
     float h_p = humid / 100.0f;
     int h_leds = (int)(h_p * 18.0f);
     if (h_leds < 0) h_leds = 0; if (h_leds > 18) h_leds = 18;
@@ -619,7 +633,7 @@ namespace ring_clock {
         for (int s = 1; s <= 3; s++) {
             if (count < h_leds) {
                 float val = count * 5.55f;
-                it[R1_NUM_LEDS + (h * 4) + s] = get_h_color(val);
+                it[R1_NUM_LEDS + (h * 4) + s] = get_humid_color(val);
             }
             count++;
         }
@@ -628,25 +642,7 @@ namespace ring_clock {
 
   void RingClock::render_sensors_temp_glow(light::AddressableLight & it) {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
-    
-    float p = (temp + 10.0f) / 60.0f;
-    if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
-
-    Color glow;
-    if (p < 0.25f) {
-        float p2 = p / 0.25f;
-        glow = Color(0, (uint8_t)(p2 * 100), 255);
-    } else if (p < 0.5f) {
-        float p2 = (p - 0.25f) / 0.25f;
-        glow = Color((uint8_t)(p2 * 255), (uint8_t)(100 + p2 * 40), (uint8_t)((1.0f - p2) * 255));
-    } else if (p < 0.75f) {
-        float p2 = (p - 0.5f) / 0.25f;
-        glow = Color(255, (uint8_t)((1.0f - p2) * 140), (uint8_t)(p2 * 100));
-    } else {
-        float p2 = (p - 0.75f) / 0.25f;
-        glow = Color(255, 0, (uint8_t)((1.0f - p2) * 100));
-    }
-
+    Color glow = get_temp_color(temp);
     for (int i = 0; i < 12; i++) {
         it[R1_NUM_LEDS + (i * 4) + 1] = glow;
         it[R1_NUM_LEDS + (i * 4) + 2] = glow;
@@ -656,24 +652,7 @@ namespace ring_clock {
 
   void RingClock::render_sensors_humid_glow(light::AddressableLight & it) {
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
-    float p = humid / 100.0f;
-    if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
-
-    Color glow;
-    if (p < 0.25f) {
-        float p2 = p / 0.25f;
-        glow = Color((uint8_t)((1.0f - p2 / 2.0f) * 255), 255, 0);
-    } else if (p < 0.5f) {
-        float p2 = (p - 0.25f) / 0.25f;
-        glow = Color((uint8_t)((0.5f - p2 / 2.0f) * 255), 255, 0);
-    } else if (p < 0.75f) {
-        float p2 = (p - 0.5f) / 0.25f;
-        glow = Color(0, 255, (uint8_t)(p2 * 128));
-    } else {
-        float p2 = (p - 0.75f) / 0.25f;
-        glow = Color(0, 255, (uint8_t)(128 + p2 * 127));
-    }
-
+    Color glow = get_humid_color(humid);
     for (int i = 0; i < 12; i++) {
         it[R1_NUM_LEDS + (i * 4) + 1] = glow;
         it[R1_NUM_LEDS + (i * 4) + 2] = glow;
@@ -685,40 +664,7 @@ namespace ring_clock {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
 
-    // Helper Lambdas (reuse logic from bars)
-    auto get_t_color = [](float p) {
-        if (p < 0.25f) {
-            float p2 = p / 0.25f;
-            return Color(0, (uint8_t)(p2 * 100), 255);
-        } else if (p < 0.5f) {
-            float p2 = (p - 0.25f) / 0.25f;
-            return Color((uint8_t)(p2 * 255), (uint8_t)(100 + p2 * 40), (uint8_t)((1.0f - p2) * 255));
-        } else if (p < 0.75f) {
-            float p2 = (p - 0.5f) / 0.25f;
-            return Color(255, (uint8_t)((1.0f - p2) * 140), (uint8_t)(p2 * 100));
-        } else {
-            float p2 = (p - 0.75f) / 0.25f;
-            return Color(255, 0, (uint8_t)((1.0f - p2) * 100));
-        }
-    };
-
-    auto get_h_color = [](float p) {
-        if (p < 0.25f) {
-            float p2 = p / 0.25f;
-            return Color((uint8_t)((1.0f - p2 / 2.0f) * 255), 255, 0);
-        } else if (p < 0.5f) {
-            float p2 = (p - 0.25f) / 0.25f;
-            return Color((uint8_t)((0.5f - p2 / 2.0f) * 255), 255, 0);
-        } else if (p < 0.75f) {
-            float p2 = (p - 0.5f) / 0.25f;
-            return Color(0, 255, (uint8_t)(p2 * 128));
-        } else {
-            float p2 = (p - 0.75f) / 0.25f;
-            return Color(0, 255, (uint8_t)(128 + p2 * 127));
-        }
-    };
-
-    // 1. Temperature Dot (Right Side: 6 to 12)
+    // 1. Temperature Dot (Right Side: 12 down to 6 clockwise)
     float t_p = (temp + 10.0f) / 60.0f;
     if (t_p < 0) t_p = 0; if (t_p > 1.0f) t_p = 1.0f;
     int t_led_idx = (int)(t_p * 17.99f);
@@ -727,13 +673,14 @@ namespace ring_clock {
     for (int h = 5; h >= 0; h--) {
         for (int s = 3; s >= 1; s--) {
             if (count == t_led_idx) {
-                it[R1_NUM_LEDS + (h * 4) + s] = get_t_color(t_p);
+                float val = -10.0f + (count * 3.33f);
+                it[R1_NUM_LEDS + (h * 4) + s] = get_temp_color(val);
             }
             count++;
         }
     }
 
-    // 2. Humidity Dot (Left Side: 6 to 12)
+    // 2. Humidity Dot (Left Side: 12 up to 6 counter-clockwise)
     float h_p = humid / 100.0f;
     if (h_p < 0) h_p = 0; if (h_p > 1.0f) h_p = 1.0f;
     int h_led_idx = (int)(h_p * 17.99f);
@@ -742,7 +689,42 @@ namespace ring_clock {
     for (int h = 6; h <= 11; h++) {
         for (int s = 1; s <= 3; s++) {
             if (count == h_led_idx) {
-                it[R1_NUM_LEDS + (h * 4) + s] = get_h_color(h_p);
+                float val = count * 5.55f;
+                it[R1_NUM_LEDS + (h * 4) + s] = get_humid_color(val);
+            }
+            count++;
+        }
+    }
+  }
+
+  void RingClock::render_sensors_tick_individual(light::AddressableLight & it, bool is_temp) {
+    float val = is_temp ? (_temp_sensor ? _temp_sensor->state : 20.0f) : (_humidity_sensor ? _humidity_sensor->state : 50.0f);
+    float p = is_temp ? (val + 10.0f) / 60.0f : val / 100.0f;
+    int led_idx = (int)(p * 35.99f);
+
+    int count = 0;
+    for (int h = 0; h < 12; h++) {
+        for (int s = 1; s <= 3; s++) {
+            if (count == led_idx) {
+                it[R1_NUM_LEDS + (h * 4) + s] = is_temp ? get_temp_color(val) : get_humid_color(val);
+            }
+            count++;
+        }
+    }
+  }
+
+  void RingClock::render_sensors_bar_individual(light::AddressableLight & it, bool is_temp) {
+    float val = is_temp ? (_temp_sensor ? _temp_sensor->state : 20.0f) : (_humidity_sensor ? _humidity_sensor->state : 50.0f);
+    float p = is_temp ? (val + 10.0f) / 60.0f : val / 100.0f;
+    int leds = (int)(p * 36.0f);
+    if (leds < 0) leds = 0; if (leds > 36) leds = 36;
+
+    int count = 0;
+    for (int h = 0; h < 12; h++) {
+        for (int s = 1; s <= 3; s++) {
+            if (count < leds) {
+                float current_val = is_temp ? (-10.0f + (count * (60.0f/36.0f))) : (count * (100.0f/36.0f));
+                it[R1_NUM_LEDS + (h * 4) + s] = is_temp ? get_temp_color(current_val) : get_humid_color(current_val);
             }
             count++;
         }
@@ -753,46 +735,8 @@ namespace ring_clock {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
 
-    // Helper for Temp Color (-10 to 50C)
-    auto get_t_color = [](float t) {
-        float p = (t + 10.0f) / 60.0f;
-        if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
-        if (p < 0.25f) {
-            float p2 = p / 0.25f;
-            return Color(0, (uint8_t)(p2 * 100), 255);
-        } else if (p < 0.5f) {
-            float p2 = (p - 0.25f) / 0.25f;
-            return Color((uint8_t)(p2 * 255), (uint8_t)(100 + p2 * 40), (uint8_t)((1.0f - p2) * 255));
-        } else if (p < 0.75f) {
-            float p2 = (p - 0.5f) / 0.25f;
-            return Color(255, (uint8_t)((1.0f - p2) * 140), (uint8_t)(p2 * 100));
-        } else {
-            float p2 = (p - 0.75f) / 0.25f;
-            return Color(255, 0, (uint8_t)((1.0f - p2) * 100));
-        }
-    };
-
-    // Helper for Humid Color (Yellow -> Lime -> Green -> Teal -> Cyan)
-    auto get_h_color = [](float h) {
-        float p = h / 100.0f;
-        if (p < 0) p = 0; if (p > 1.0f) p = 1.0f;
-        if (p < 0.25f) {
-            float p2 = p / 0.25f;
-            return Color((uint8_t)((1.0f - p2 / 2.0f) * 255), 255, 0);
-        } else if (p < 0.5f) {
-            float p2 = (p - 0.25f) / 0.25f;
-            return Color((uint8_t)((0.5f - p2 / 2.0f) * 255), 255, 0);
-        } else if (p < 0.75f) {
-            float p2 = (p - 0.5f) / 0.25f;
-            return Color(0, 255, (uint8_t)(p2 * 128));
-        } else {
-            float p2 = (p - 0.75f) / 0.25f;
-            return Color(0, 255, (uint8_t)(128 + p2 * 127));
-        }
-    };
-
-    Color t_color = get_t_color(temp);
-    Color h_color = get_h_color(humid);
+    Color t_color = get_temp_color(temp);
+    Color h_color = get_humid_color(humid);
 
     // Apply Temperature to Right Side (Hours 0-5)
     for (int h = 0; h <= 5; h++) {

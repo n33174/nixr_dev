@@ -800,10 +800,22 @@ light:
           transition_length: 500ms
           update_interval: 2s
       - automation:
-          name: "Sensors: Bars"
+          name: "Sensors: Dual Bars"
           sequence: []
       - automation:
-          name: "Sensors: Ticks"
+          name: "Sensors: Temperature Bar"
+          sequence: []
+      - automation:
+          name: "Sensors: Humidity Bar"
+          sequence: []
+      - automation:
+          name: "Sensors: Dual Ticks"
+          sequence: []
+      - automation:
+          name: "Sensors: Temperature Tick"
+          sequence: []
+      - automation:
+          name: "Sensors: Humidity Tick"
           sequence: []
       - automation:
           name: "Sensors: Dual Glow"
