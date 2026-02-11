@@ -43,12 +43,12 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Required("light_id"): cv.use_id(light.AddressableLightState),
     # Custom Value Switches
     cv.Required("enable_seconds"): cv.use_id(switch.Switch),
-    cv.Required("enable_scale"): cv.use_id(switch.Switch),
+    cv.Required("enable_markers"): cv.use_id(switch.Switch),
     # Custom Light Values
     cv.Required("hour_hand_color"): cv.use_id(light.LightState),
     cv.Required("minute_hand_color"): cv.use_id(light.LightState),
     cv.Required("second_hand_color"): cv.use_id(light.LightState),
-    cv.Required("scale_color"): cv.use_id(light.LightState),
+    cv.Required("marker_color"): cv.use_id(light.LightState),
     cv.Required("notification_color"): cv.use_id(light.LightState),
     cv.Required("sound_enabled_switch"): cv.use_id(switch.Switch),
 
@@ -98,8 +98,8 @@ async def to_code(config):
     #Custom Value Switches
     wrapped_enable_seconds = await cg.get_variable(config["enable_seconds"])
     cg.add(var.set_enable_seconds_state(wrapped_enable_seconds))
-    wrapped_enable_scale = await cg.get_variable(config["enable_scale"])
-    cg.add(var.set_enable_scale_state(wrapped_enable_scale))
+    wrapped_enable_markers = await cg.get_variable(config["enable_markers"])
+    cg.add(var.set_enable_markers_state(wrapped_enable_markers))
     # Custom Light Values
     wrapped_hour_hand_color = await cg.get_variable(config["hour_hand_color"])
     cg.add(var.set_hour_hand_color_state(wrapped_hour_hand_color))
@@ -107,8 +107,8 @@ async def to_code(config):
     cg.add(var.set_minute_hand_color_state(wrapped_minute_hand_color))
     wrapped_second_hand_color = await cg.get_variable(config["second_hand_color"])
     cg.add(var.set_second_hand_color_state(wrapped_second_hand_color))
-    wrapped_scale_color = await cg.get_variable(config["scale_color"])
-    cg.add(var.set_scale_color_state(wrapped_scale_color))
+    wrapped_marker_color = await cg.get_variable(config["marker_color"])
+    cg.add(var.set_marker_color_state(wrapped_marker_color))
     wrapped_notification_color = await cg.get_variable(config["notification_color"])
     cg.add(var.set_notification_color_state(wrapped_notification_color))
     wrapped_sound_enabled = await cg.get_variable(config["sound_enabled_switch"])

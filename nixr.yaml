@@ -1,12 +1,12 @@
 substitutions:
-  name: "nixr"
-  friendly_name: "NIXR"
+  name: "AL60"
+  friendly_name: "NIX labs AL60 Clock"
   time_zone: "Australia/Brisbane"
 
 esphome:
   project:
-    name: "NIXlabs.NIXR"
-    version: "0.1"
+    name: "NIXlabs.AL60"
+    version: "0.1.2"
   name: "${name}"
   friendly_name: "${friendly_name}"
   platformio_options:
@@ -104,6 +104,7 @@ globals:
 web_server:
   port: 80
   version: 3
+  css_url: https://raw.githubusercontent.com/n33174/nixr_dev/main/style/web_server.css
   sorting_groups:
     - id: sorting_time
       name: "Time Settings"
@@ -134,12 +135,12 @@ ring_clock:
   id: RingClock
   time_id: rtc_time
   light_id: ring_light
-  enable_scale: enable_scale
+  enable_markers: enable_markers
   enable_seconds: enable_seconds
   hour_hand_color: hour_hand_color
   minute_hand_color: minute_hand_color
   second_hand_color: second_hand_color
-  scale_color: scale_color
+  marker_color: marker_color
   notification_color: notification_color
   sound_enabled_switch: timer_sounds
   temperature_sensor: temp_sensor
@@ -656,8 +657,8 @@ switch:
     web_server:
       sorting_group_id: sorting_clock
   - platform: template
-    name: "Enable Scale"
-    id: enable_scale
+    name: "Enable Markers"
+    id: enable_markers
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
@@ -839,15 +840,15 @@ light:
     blue: output_second_blue
     web_server:
       sorting_group_id: sorting_clock_led
-  # Customise Scale
+  # Customise Markers
   - platform: rgb
-    id: scale_color
-    name: "Scale"
+    id: marker_color
+    name: "Markers"
     restore_mode: RESTORE_DEFAULT_OFF
     default_transition_length: 1s
-    red: output_scale_red
-    green: output_scale_green
-    blue: output_scale_blue
+    red: output_marker_red
+    green: output_marker_green
+    blue: output_marker_blue
     web_server:
       sorting_group_id: sorting_clock_led
     effects:
@@ -942,15 +943,15 @@ output:
     type: float
     write_action: {}
   - platform: template
-    id: output_scale_red
+    id: output_marker_red
     type: float
     write_action: {}
   - platform: template
-    id: output_scale_green
+    id: output_marker_green
     type: float
     write_action: {}
   - platform: template
-    id: output_scale_blue
+    id: output_marker_blue
     type: float
     write_action: {}
   - platform: template

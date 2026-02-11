@@ -26,7 +26,7 @@ namespace ring_clock {
   static const Color DEFAULT_COLOR_MINUTE(0, 255, 255);       // Cyan
   static const Color DEFAULT_COLOR_SECOND(200, 200, 200);     // White
   static const Color DEFAULT_COLOR_NOTIFICATION(255, 145, 0); // Brand Orange
-  static const Color DEFAULT_COLOR_SCALE(50, 50, 50);         // Dim White
+  static const Color DEFAULT_COLOR_MARKERS(50, 50, 50);         // Dim White
 
   enum state
   {
@@ -59,7 +59,7 @@ namespace ring_clock {
       void loop() override;
       void add_on_ready_callback(std::function<void()> callback);
       void on_ready();
-      void draw_scale(light::AddressableLight & it);
+      void draw_markers(light::AddressableLight & it);
       void addressable_lights_lambdacall(light::AddressableLight & it);
       state get_state();
       void set_state(state state);
@@ -74,8 +74,8 @@ namespace ring_clock {
       void set_minute_hand_color_state(light::LightState* state);
       void set_enable_seconds_state(switch_::Switch *enable_seconds);
       void set_second_hand_color_state(light::LightState* state);
-      void set_enable_scale_state(switch_::Switch *enable_scale);
-      void set_scale_color_state(light::LightState* state);
+      void set_enable_markers_state(switch_::Switch *enable_markers);
+      void set_marker_color_state(light::LightState* state);
       void set_notification_color_state(light::LightState* state);
       void set_blank_leds(std::vector<int> leds);
       
@@ -116,7 +116,7 @@ namespace ring_clock {
       void set_default_minute_color(Color color) { _default_minute_color = color; }
       void set_default_second_color(Color color) { _default_second_color = color; }
       void set_default_notification_color(Color color) { _default_notification_color = color; }
-      void set_default_scale_color(Color color) { _default_scale_color = color; }
+      void set_default_marker_color(Color color) { _default_marker_color = color; }
 
     protected:
       std::vector<int> _blanked_leds;
@@ -132,8 +132,8 @@ namespace ring_clock {
       light::LightState* minute_hand_color{nullptr};
       switch_::Switch* enable_seconds{nullptr};
       light::LightState* second_hand_color{nullptr};
-      switch_::Switch* enable_scale{nullptr};
-      light::LightState* scale_color{nullptr};
+      switch_::Switch* enable_markers{nullptr};
+      light::LightState* marker_color{nullptr};
       light::LightState* notification_color{nullptr};
 
       void render_timer(light::AddressableLight & it);
@@ -188,7 +188,7 @@ namespace ring_clock {
       Color _default_minute_color = DEFAULT_COLOR_MINUTE;
       Color _default_second_color = DEFAULT_COLOR_SECOND;
       Color _default_notification_color = DEFAULT_COLOR_NOTIFICATION;
-      Color _default_scale_color = DEFAULT_COLOR_SCALE;
+      Color _default_marker_color = DEFAULT_COLOR_MARKERS;
   };
 
   class ReadyTrigger : public Trigger<> {

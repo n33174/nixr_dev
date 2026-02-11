@@ -86,7 +86,7 @@ namespace ring_clock {
     this->_on_alarm_triggered_callback_.call();
   }
 
-  void RingClock::draw_scale(light::AddressableLight & it) {
+  void RingClock::draw_markers(light::AddressableLight & it) {
     bool sensor_effect_active = false;
 
     if (this->notification_color != nullptr) {
@@ -135,9 +135,9 @@ namespace ring_clock {
       if (color_values.get_green() > 0 && g < 20) g = 20;
       if (color_values.get_blue() > 0 && b < 20) b = 20;
 
-      // Only fill the 'spare' LEDs if scale is enabled, otherwise fill all
+      // Only fill the 'spare' LEDs if markers are enabled, otherwise fill all
       for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-        if (this->enable_scale != nullptr && this->enable_scale->state) {
+        if (this->enable_markers != nullptr && this->enable_markers->state) {
             if ((i - R1_NUM_LEDS) % 4 != 0) {
                 it[i] = Color(r, g, b);
             }
@@ -147,10 +147,10 @@ namespace ring_clock {
       }
     }
 
-    if (this->enable_scale != nullptr) {
-      if (this->enable_scale->state) {
-        if (this->scale_color != nullptr && this->scale_color->current_values.get_state()) {
-          auto color_values = this->scale_color->current_values;
+    if (this->enable_markers != nullptr) {
+      if (this->enable_markers->state) {
+        if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
+          auto color_values = this->marker_color->current_values;
           float brightness = color_values.get_brightness();
           
           uint8_t r = static_cast<uint8_t>(color_values.get_red() * 255 * brightness);
@@ -161,17 +161,17 @@ namespace ring_clock {
           if (color_values.get_green() > 0 && g < 20) g = 20;
           if (color_values.get_blue() > 0 && b < 20) b = 20;
 
-          // Set Scaled LEDs (The markers)
+          // Set Marker LEDs
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
             if ((i - R1_NUM_LEDS) % 4 == 0) {
               it[i] = Color(r, g, b);
             }
           }
         } else {
-          // Set Default Scale Color
+          // Set Default Marker Color
           for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
             if ((i - R1_NUM_LEDS) % 4 == 0) {
-              it[i] = _default_scale_color;
+              it[i] = _default_marker_color;
             }
           }
         }
@@ -269,7 +269,7 @@ namespace ring_clock {
   void RingClock::render_time(light::AddressableLight & it, bool fade) {
     clear_R1(it);
     clear_R2(it);
-    draw_scale(it);
+    draw_markers(it);
     esphome::ESPTime now = _time->now();
 
     int hour = now.hour;
@@ -342,7 +342,7 @@ namespace ring_clock {
 
   void RingClock::render_rainbow(light::AddressableLight & it) {
     clear_R2(it);
-    draw_scale(it);
+    draw_markers(it);
     esphome::ESPTime now = _time->now();
     int hour = now.hour;
     if (hour >= 12) hour = hour - 12;
@@ -855,12 +855,12 @@ namespace ring_clock {
     this->second_hand_color = state;
   }
 
-  void RingClock::set_enable_scale_state(switch_::Switch *enable_scale) {
-      this->enable_scale = enable_scale;
+  void RingClock::set_enable_markers_state(switch_::Switch *enable_markers) {
+      this->enable_markers = enable_markers;
   }
 
-  void RingClock::set_scale_color_state(light::LightState* state) {
-    this->scale_color = state;
+  void RingClock::set_marker_color_state(light::LightState* state) {
+    this->marker_color = state;
   }
 
   void RingClock::set_notification_color_state(light::LightState* state) {

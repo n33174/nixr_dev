@@ -1,0 +1,137 @@
+/* 
+ * NIX labs AL60 - ESPHome Web Server v3 Custom Theme
+ * Matches nixlabs.com.au aesthetics using Tailwind Gray palette
+ * and brand orange highlight: rgb(255, 145, 0)
+ */
+
+:root {
+  /* Tailwind Gray/Slate inspired palette */
+  --primary-color: rgb(255, 145, 0);           /* NIX labs Orange */
+  --primary-color-hover: rgb(255, 165, 30);
+  --background-color: #030712;                /* gray-950 */
+  --surface-color: #111827;                   /* gray-900 */
+  --surface-color-secondary: #1f2937;         /* gray-800 */
+  --text-color: #f9fafb;                      /* gray-50 */
+  --text-secondary-color: #9ca3af;            /* gray-400 */
+  --divider-color: #374151;                   /* gray-700 */
+  --error-color: #ef4444;                     /* red-500 */
+  --success-color: #10b981;                   /* emerald-500 */
+  
+  /* Additional UI Polish */
+  --border-radius: 12px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* Header & Navigation */
+header {
+  background-color: var(--surface-color) !important;
+  border-bottom: 1px solid var(--divider-color) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+header h1 {
+  color: var(--primary-color) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+}
+
+/* Cards & Sections */
+.card, .section {
+  background-color: var(--surface-color) !important;
+  border: 1px solid var(--divider-color) !important;
+  border-radius: var(--border-radius) !important;
+  margin-bottom: 1.5rem !important;
+  transition: var(--transition) !important;
+}
+
+.card:hover {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 15px rgba(255, 145, 0, 0.1) !important;
+}
+
+/* Form Elements & Inputs */
+input, select, textarea {
+  background-color: var(--surface-color-secondary) !important;
+  border: 1px solid var(--divider-color) !important;
+  border-radius: 8px !important;
+  color: var(--text-color) !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+input:focus {
+  border-color: var(--primary-color) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(255, 145, 0, 0.2) !important;
+}
+
+/* Buttons */
+.btn, button {
+  background-color: var(--surface-color-secondary) !important;
+  border: 1px solid var(--divider-color) !important;
+  border-radius: 8px !important;
+  color: var(--text-color) !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 1rem !important;
+  transition: var(--transition) !important;
+}
+
+.btn-primary, button[type="submit"] {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: #000 !important; /* High contrast for orange background */
+}
+
+.btn-primary:hover, button[type="submit"]:hover {
+  background-color: var(--primary-color-hover) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Toggles / Switches (ESPHome specific) */
+.switch input:checked + .slider {
+  background-color: var(--primary-color) !important;
+}
+
+/* Labels & Typography */
+h2, h3, h4 {
+  color: var(--text-color) !important;
+  font-weight: 600 !important;
+}
+
+.label, label {
+  color: var(--text-secondary-color) !important;
+  font-size: 0.875rem !important;
+}
+
+/* Sorting Groups & Lists */
+.group-header {
+  background-color: var(--divider-color) !important;
+  color: var(--primary-color) !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-color-secondary);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
