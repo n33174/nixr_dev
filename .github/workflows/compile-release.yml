@@ -42,16 +42,25 @@ jobs:
           BUILD_PATH=".esphome/build/al60/.pioenvs/al60"
           V_NUM="${{ steps.get_version.outputs.firmware_version }}"
           
-          # 1. Copy the main firmware with the versioned name
-          cp $BUILD_PATH/firmware.bin firmware/al60_$V_NUM.bin
+          # 1. Install esptool to merge the binaries
+          pip install esptool
           
-          # 2. Copy the bootloader and partition files needed for fresh flashing
-          cp $BUILD_PATH/bootloader.bin firmware/bootloader.bin
-          cp $BUILD_PATH/partitions.bin firmware/partitions.bin
-          cp $BUILD_PATH/ota_data_initial.bin firmware/ota_data_initial.bin
+          # 2. Create the Merged Factory Binary (All-in-one file)
+          # This pads and stitches all 4 parts into a single bin
+          esptool.py --chip esp32c3 merge_bin \
+            -o firmware/al60_${V_NUM}_factory.bin \
+            --flash_mode dio \
+            --flash_size 4MB \
+            0x0000 $BUILD_PATH/bootloader.bin \
+            0x8000 $BUILD_PATH/partitions.bin \
+            0xd000 $BUILD_PATH/ota_data_initial.bin \
+            0x10000 $BUILD_PATH/firmware.bin
 
-          # 3. Create the multi-part manifest for ESP Web Tools
-          # Offsets are standard for ESP-IDF on ESP32-C3
+          # 3. Copy the standard versioned firmware (for OTA/Standard use)
+          cp $BUILD_PATH/firmware.bin firmware/al60_$V_NUM.bin
+
+          # 4. Create the manifest.json
+          # We still point the manifest to the 4 parts for the best Web Flasher experience
           cat <<EOF > firmware/manifest.json
           {
             "name": "NIX labs AL60",
@@ -76,6 +85,7 @@ jobs:
         with:
           files: |
             firmware/al60_${{ steps.get_version.outputs.firmware_version }}.bin
+            firmware/al60_${{ steps.get_version.outputs.firmware_version }}_factory.bin
             firmware/bootloader.bin
             firmware/partitions.bin
             firmware/ota_data_initial.bin
