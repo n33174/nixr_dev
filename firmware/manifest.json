@@ -1,0 +1,17 @@
+{
+  "name": "NIX labs AL60",
+  "version": "0.9.0",
+  "home_assistant_domain": "esphome",
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        { "path": "al60_0.9.0.bin", "offset": 0 }
+      ],
+      "ota": {
+        "md5": "cc3d16aba8c5ea30848bb0aa69d091d4",
+        "path": "al60_0.9.0.bin"
+      }
+    }
+  ]
+}
