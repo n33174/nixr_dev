@@ -41,14 +41,20 @@ We love seeing improvements!
 
 ---
 
-## 📜 License
-This project is licensed under **CC BY-NC-SA 4.0**.
+## 📜 License & Usage
 
-**What this means:**
-* ✅ **You can** share and adapt the code for personal use.
-* ✅ **You must** give credit to NIX labs.
-* ❌ **You CANNOT** use this project or any derivative for commercial purposes or profit.
-* 🔄 **ShareAlike:** If you modify this project, you must distribute your contributions under the same license.
+This project is licensed under a split-license model to support the DIY community while protecting the commercial interests of **NIX labs**.
+
+### 🛠️ Software Engine (GPLv3)
+The custom C++ components located in the `/components` directory are licensed under the **GNU General Public License v3.0**. This ensures compatibility with the ESPHome ecosystem and guarantees that improvements to the core driver logic remain open.
+
+### 🧩 Configuration & Product Logic (CC BY-NC-SA 4.0)
+The ESPHome YAML configurations (`al60.yaml`, `al60_factory.yaml`, and the `/packages` directory), documentation, and creative assets are licensed under **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International**.
+
+**What this means for you:**
+* **DIY Builders:** You are free (and encouraged!) to build, modify, and use this code for your personal projects.
+* **Improvements:** If you improve the YAML logic or features, you must share those changes under the same license.
+* **Commercial Use:** Sale of hardware or software using these configurations, or use for any profit-generating purpose, is **strictly prohibited** without express written permission from NIX labs.
 
 ---
 
