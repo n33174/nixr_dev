@@ -39,32 +39,32 @@ jobs:
       - name: Prepare Assets and Manifest
         id: prepare_assets
         run: |
-          mkdir -p firmware
+          mkdir -p public/firmware
+          mkdir -p public/static
           BUILD_PATH=".esphome/build/al60/.pioenvs/al60"
           V_NUM="${{ steps.get_version.outputs.firmware_version }}"
           
           # 1. Install esptool
           pip install esptool
           
-          # 2. Copy the individual parts to the firmware folder (CRITICAL STEP)
-          # These must exist in 'firmware/' for the Release and Manifest to find them
-          cp $BUILD_PATH/bootloader.bin firmware/bootloader.bin
-          cp $BUILD_PATH/partitions.bin firmware/partitions.bin
-          cp $BUILD_PATH/ota_data_initial.bin firmware/ota_data_initial.bin
-          cp $BUILD_PATH/firmware.bin firmware/al60_$V_NUM.bin
+          # 2. Copy the individual parts
+          cp $BUILD_PATH/bootloader.bin public/firmware/bootloader.bin
+          cp $BUILD_PATH/partitions.bin public/firmware/partitions.bin
+          cp $BUILD_PATH/ota_data_initial.bin public/firmware/ota_data_initial.bin
+          cp $BUILD_PATH/firmware.bin public/firmware/al60_$V_NUM.bin
 
           # 3. Create the Merged Factory Binary
           esptool.py --chip esp32c3 merge_bin \
-            -o firmware/al60_${V_NUM}_factory.bin \
+            -o public/firmware/al60_${V_NUM}_factory.bin \
             --flash_mode dio \
             --flash_size 4MB \
-            0x0000 firmware/bootloader.bin \
-            0x8000 firmware/partitions.bin \
-            0xd000 firmware/ota_data_initial.bin \
-            0x10000 firmware/al60_$V_NUM.bin
+            0x0000 public/firmware/bootloader.bin \
+            0x8000 public/firmware/partitions.bin \
+            0xd000 public/firmware/ota_data_initial.bin \
+            0x10000 public/firmware/al60_$V_NUM.bin
 
           # 4. Create the manifest.json
-          cat <<EOF > firmware/manifest.json
+          cat <<EOF > public/firmware/manifest.json
           {
             "name": "NIX labs AL60",
             "version": "$V_NUM",
@@ -83,16 +83,19 @@ jobs:
           }
           EOF
 
+          # 5. Copy static assets (CSS and Timezone DB) to public folder
+          cp -r static/* public/static/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            firmware/al60_${{ steps.get_version.outputs.firmware_version }}.bin
-            firmware/al60_${{ steps.get_version.outputs.firmware_version }}_factory.bin
-            firmware/bootloader.bin
-            firmware/partitions.bin
-            firmware/ota_data_initial.bin
-            firmware/manifest.json
+            public/firmware/al60_${{ steps.get_version.outputs.firmware_version }}.bin
+            public/firmware/al60_${{ steps.get_version.outputs.firmware_version }}_factory.bin
+            public/firmware/bootloader.bin
+            public/firmware/partitions.bin
+            public/firmware/ota_data_initial.bin
+            public/firmware/manifest.json
           tag_name: v${{ steps.get_version.outputs.firmware_version }}
           name: Release ${{ steps.get_version.outputs.firmware_version }}
         env:
@@ -102,5 +105,4 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./firmware
-          destination_dir: firmware
+          publish_dir: ./public

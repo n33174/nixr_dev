@@ -69,7 +69,7 @@ web_server:
   port: 80
   version: 3
   # Custom styling to match NIX labs branding
-  css_url: https://cdn.jsdelivr.net/gh/n33174/nixr_dev@main/static/www.css
+  css_url: https://n33174.github.io/nixr_dev/static/www.css
   
   # Organize the web entities into logical groups
   sorting_groups:
