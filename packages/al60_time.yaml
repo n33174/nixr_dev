@@ -189,8 +189,8 @@ button:
             on_response:
               then:
                 - lambda: |-
-                    if (status_code != 200) {
-                      ESP_LOGE("main", "Time Zone API failed with status: %d. If this persists, manually set your Time Zone.", status_code);
+                    if (body.empty()) {
+                      ESP_LOGE("main", "Time Zone API failed to return data. Check your internet connection.");
                       return;
                     }
                     json::parse_json(body, [](JsonObject root) -> bool {
