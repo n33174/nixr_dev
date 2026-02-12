@@ -128,7 +128,7 @@ datetime:
             else:
               - logger.log:
                   format: "Manual time change ignored. Disable 'Enable SNTP Sync' first."
-                  level: WARNING
+                  level: WARN
   
   # Alarm time setting
   - platform: template
