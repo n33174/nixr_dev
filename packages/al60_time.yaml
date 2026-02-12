@@ -175,8 +175,8 @@ button:
             on_response:
               then:
                 - lambda: |-
-                    json::parse_json(body, [](JsonObject root) {
-                      if (root.containsKey("utc_offset")) {
+                    json::parse_json(body, [](JsonObject root) -> bool {
+                      if (root["utc_offset"].is<const char*>()) {
                         std::string offset = root["utc_offset"].as<std::string>();
                         // POSIX offsets have inverted signs (East is negative)
                         // Example: "+10:00" -> "UTC-10"
@@ -186,5 +186,7 @@ button:
                         
                         id(time_zone).publish_state("UTC" + inv_sign + hours);
                         ESP_LOGI("main", "Auto-detected offset: UTC%c%s", inv_sign[0], hours.c_str());
+                        return true;
                       }
+                      return false;
                     });
