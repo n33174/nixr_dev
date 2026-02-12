@@ -423,12 +423,7 @@ namespace ring_clock {
     clear_R1(it);
     clear_R2(it);
     draw_markers(it);
-    
-  void RingClock::render_rainbow(light::AddressableLight & it) {
-    clear_R1(it);
-    clear_R2(it);
-    draw_markers(it);
-    
+
     esphome::ESPTime now = _time->now();
     
     // Calculate 2 contrasting hues that shift slowly throughout 12 hours
