@@ -162,6 +162,8 @@ namespace ring_clock {
   void RingClock::set_enable_markers_state(switch_::Switch *enable_markers) { this->enable_markers = enable_markers; }
   void RingClock::set_marker_color_state(light::LightState* state) { this->marker_color = state; }
   void RingClock::set_notification_color_state(light::LightState* state) { this->notification_color = state; }
+  void RingClock::set_clock_addressable_lights(light::LightState *it) { this->_clock_lights = it; }
+  void RingClock::set_blank_leds(std::vector<int> leds) { this->_blanked_leds = leds; }
   float RingClock::get_interference_factor() { return this->_interference_factor; }
 
   // --- Helpers ---

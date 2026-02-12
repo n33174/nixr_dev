@@ -76,6 +76,7 @@ namespace ring_clock {
       void set_time(time::RealTimeClock *time);
       void set_enable_seconds_state(switch_::Switch *enable_seconds);
       void set_enable_markers_state(switch_::Switch *enable_markers);
+      void set_clock_addressable_lights(light::LightState *it);
       void set_sound_enabled_state(switch_::Switch *sound_enabled) { this->_sound_enabled_switch = sound_enabled; }
       
       // Sensor Linking
@@ -151,6 +152,7 @@ namespace ring_clock {
       sensor::Sensor* _humidity_sensor{nullptr};
       
       // Pointers to color sources
+      light::LightState *_clock_lights{nullptr};
       light::LightState* hour_hand_color{nullptr};
       light::LightState* minute_hand_color{nullptr};
       light::LightState* second_hand_color{nullptr};
