@@ -11,7 +11,6 @@ substitutions:
 
 packages:
   # Load common logic from the NIX labs repository
-  # Copy the contents of these files into this main yaml file and remove the remote if you wish to make changes
 
   # Core system config (Logger, API, Web Server)
   core: github://n33174/nixr_dev/common/core.yaml@main
@@ -38,6 +37,7 @@ wifi:
 # Allows this device to be easily adopted into ESPHome Dashboard
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/al60.yaml@main
+  # Set mport_full_config to true to import all packages allowing for full customisation
   import_full_config: false
 
 external_components:

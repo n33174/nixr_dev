@@ -297,14 +297,12 @@ namespace ring_clock {
         uint8_t g = (uint8_t)(cv.get_green() * 255 * b);
         uint8_t blue = (uint8_t)(cv.get_blue() * 255 * b);
         
-        // Minimum brightness clamp for visibility
         if (cv.get_red() > 0 && r < 20) r = 20;
         if (cv.get_green() > 0 && g < 20) g = 20;
         if (cv.get_blue() > 0 && blue < 20) blue = 20;
 
         Color bg = Color(r, g, blue);
 
-        // Fill Outer Ring
         for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
           if (this->enable_markers != nullptr && this->enable_markers->state) {
               if ((i - R1_NUM_LEDS) % 4 != 0) it[i] = bg;
@@ -313,31 +311,31 @@ namespace ring_clock {
           }
         }
       }
+    }
 
-      // 2. Draw Markers (every 4th LED on Outer Ring)
-      if (this->enable_markers != nullptr && this->enable_markers->state) {
-        Color mc = _default_marker_color;
-        
-        // Theme overrides
-        if (clock_effect == "Clock (RGB)") {
-            mc = Color(100, 100, 100);
-        } else if (clock_effect == "Clock (Mono)") {
-            mc = Color(5, 5, 5); // Dim as they go
-        }
-        
-        if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
-            // Use custom marker color if set (User override)
-            auto cv = this->marker_color->current_values;
-            float b = cv.get_brightness();
-            mc = Color((uint8_t)(cv.get_red() * 255 * b), 
-                       (uint8_t)(cv.get_green() * 255 * b), 
-                       (uint8_t)(cv.get_blue() * 255 * b));
-        }
+    // 2. Draw Markers (always visible unless disabled)
+    if (this->enable_markers != nullptr && this->enable_markers->state) {
+      Color mc = _default_marker_color;
+      
+      // Theme overrides
+      if (clock_effect == "Clock (RGB)") {
+          mc = Color(100, 100, 100);
+      } else if (clock_effect == "Clock (Mono)") {
+          mc = Color(5, 5, 5); // Dim as they go
+      }
+      
+      if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
+          // Use custom marker color if set (User override)
+          auto cv = this->marker_color->current_values;
+          float b = cv.get_brightness();
+          mc = Color((uint8_t)(cv.get_red() * 255 * b), 
+                     (uint8_t)(cv.get_green() * 255 * b), 
+                     (uint8_t)(cv.get_blue() * 255 * b));
+      }
 
-        for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-          if ((i - R1_NUM_LEDS) % 4 == 0) {
-            it[i] = mc;
-          }
+      for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
+        if ((i - R1_NUM_LEDS) % 4 == 0) {
+          it[i] = mc;
         }
       }
     }
