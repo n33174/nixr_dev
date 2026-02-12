@@ -7,13 +7,16 @@ esphome:
   friendly_name: "${friendly_name}"
   name_add_mac_suffix: true
   platformio_options:
-    board_build.flash_mode: dio
+    board_build.flash_mode: dout
     
 esp32:
   board: esp32-c3-devkitm-1
   variant: ESP32C3
   framework:
     type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_CONSOLE_UART_DEFAULT: "y"
+      CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG: "y"
 
 # Logging Configuration
 logger:
