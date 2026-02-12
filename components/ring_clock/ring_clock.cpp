@@ -382,6 +382,8 @@ namespace ring_clock {
            float b = cv.get_brightness();
            sc_color = Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
         }
+    }
+    
     time_t t = ::time(NULL);
     esphome::ESPTime now = esphome::ESPTime::from_c_tm(::localtime(&t), 0);
 
