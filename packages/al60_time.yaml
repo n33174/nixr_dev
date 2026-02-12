@@ -38,13 +38,15 @@ time:
               id: custom_time
               datetime: !lambda |-
                   // Return local time based on system TZ
-                  return esphome::ESPTime::local_timestamp().to_c_tm();
+                  time_t t = ::time(NULL);
+                  return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
       # Alarm logic: Check every minute if alarm should fire
       - seconds: 0
         minutes: /1
         then:
           - lambda: |-
-              auto now = esphome::ESPTime::local_timestamp();
+              time_t t = ::time(NULL);
+              auto now = esphome::ESPTime::from_c_tm(::localtime(&t), 0);
               auto alarm = id(alarm_time);
               // Check if alarm is enabled and matches current Hour/Minute
               if (id(alarm_enabled).state && now.hour == alarm->hour && now.minute == alarm->minute) {

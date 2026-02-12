@@ -290,7 +290,9 @@ button:
             then:
               - datetime.datetime.set:
                     id: custom_time
-                    datetime: !lambda 'return esphome::ESPTime::local_timestamp().to_c_tm();'
+                    datetime: !lambda |-
+                        time_t t = ::time(NULL);
+                        return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - lambda: |-
             setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
@@ -312,7 +314,8 @@ button:
         - datetime.datetime.set:
               id: custom_time
               datetime: !lambda |-
-                  return esphome::ESPTime::local_timestamp().to_c_tm();
+                  time_t t = ::time(NULL);
+                  return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - logger.log: 
             format: "RTC incremented by 1 hour"
             level: INFO
@@ -338,7 +341,9 @@ button:
             then:
               - datetime.datetime.set:
                     id: custom_time
-                    datetime: !lambda 'return esphome::ESPTime::local_timestamp().to_c_tm();'
+                    datetime: !lambda |-
+                        time_t t = ::time(NULL);
+                        return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - lambda: |-
             setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
@@ -354,13 +359,13 @@ button:
             std::time_t t = mktime(&time_info);
             struct timeval tv = {t, 0};
             settimeofday(&tv, NULL);
-            ESP_LOGD("main", "System time set to: %s", ctime(&t));
         - pcf8563.write_time:
             id: rtc_time
         - datetime.datetime.set:
-              id: custom_time
-              datetime: !lambda |-
-                  return esphome::ESPTime::local_timestamp().to_c_tm();
+            id: custom_time
+            datetime: !lambda |-
+                time_t t = ::time(NULL);
+                return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - logger.log: 
             format: "RTC incremented by 1 minute"
             level: INFO
