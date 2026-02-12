@@ -301,7 +301,7 @@ button:
             time_info.tm_year = time->year - 1900;
             time_info.tm_mon = time->month - 1;
             time_info.tm_mday = time->day;
-            time_info.tm_hour = time->hour + 1;
+            time_info.tm_hour = (time->hour + 1) % 24;
             time_info.tm_min = time->minute;
             time_info.tm_sec = time->second;
             time_info.tm_isdst = -1;
@@ -353,7 +353,7 @@ button:
             time_info.tm_mon = time->month - 1;
             time_info.tm_mday = time->day;
             time_info.tm_hour = time->hour;
-            time_info.tm_min = time->minute + 1;
+            time_info.tm_min = (time->minute + 1) % 60;
             time_info.tm_sec = time->second;
             time_info.tm_isdst = -1;
             std::time_t t = mktime(&time_info);
@@ -369,45 +369,6 @@ button:
         - logger.log: 
             format: "RTC incremented by 1 minute"
             level: INFO
-
-  # Button to apply "Custom Time" text input to system
-  - platform: template
-    name: "Set Custom Time"
-    id: custom_sync
-    web_server:
-      sorting_group_id: sorting_time
-      sorting_weight: 4
-    on_press:
-      then:
-        - if:
-            condition:
-              - switch.is_off: sntp_switch
-            then:
-              - lambda: |-
-                  setenv("TZ", id(time_zone)->state.c_str(), 1);
-                  tzset();
-                  struct tm time_info;
-                  auto *time = id(custom_time);
-                  time_info.tm_year = time->year - 1900;
-                  time_info.tm_mon = time->month - 1;
-                  time_info.tm_mday = time->day;
-                  time_info.tm_hour = time->hour;
-                  time_info.tm_min = time->minute;
-                  time_info.tm_sec = time->second;
-                  time_info.tm_isdst = -1;
-                  std::time_t t = mktime(&time_info);
-                  struct timeval tv = {t, 0};
-                  settimeofday(&tv, NULL);
-                  ESP_LOGD("main", "System time set to: %s", ctime(&t));
-              - pcf8563.write_time:
-                  id: rtc_time
-              - logger.log: 
-                  format: "RTC updated with custom time"
-                  level: INFO
-            else:
-              - logger.log:
-                  format: "Custom time NOT set - SNTP sync active"
-                  level: WARN
 
   # Timer Controls
   - platform: template
