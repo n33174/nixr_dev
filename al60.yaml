@@ -14,22 +14,15 @@ packages:
 
 wifi:
   power_save_mode: none
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  reboot_timeout: 0s
-
-  manual_ip:
-    static_ip: 192.168.20.57
-    gateway: 192.168.20.1
-    subnet: 255.255.255.0
-    dns1: 192.168.20.1
-
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  # Set up a wifi access point
   ap:
-    ssid: "AL60 Fallback Hotspot"
-    password: "SPt0OFUb7nPR"
+    password: "12345678"
+
+# This should point to the public location of this yaml file.
+dashboard_import:
+  package_import_url: github://n33174/nixr_dev/al60.yaml@main
+  import_full_config: false # or true
 
 external_components:
   - source: github://n33174/nixr_dev@main
     components: [ ring_clock ]
-    refresh: 1s

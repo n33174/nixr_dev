@@ -1,0 +1,91 @@
+esphome:
+  project:
+    name: "NIXlabs.AL60"
+    version: "0.1.2"
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  platformio_options:
+    board_build.flash_mode: dio
+    
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: ESP32C3
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: DEBUG
+  logs:
+    sensor: INFO
+    datetime.datetime_entity: INFO
+
+# Enable Home Assistant API
+api:
+  # Encryption key should be defined in the main file or secrets if needed, 
+  # but nixr.yaml had it empty. nixr_dev.yaml has it.
+  # We will leave it empty here to allow overriding or merging if set in main.
+  reboot_timeout: 0s
+
+ota:
+  - platform: http_request
+  - platform: web_server
+  - platform: esphome
+
+http_request:
+
+update:
+  - platform: http_request
+    name: Firmware Update
+    source: https://raw.githubusercontent.com/nix-labs/esp-firmware/latest/manifest.json
+
+captive_portal:
+
+# Sets up Bluetooth LE (Only on ESP32) to allow the user
+# to provision wifi credentials to the device.
+esp32_improv:
+  authorizer: none
+
+# Sets up the improv via serial client for Wi-Fi provisioning
+improv_serial:
+
+web_server:
+  port: 80
+  version: 3
+  css_url: https://cdn.jsdelivr.net/gh/n33174/nixr_dev@main/style/www.css
+  sorting_groups:
+    - id: sorting_time
+      name: "Time Settings"
+      sorting_weight: 10
+    - id: sorting_clock
+      name: "Clock Settings"
+      sorting_weight: 20
+    - id: sorting_clock_led
+      name: "Clock LED Customisation"
+      sorting_weight: 25
+    - id: sorting_sensors
+      name: "Sensors"
+      sorting_weight: 30
+    - id: sorting_other
+      name: "Other"
+      sorting_weight: 40
+    - id: sorting_timer
+      name: "Timer & Stopwatch"
+      sorting_weight: 45
+    - id: sorting_alarm
+      name: "Alarm"
+      sorting_weight: 46
+    - id: sorting_system
+      name: "System"
+      sorting_weight: 50
+
+output:
+  # Buzzer Output
+  - platform: ledc
+    pin: GPIO7
+    id: buzzer
+
+rtttl:
+  output: buzzer
+  id: buzzer_rtttl
+  gain: 90%

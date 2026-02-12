@@ -1,0 +1,332 @@
+globals:
+  - id: minute_button_long_press
+    type: bool
+    initial_value: 'false'
+  - id: hour_button_long_press
+    type: bool
+    initial_value: 'false'
+
+switch:
+  - platform: template
+    name: "Timer or Stopwatch Sounds"
+    id: timer_sounds
+    optimistic: True
+    restore_mode: ${timer_sounds_restore_mode}
+    web_server:
+      sorting_group_id: sorting_timer
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO2
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Mode Button"
+    internal: true
+    filters:
+      delayed_on_off: 100ms # Debouncing
+    on_press: 
+      then:
+        - switch.toggle: presense_detection
+        - if:
+            condition:
+              - switch.is_on: presense_detection
+            then:
+              - rtttl.play: 'double:d=4,o=5,b=100:16e6,16e6'
+            else:
+              - rtttl.play: 'single:d=4,o=5,b=100:16e6'
+  - platform: gpio
+    pin:
+      number: GPIO8
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Hour Button"
+    internal: true
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+    on_multi_click:
+      - timing:
+          - ON for 40ms to 1s
+          - OFF for at least 50ms
+        then:
+         - button.press: hour_increment
+      - timing:
+          - ON for at least 1s
+        then:
+          lambda: |-
+            id(hour_button_long_press) = true;
+      - timing:
+          - OFF for at least 50ms
+        then:
+          lambda: |-
+            id(hour_button_long_press) = false;
+  - platform: gpio
+    pin:
+      number: GPIO9
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Minute Button"
+    internal: true
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+    on_multi_click:
+      - timing:
+          - ON for 40ms to 1s
+          - OFF for at least 50ms
+        then:
+         - button.press: minute_increment
+      - timing:
+          - ON for at least 1s
+        then:
+          lambda: |-
+            id(minute_button_long_press) = true;
+      - timing:
+          - OFF for at least 50ms
+        then:
+          lambda: |-
+            id(minute_button_long_press) = false;
+
+interval:
+  - interval: 250ms
+    then:
+      lambda: |-
+        if (id(minute_button_long_press)) {
+          id(minute_increment)->press();
+        }
+        if (id(hour_button_long_press)) {
+          id(hour_increment)->press();
+        }
+
+button:
+  - platform: restart
+    name: Restart
+    id: restart_esp
+    web_server:
+      sorting_group_id: sorting_system
+  - platform: factory_reset
+    name: Reset with Default Settings
+    disabled_by_default: True
+    web_server:
+      sorting_group_id: sorting_system
+  - platform: template
+    name: Buzzer
+    web_server:
+      sorting_group_id: sorting_other
+    on_press: 
+      then:
+        - rtttl.play: notification:d=16,o=6,b=160:c,e,g,c7
+  - platform: template
+    name: "Hour Increment"
+    id: hour_increment
+    web_server:
+      sorting_group_id: sorting_time
+    on_press:
+      then:
+        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+        - switch.turn_off: sntp_switch
+        - if:
+            condition:
+              time.has_time:
+                id: rtc_time
+            then:
+              - datetime.datetime.set:
+                    id: custom_time
+                    datetime: !lambda 'return id(rtc_time).now();'
+        - lambda: |-
+            setenv("TZ", id(time_zone)->state.c_str(), 1);
+            tzset();
+            struct tm time_info;
+            auto *time = id(custom_time); // Get TemplateDateTime pointer
+            time_info.tm_year = time->year - 1900;
+            time_info.tm_mon = time->month - 1;
+            time_info.tm_mday = time->day;
+            time_info.tm_hour = time->hour + 1;
+            time_info.tm_min = time->minute;
+            time_info.tm_sec = time->second;
+            time_info.tm_isdst = -1;
+            std::time_t t = mktime(&time_info);
+            struct timeval tv = {t, 0};
+            settimeofday(&tv, NULL);
+            ESP_LOGD("main", "System time set to: %s", ctime(&t));
+        - pcf8563.write_time:
+            id: rtc_time
+        - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+        - logger.log: 
+            format: "RTC incremented by 1 hour"
+            level: INFO
+  - platform: template
+    name: "Minute Increment"
+    id: minute_increment
+    web_server:
+      sorting_group_id: sorting_time
+    on_press:
+      then:
+        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+        - switch.turn_off: sntp_switch
+        - if:
+            condition:
+              time.has_time:
+                id: rtc_time
+            then:
+              - datetime.datetime.set:
+                    id: custom_time
+                    datetime: !lambda 'return id(rtc_time).now();'
+        - lambda: |-
+            setenv("TZ", id(time_zone)->state.c_str(), 1);
+            tzset();
+            struct tm time_info;
+            auto *time = id(custom_time);
+            time_info.tm_year = time->year - 1900;
+            time_info.tm_mon = time->month - 1;
+            time_info.tm_mday = time->day;
+            time_info.tm_hour = time->hour;
+            time_info.tm_min = time->minute + 1;
+            time_info.tm_sec = time->second;
+            time_info.tm_isdst = -1;
+            std::time_t t = mktime(&time_info);
+            struct timeval tv = {t, 0};
+            settimeofday(&tv, NULL);
+            ESP_LOGD("main", "System time set to: %s", ctime(&t));
+        - pcf8563.write_time:
+            id: rtc_time
+        - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+        - logger.log: 
+            format: "RTC incremented by 1 minute"
+            level: INFO
+
+  - platform: template
+    name: "Start Timer"
+    id: start_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: |-
+            int h = (int)id(timer_hours).state;
+            int m = (int)id(timer_minutes).state;
+            int s = (int)id(timer_seconds).state;
+            id(RingClock)->start_timer(h, m, s);
+        - light.turn_on:
+            id: ring_light
+            effect: Timer
+
+  - platform: template
+    name: "Stop Timer & Stopwatch"
+    id: stop_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_timer();'
+        - light.turn_on:
+            id: ring_light
+            effect: Clock
+
+  - platform: template
+    name: "Start Stopwatch"
+    id: start_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->start_stopwatch();'
+        - light.turn_on:
+            id: ring_light
+            effect: Stopwatch
+
+  - platform: template
+    name: "Pause Stopwatch"
+    id: pause_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_stopwatch();'
+
+  - platform: template
+    name: "Reset Stopwatch"
+    id: reset_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->reset_stopwatch();'
+
+  - platform: template
+    name: "Set Custom Time"
+    id: custom_sync
+    web_server:
+      sorting_group_id: sorting_time
+    on_press:
+      then:
+        - if:
+            condition:
+              - switch.is_off: sntp_switch
+            then:
+              - lambda: |-
+                  setenv("TZ", id(time_zone)->state.c_str(), 1);
+                  tzset();
+                  struct tm time_info;
+                  auto *time = id(custom_time);
+                  time_info.tm_year = time->year - 1900;
+                  time_info.tm_mon = time->month - 1;
+                  time_info.tm_mday = time->day;
+                  time_info.tm_hour = time->hour;
+                  time_info.tm_min = time->minute;
+                  time_info.tm_sec = time->second;
+                  time_info.tm_isdst = -1;
+                  std::time_t t = mktime(&time_info);
+                  struct timeval tv = {t, 0};
+                  settimeofday(&tv, NULL);
+                  ESP_LOGD("main", "System time set to: %s", ctime(&t));
+              - pcf8563.write_time:
+                  id: rtc_time
+              - logger.log: 
+                  format: "RTC updated with custom time"
+                  level: INFO
+            else:
+              - logger.log:
+                  format: "Custom time NOT set - SNTP sync active"
+                  level: WARN
+
+number:
+  - platform: template
+    name: "Timer Hours"
+    id: timer_hours
+    min_value: 0
+    max_value: 12
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+  - platform: template
+    name: "Timer Minutes"
+    id: timer_minutes
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer
+  - platform: template
+    name: "Timer Seconds"
+    id: timer_seconds
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_timer

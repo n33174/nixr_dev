@@ -1,0 +1,115 @@
+esphome:
+  on_boot:
+    - priority: 300
+      then:
+        - logger.log: 
+            format: "Starting Time Display"
+            level: DEBUG
+        - pcf8563.read_time:
+              id: rtc_time
+
+i2c:
+  scl: GPIO5
+  sda: GPIO6
+  scan: true
+
+time:
+  - platform: pcf8563
+    address: 0x51
+    update_interval: never
+    id: rtc_time
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          - datetime.datetime.set:
+              id: custom_time
+              datetime: !lambda |-
+                  auto time = id(rtc_time).now();
+                  return time;
+      - seconds: 0
+        minutes: /1
+        then:
+          - lambda: |-
+              auto now = id(rtc_time).now();
+              auto alarm = id(alarm_time);
+              if (id(alarm_enabled).state && now.hour == alarm->hour && now.minute == alarm->minute) {
+                id(RingClock)->start_alarm();
+                if (id(alarm_once).state) {
+                  id(alarm_enabled).turn_off();
+                }
+              }
+
+  - platform: sntp
+    id: sntp_time
+    on_time_sync:
+      then:
+        - if:
+            condition:
+              - switch.is_on: sntp_switch
+            then:
+              - pcf8563.write_time:
+                  id: rtc_time
+              - logger.log: 
+                  format: "SNTP Time Synchronised and RTC updated"
+                  level: INFO
+
+datetime:
+  - platform: template
+    name: "Custom Time"
+    id: custom_time
+    type: datetime
+    initial_value: "2025-01-01 12:00:00"
+    optimistic: True
+    web_server:
+      sorting_group_id: sorting_time
+  - platform: template
+    name: "Alarm Time"
+    id: alarm_time
+    type: time
+    initial_value: "07:00:00"
+    optimistic: True
+    restore_value: True
+    web_server:
+      sorting_group_id: sorting_alarm
+
+switch:
+  - platform: template
+    name: "Enable SNTP Sync"
+    id: sntp_switch
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_time
+
+  - platform: template
+    name: "Alarm Enabled"
+    id: alarm_enabled
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    web_server:
+      sorting_group_id: sorting_alarm
+  - platform: template
+    name: "Alarm Sounds"
+    id: alarm_sound
+    optimistic: True
+    restore_mode: ${alarm_sound_restore_mode}
+    web_server:
+      sorting_group_id: sorting_alarm
+  - platform: template
+    name: "Alarm Once"
+    id: alarm_once
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    web_server:
+      sorting_group_id: sorting_alarm
+
+text:
+  - platform: template
+    name: "Time Zone"
+    id: time_zone
+    mode: text
+    optimistic: true
+    initial_value: ${time_zone}
+    web_server:
+      sorting_group_id: sorting_time
