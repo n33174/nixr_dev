@@ -1,3 +1,9 @@
+globals:
+  - id: timezone_configured
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+
 esphome:
   on_boot:
     # Read time from the hardware RTC as early as possible on boot
@@ -17,9 +23,12 @@ esphome:
         - if:
             condition:
               lambda: |-
-                return id(time_zone).state == "${time_zone}"; 
+                return !id(timezone_configured); 
             then:
               - button.press: detect_timezone
+              - globals.set:
+                  id: timezone_configured
+                  value: 'true'
 
 time:
   # Hardware Real Time Clock (PCF8563)
@@ -147,6 +156,7 @@ text:
     id: time_zone
     mode: text
     optimistic: true
+    restore_value: true
     initial_value: ${time_zone}
     web_server:
       sorting_group_id: sorting_time
@@ -159,6 +169,9 @@ text:
             ESP_LOGI("main", "Timezone updated to: %s", x.c_str());
         - pcf8563.write_time:
             id: rtc_time
+        - globals.set:
+            id: timezone_configured
+            value: 'true'
 button:
   # Detect Timezone via IP Geolocation (WorldTimeAPI)
   - platform: template
@@ -169,12 +182,17 @@ button:
       sorting_weight: 5
     on_press:
       then:
+        - logger.log: "Attempting Time Zone Auto-Detection..."
         - http_request.get:
-            url: "http://worldtimeapi.org/api/ip"
+            url: "https://worldtimeapi.org/api/ip"
             capture_response: true
             on_response:
               then:
                 - lambda: |-
+                    if (status_code != 200) {
+                      ESP_LOGE("main", "Time Zone API failed with status: %d. If this persists, manually set your Time Zone.", status_code);
+                      return;
+                    }
                     json::parse_json(body, [](JsonObject root) -> bool {
                       if (root["utc_offset"].is<const char*>()) {
                         std::string offset = root["utc_offset"].as<std::string>();
