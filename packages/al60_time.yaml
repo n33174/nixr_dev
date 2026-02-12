@@ -3,6 +3,10 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
+  - id: detected_iana
+    type: std::string
+  - id: detected_offset
+    type: std::string
 
 esphome:
   on_boot:
@@ -182,7 +186,7 @@ button:
       sorting_weight: 5
     on_press:
       then:
-        - logger.log: "Attempting Time Zone Auto-Detection..."
+        - logger.log: "Stage 1: Detecting IANA Timezone..."
         - http_request.get:
             url: "https://worldtimeapi.org/api/ip"
             capture_response: true
@@ -190,21 +194,57 @@ button:
               then:
                 - lambda: |-
                     if (body.empty()) {
-                      ESP_LOGE("main", "Time Zone API failed to return data. Check your internet connection.");
+                      ESP_LOGE("main", "Timezone Stage 1 failed. Check internet.");
                       return;
                     }
                     json::parse_json(body, [](JsonObject root) -> bool {
-                      if (root["utc_offset"].is<const char*>()) {
-                        std::string offset = root["utc_offset"].as<std::string>();
-                        // POSIX offsets have inverted signs (East is negative)
-                        // Example: "+10:00" -> "UTC-10:00"
-                        char sign = offset[0];
-                        std::string hh_mm = offset.substr(1, 5); // Capture "10:00"
-                        std::string inv_sign = (sign == '+') ? "-" : "+";
-                        
-                        id(time_zone).publish_state("UTC" + inv_sign + hh_mm);
-                        ESP_LOGI("main", "Auto-detected: UTC%s%s", inv_sign.c_str(), hh_mm.c_str());
+                      if (root["timezone"].is<const char*>() && root["utc_offset"].is<const char*>()) {
+                        id(detected_iana) = root["timezone"].as<std::string>();
+                        id(detected_offset) = root["utc_offset"].as<std::string>();
+                        id(fetch_posix_rule).press(); // Trigger Stage 2
                         return true;
                       }
                       return false;
                     });
+
+  # Stage 2: Lookup POSIX Rule from our static database
+  - platform: template
+    name: "Fetch POSIX Rule"
+    id: fetch_posix_rule
+    internal: true # Hidden from UI
+    on_press:
+      then:
+        - logger.log: "Stage 2: Looking up POSIX rule for city..."
+        - http_request.get:
+            url: "https://n33174.github.io/nixr_dev/static/zones.json"
+            capture_response: true
+            on_response:
+              then:
+                - lambda: |-
+                    if (body.empty()) {
+                       ESP_LOGW("main", "Stage 2 DB unreachable. Falling back to offset.");
+                       goto fallback;
+                    }
+                    
+                    json::parse_json(body, [](JsonObject root) -> bool {
+                      std::string city = id(detected_iana);
+                      if (root[city].is<const char*>()) {
+                        std::string posix = root[city].as<std::string>();
+                        id(time_zone).publish_state(posix);
+                        ESP_LOGI("main", "Success! Applied POSIX rule for %s: %s", city.c_str(), posix.c_str());
+                        return true;
+                      }
+                      return false;
+                    });
+                    
+                    // If we reach here and status isn't updated, fallback to offset
+                    if (id(time_zone).state == "${time_zone}") {
+                      fallback:
+                      std::string offset = id(detected_offset);
+                      char sign = offset[0];
+                      std::string hh_mm = offset.substr(1, 5);
+                      std::string inv_sign = (sign == '+') ? "-" : "+";
+                      std::string fallback_posix = "UTC" + inv_sign + hh_mm;
+                      id(time_zone).publish_state(fallback_posix);
+                      ESP_LOGI("main", "City not in DB. Applied current offset fallback: %s", fallback_posix.c_str());
+                    }
