@@ -5,6 +5,21 @@ esphome:
       then:
         - pcf8563.read_time:
               id: rtc_time
+        - lambda: |-
+            setenv("TZ", id(time_zone).state.c_str(), 1);
+            tzset();
+    # Auto-detect timezone on first connection if not already configured
+    - priority: 100
+      then:
+        - wait_until:
+            condition:
+              wifi.connected:
+        - if:
+            condition:
+              lambda: |-
+                return id(time_zone).state == "${time_zone}"; 
+            then:
+              - button.press: detect_timezone
 
 time:
   # Hardware Real Time Clock (PCF8563)
@@ -13,6 +28,7 @@ time:
     address: 0x51
     update_interval: never # Only update manually or on SNTP sync
     id: rtc_time
+    timezone: UTC
     on_time:
       # Sync logic: Update the 'Custom Time' template every minute
       - seconds: 0
@@ -21,14 +37,14 @@ time:
           - datetime.datetime.set:
               id: custom_time
               datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
+                  // Return local time based on system TZ
+                  return esphome::ESPTime::local_timestamp().to_c_tm();
       # Alarm logic: Check every minute if alarm should fire
       - seconds: 0
         minutes: /1
         then:
           - lambda: |-
-              auto now = id(rtc_time).now();
+              auto now = esphome::ESPTime::local_timestamp();
               auto alarm = id(alarm_time);
               // Check if alarm is enabled and matches current Hour/Minute
               if (id(alarm_enabled).state && now.hour == alarm->hour && now.minute == alarm->minute) {
@@ -42,6 +58,7 @@ time:
   # Internet Time Sync (SNTP)
   - platform: sntp
     id: sntp_time
+    timezone: UTC
     on_time_sync:
       then:
         # Update the hardware RTC if SNTP sync switch is enabled
@@ -132,3 +149,40 @@ text:
     web_server:
       sorting_group_id: sorting_time
       sorting_weight: 1
+    on_value:
+      then:
+        - lambda: |-
+            setenv("TZ", x.c_str(), 1);
+            tzset();
+            ESP_LOGI("main", "Timezone updated to: %s", x.c_str());
+        - pcf8563.write_time:
+            id: rtc_time
+button:
+  # Detect Timezone via IP Geolocation (WorldTimeAPI)
+  - platform: template
+    name: "Auto-Detect Time Zone"
+    id: detect_timezone
+    web_server:
+      sorting_group_id: sorting_time
+      sorting_weight: 5
+    on_press:
+      then:
+        - http_request.get:
+            url: "http://worldtimeapi.org/api/ip"
+            capture_response: true
+            on_response:
+              then:
+                - lambda: |-
+                    json::parse_json(body, [](JsonObject root) {
+                      if (root.containsKey("utc_offset")) {
+                        std::string offset = root["utc_offset"].as<std::string>();
+                        // POSIX offsets have inverted signs (East is negative)
+                        // Example: "+10:00" -> "UTC-10"
+                        char sign = offset[0];
+                        std::string hours = offset.substr(1, 2);
+                        std::string inv_sign = (sign == '+') ? "-" : "+";
+                        
+                        id(time_zone).publish_state("UTC" + inv_sign + hours);
+                        ESP_LOGI("main", "Auto-detected offset: UTC%c%s", inv_sign[0], hours.c_str());
+                      }
+                    });

@@ -290,7 +290,7 @@ button:
             then:
               - datetime.datetime.set:
                     id: custom_time
-                    datetime: !lambda 'return id(rtc_time).now();'
+                    datetime: !lambda 'return esphome::ESPTime::local_timestamp().to_c_tm();'
         - lambda: |-
             setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
@@ -312,8 +312,7 @@ button:
         - datetime.datetime.set:
               id: custom_time
               datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
+                  return esphome::ESPTime::local_timestamp().to_c_tm();
         - logger.log: 
             format: "RTC incremented by 1 hour"
             level: INFO
@@ -339,7 +338,7 @@ button:
             then:
               - datetime.datetime.set:
                     id: custom_time
-                    datetime: !lambda 'return id(rtc_time).now();'
+                    datetime: !lambda 'return esphome::ESPTime::local_timestamp().to_c_tm();'
         - lambda: |-
             setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
@@ -361,8 +360,7 @@ button:
         - datetime.datetime.set:
               id: custom_time
               datetime: !lambda |-
-                  auto time = id(rtc_time).now();
-                  return time;
+                  return esphome::ESPTime::local_timestamp().to_c_tm();
         - logger.log: 
             format: "RTC incremented by 1 minute"
             level: INFO

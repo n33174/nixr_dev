@@ -6,8 +6,9 @@ substitutions:
   # Firmware version
   version: "0.9.0"
   # Default Time Zone (can be changed in Web UI later)
-  # Format must match standard TZ database names
-  time_zone: "Australia/Brisbane"
+  # Format must match POSIX Timezone String
+  # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+  time_zone: "AEST-10" 
 
 packages:
   # Core system config (Logger, API, Web Server)

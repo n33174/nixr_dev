@@ -38,8 +38,9 @@ ota:
   - platform: web_server   # Allow uploading .bin via web UI
   - platform: esphome      # Allow updating via ESPHome dashboard
 
-# Required for http_request OTA platform
+# Required for http_request OTA platform and timezone discovery
 http_request:
+json:
 
 # Update Check
 # Compares current version against the manifest to notify of updates
