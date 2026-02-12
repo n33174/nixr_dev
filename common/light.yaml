@@ -42,6 +42,7 @@ number:
     step: 1
     web_server:
       sorting_group_id: sorting_clock
+      sorting_weight: 5
       
   # Brightness slider for Inactive/No presence state
   - platform: template
@@ -56,6 +57,7 @@ number:
     step: 1
     web_server:
       sorting_group_id: sorting_clock
+      sorting_weight: 6
 
 switch:
   # Toggles for specific visual elements
@@ -66,6 +68,7 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_clock
+      sorting_weight: 3
   - platform: template
     name: "Enable Markers"
     id: enable_markers
@@ -73,6 +76,7 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_clock
+      sorting_weight: 2
 
 # Custom Component: Ring Clock Logic
 # Links sensors, inputs, and lights together
@@ -226,6 +230,7 @@ light:
     blue: output_hour_blue
     web_server:
       sorting_group_id: sorting_clock_led
+      sorting_weight: 1
       
   - platform: rgb
     id: minute_hand_color
@@ -237,6 +242,7 @@ light:
     blue: output_minute_blue
     web_server:
       sorting_group_id: sorting_clock_led
+      sorting_weight: 2
       
   - platform: rgb
     id: second_hand_color
@@ -248,7 +254,8 @@ light:
     blue: output_second_blue
     web_server:
       sorting_group_id: sorting_clock_led
-      
+      sorting_weight: 3
+
   # Customisation Keys: Markers
   - platform: rgb
     id: marker_color
@@ -260,6 +267,7 @@ light:
     blue: output_marker_blue
     web_server:
       sorting_group_id: sorting_clock_led
+      sorting_weight: 4
     effects:
       - random:
       
@@ -274,6 +282,7 @@ light:
     blue: output_notification_blue
     web_server:
       sorting_group_id: sorting_clock_led
+      sorting_weight: 5
     effects:
       - random:
       - pulse:

@@ -44,6 +44,8 @@ update:
   - platform: http_request
     name: Firmware Update
     source: https://raw.githubusercontent.com/nix-labs/esp-firmware/latest/manifest.json
+    web_server:
+      sorting_group_id: sorting_system
 
 # Captive Portal for fallback wifi configuration
 captive_portal:

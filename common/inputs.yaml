@@ -16,6 +16,7 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_clock
+      sorting_weight: 4
   # Toggle to mute timer/stopwatch sounds
   - platform: template
     name: "Timer or Stopwatch Sounds"
@@ -24,6 +25,7 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 9
 
 binary_sensor:
   # Mode Button (Physical)
@@ -43,7 +45,7 @@ binary_sensor:
       # Single Click: Next Clock Effect
       - timing:
           - ON for 50ms to 500ms
-          - OFF for at least 400ms
+          - OFF for at least 600ms
         then:
           - lambda: |-
               auto call = id(ring_light).turn_on();
@@ -407,6 +409,7 @@ button:
     id: start_timer_button
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 4
     on_press:
       then:
         - lambda: |-
@@ -423,6 +426,7 @@ button:
     id: stop_timer_button
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 5
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_timer();'
@@ -436,6 +440,7 @@ button:
     id: start_stopwatch_button
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 1
     on_press:
       then:
         - lambda: 'id(RingClock)->start_stopwatch();'
@@ -448,6 +453,7 @@ button:
     id: pause_stopwatch_button
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 2
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_stopwatch();'
@@ -457,6 +463,7 @@ button:
     id: reset_stopwatch_button
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 3
     on_press:
       then:
         - lambda: 'id(RingClock)->reset_stopwatch();'
@@ -473,6 +480,7 @@ number:
     optimistic: True
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 6
   - platform: template
     name: "Timer Minutes"
     id: timer_minutes
@@ -483,6 +491,7 @@ number:
     optimistic: True
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 7
   - platform: template
     name: "Timer Seconds"
     id: timer_seconds
@@ -493,4 +502,5 @@ number:
     optimistic: True
     web_server:
       sorting_group_id: sorting_timer
+      sorting_weight: 8
 

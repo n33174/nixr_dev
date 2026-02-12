@@ -424,14 +424,18 @@ namespace ring_clock {
     clear_R2(it);
     draw_markers(it);
     
+  void RingClock::render_rainbow(light::AddressableLight & it) {
+    clear_R1(it);
+    clear_R2(it);
+    draw_markers(it);
+    
     esphome::ESPTime now = _time->now();
     
-    // Calculate 3 contrasting hues that shift slowly throughout the day (24h cycle)
-    float day_progress = (now.hour * 3600 + now.minute * 60 + now.second) / 86400.0f;
-    float base_hue = day_progress * 360.0f;
-    float h_hue = base_hue;
-    float m_hue = fmod(base_hue + 120.0f, 360.0f);
-    float s_hue = fmod(base_hue + 240.0f, 360.0f);
+    // Calculate 2 contrasting hues that shift slowly throughout 12 hours
+    float hour_12 = now.hour % 12;
+    float cycle_progress = (hour_12 * 3600 + now.minute * 60 + now.second) / 43200.0f;
+    float h_hue = cycle_progress * 360.0f;
+    float m_hue = fmod(h_hue + 180.0f, 360.0f); // 180 deg for max contrast
 
     float r, g, b;
     esphome::hsv_to_rgb(h_hue, 1.0f, 1.0f, r, g, b);
@@ -439,9 +443,6 @@ namespace ring_clock {
     
     esphome::hsv_to_rgb(m_hue, 1.0f, 1.0f, r, g, b);
     Color mc_dynamic((uint8_t)(r * 255), (uint8_t)(g * 255), (uint8_t)(b * 255));
-
-    esphome::hsv_to_rgb(s_hue, 1.0f, 1.0f, r, g, b);
-    Color sc_dynamic((uint8_t)(r * 255), (uint8_t)(g * 255), (uint8_t)(b * 255));
 
     // --- Hour Hand ---
     int hour = now.hour % 12;
@@ -468,16 +469,10 @@ namespace ring_clock {
           float tail_intensity = 1.0f - (dist / (float)tail_length);
           tail_intensity = tail_intensity * tail_intensity;
           
-          if (dist < 1.0f) {
-            // The very tip uses the dynamic contrasting color
-            it[i] = sc_dynamic;
-          } else {
-            // The rest of the tail is the moving rainbow
-            float hue = (i * (360.0f / 60.0f)) + hue_offset; 
-            float r_f, g_f, b_f;
-            esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
-            it[i] = Color((uint8_t)(r_f * 255.0f * tail_intensity), (uint8_t)(g_f * 255.0f * tail_intensity), (uint8_t)(b_f * 255.0f * tail_intensity));
-          }
+          float hue = (i * (360.0f / 60.0f)) + hue_offset; 
+          float r_f, g_f, b_f;
+          esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
+          it[i] = Color((uint8_t)(r_f * 255.0f * tail_intensity), (uint8_t)(g_f * 255.0f * tail_intensity), (uint8_t)(b_f * 255.0f * tail_intensity));
         }
       }
     }

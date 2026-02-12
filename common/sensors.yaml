@@ -26,12 +26,14 @@ sensor:
       icon: mdi:thermometer
       web_server:
         sorting_group_id: sorting_sensors
+        sorting_weight: 1
     humidity:
       id: humidity_sensor
       name: "Humidity"
       icon: mdi:water-percent
       web_server:
         sorting_group_id: sorting_sensors
+        sorting_weight: 2
         
   # Light Sensor (ADC)
   - platform: adc
@@ -42,6 +44,7 @@ sensor:
     accuracy_decimals: 0
     web_server:
       sorting_group_id: sorting_sensors
+      sorting_weight: 3
     attenuation: 12db
     update_interval: 5s
     unit_of_measurement: "%"
@@ -97,10 +100,12 @@ binary_sensor:
       name: Moving Target
       web_server:
         sorting_group_id: sorting_sensors
+        sorting_weight: 4
     has_still_target:
       name: Still Target
       web_server:
         sorting_group_id: sorting_sensors
+        sorting_weight: 5
         
   # LD2410 Presence input
   - platform: gpio
