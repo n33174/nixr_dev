@@ -1,0 +1,83 @@
+name: Compile and Release Firmware
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ESPHome
+        run: pip install esphome
+
+      - name: Extract Version from YAML
+        id: get_version
+        run: |
+          VERSION=$(grep 'version:' al60.yaml | awk '{print $2}' | tr -d '"')
+          echo "firmware_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Compile ESPHome Binary
+        run: |
+          esphome compile al60.yaml
+
+      - name: Prepare Assets and Manifest
+        id: prepare_assets
+        run: |
+          mkdir -p firmware
+          BIN_PATH=".esphome/build/al60/.pioenvs/al60/firmware.bin"
+          DEST_NAME="al60_${{ steps.get_version.outputs.firmware_version }}.bin"
+          
+          cp $BIN_PATH firmware/$DEST_NAME
+          
+          MD5_SUM=$(md5sum $BIN_PATH | awk '{ print $1 }')
+          echo "md5=$MD5_SUM" >> $GITHUB_OUTPUT
+          
+          # Manifest for GitHub Pages
+          cat <<EOF > firmware/manifest.json
+          {
+            "name": "NIX labs AL60",
+            "version": "${{ steps.get_version.outputs.firmware_version }}",
+            "home_assistant_domain": "esphome",
+            "builds": [
+              {
+                "chipFamily": "ESP32-C3",
+                "parts": [
+                  { "path": "$DEST_NAME", "offset": 0 }
+                ],
+                "ota": {
+                  "md5": "$MD5_SUM",
+                  "path": "$DEST_NAME"
+                }
+              }
+            ]
+          }
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            firmware/al60_${{ steps.get_version.outputs.firmware_version }}.bin
+            firmware/manifest.json
+          tag_name: v${{ steps.get_version.outputs.firmware_version }}
+          name: Release ${{ steps.get_version.outputs.firmware_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./firmware
+          destination_dir: firmware
+          # This keeps the files in the 'firmware' folder on the gh-pages branch

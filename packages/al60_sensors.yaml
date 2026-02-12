@@ -14,6 +14,7 @@ uart:
   stop_bits: 1
 
 ld2410:
+  id: radar
 
 sensor:
   # AHT20 Temperature & Humidity Sensor
@@ -74,6 +75,7 @@ binary_sensor:
   # MMwave Radar Presence Detection (LD2410)
   - platform: ld2410
     has_target:
+      id: radar_occupancy
       name: Occupancy
       web_server:
         sorting_group_id: sorting_sensors
@@ -97,11 +99,13 @@ binary_sensor:
                   brightness:  !lambda 'return id(low_percentage)->state/100;'
                   transition_length: 1s
     has_moving_target:
+      id: radar_moving
       name: Moving Target
       web_server:
         sorting_group_id: sorting_sensors
         sorting_weight: 4
     has_still_target:
+      id: radar_still
       name: Still Target
       web_server:
         sorting_group_id: sorting_sensors
@@ -109,6 +113,7 @@ binary_sensor:
         
   # LD2410 Presence input
   - platform: gpio
+    id: radar_presence
     pin: GPIO3
     name: "Presence"
     web_server:

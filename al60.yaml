@@ -10,18 +10,16 @@ substitutions:
   time_zone: "Australia/Brisbane"
 
 packages:
-  # Load common logic from the NIX labs repository
-
   # Core system config (Logger, API, Web Server)
-  core: github://n33174/nixr_dev/common/core.yaml@main
+  core: github://n33174/nixr_dev/packages/al60_core.yaml@v${version}
   # Timekeeping (RTC, SNTP, Alarms)
-  time: github://n33174/nixr_dev/common/time.yaml@main
+  time: github://n33174/nixr_dev/packages/al60_time.yaml@v${version}
   # Environmental & Presence Sensors
-  sensors: github://n33174/nixr_dev/common/sensors.yaml@main
+  sensors: github://n33174/nixr_dev/packages/al60_sensors.yaml@v${version}
   # Buttons & Physical Inputs
-  inputs: github://n33174/nixr_dev/common/inputs.yaml@main
+  inputs: github://n33174/nixr_dev/packages/al60_inputs.yaml@v${version}
   # LED Display & Visual Effects
-  light: github://n33174/nixr_dev/common/light.yaml@main
+  light: github://n33174/nixr_dev/packages/al60_light.yaml@v${version}
 
 wifi:
   # Disable power save to ensure responsive web interface and API
@@ -36,11 +34,11 @@ wifi:
 # Dashboard Import
 # Allows this device to be easily adopted into ESPHome Dashboard
 dashboard_import:
-  package_import_url: github://n33174/nixr_dev/al60.yaml@main
+  package_import_url: github://n33174/nixr_dev/al60.yaml@v${version}
   # Set mport_full_config to true to import all packages allowing for full customisation
   import_full_config: false
 
 external_components:
   # The custom component driving the clock faces
-  - source: github://n33174/nixr_dev@main
+  - source: github://n33174/nixr_dev@v${version}
     components: [ ring_clock ]

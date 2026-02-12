@@ -33,6 +33,7 @@ binary_sensor:
   # - Double Click: Cycle Sensor Effects
   # - Long Press: Toggle Presence Detection
   - platform: gpio
+    id: mode_button_physical
     pin:
       number: GPIO2
       inverted: True
