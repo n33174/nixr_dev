@@ -50,6 +50,8 @@ binary_sensor:
               std::string current = id(ring_light).get_effect_name();
               if (current == "Clock") call.set_effect("Clock (Fade)");
               else if (current == "Clock (Fade)") call.set_effect("Clock (Rainbow)");
+              else if (current == "Clock (Rainbow)") call.set_effect("Clock (RGB)");
+              else if (current == "Clock (RGB)") call.set_effect("Clock (Mono)");
               else call.set_effect("Clock");
               call.perform();
           - rtttl.play: 'click:d=16,o=6,b=120:c'

@@ -158,7 +158,7 @@ light:
             std::string effect = id(ring_light).get_effect_name();
             // Store the active "Clock" effect for reboot restoration
             // Ignore temporary effects like Timer or Stopwatch
-            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)") {
+            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)" || effect == "Clock (RGB)" || effect == "Clock (Mono)") {
               id(last_clock_effect) = effect;
             }
           }
@@ -166,6 +166,20 @@ light:
       # Standard Steps
       - addressable_lambda:
           name: Clock
+          update_interval: 50ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::time);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      # RGB Theme (Custom hand overrides in YAML/C++ logic)
+      - addressable_lambda:
+          name: "Clock (RGB)"
+          update_interval: 50ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::time);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      # Monochromatic Theme
+      - addressable_lambda:
+          name: "Clock (Mono)"
           update_interval: 50ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
