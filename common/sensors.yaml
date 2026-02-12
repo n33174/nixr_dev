@@ -1,3 +1,11 @@
+uart:
+  id: uart_bus
+  baud_rate: 256000
+  tx_pin: GPIO0
+  rx_pin: GPIO1
+  parity: NONE
+  stop_bits: 1
+
 ld2410:
 
 sensor:
