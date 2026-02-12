@@ -262,6 +262,7 @@ light:
     effects:
       - automation:
           name: "None"
+          sequence: []
       - random:
       - pulse:
           name: "Fast Pulse"
