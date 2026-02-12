@@ -84,8 +84,8 @@ binary_sensor:
                 - rtttl.play: 'off:d=16,o=6,b=120:g,e,c'
 
   # Hour Button (Physical)
-  # - Single Click: Increment Hour
-  # - Long Press (1s): Start continuous increment
+  # - Single Click: Increment Hour (if minute button not held)
+  # - Long Press (1s): Start continuous increment (if minute button not held)
   - platform: gpio
     id: hour_button_physical
     pin:
@@ -100,16 +100,24 @@ binary_sensor:
     on_multi_click:
       # Single click: Increment Hour
       - timing:
-          - ON for 40ms to 1s
-          - OFF for at least 300ms
+          - ON for 40ms to 800ms
+          - OFF for at least 100ms
         then:
-         - button.press: hour_increment
+          - if:
+              condition:
+                - lambda: 'return !id(minute_button_physical).state;'
+              then:
+                - button.press: hour_increment
       # Long press (Hold 1s): Start continuous increment
       - timing:
           - ON for at least 1s
         then:
-          lambda: |-
-            id(hour_button_long_press) = true;
+          - if:
+              condition:
+                - lambda: 'return !id(minute_button_physical).state;'
+              then:
+                - lambda: |-
+                    id(hour_button_long_press) = true;
       # Release handler for continuous increment
       - timing:
           - OFF for at least 50ms
@@ -118,8 +126,8 @@ binary_sensor:
             id(hour_button_long_press) = false;
             
   # Minute Button (Physical)
-  # - Single Click: Increment Minute
-  # - Long Press (1s): Start continuous increment
+  # - Single Click: Increment Minute (if hour button not held)
+  # - Long Press (1s): Start continuous increment (if hour button not held)
   - platform: gpio
     id: minute_button_physical
     pin:
@@ -134,16 +142,24 @@ binary_sensor:
     on_multi_click:
       # Single click
       - timing:
-          - ON for 40ms to 1s
-          - OFF for at least 300ms
+          - ON for 40ms to 800ms
+          - OFF for at least 100ms
         then:
-         - button.press: minute_increment
+          - if:
+              condition:
+                - lambda: 'return !id(hour_button_physical).state;'
+              then:
+                - button.press: minute_increment
       # Long press (1s): Start continuous increment
       - timing:
           - ON for at least 1s
         then:
-          lambda: |-
-            id(minute_button_long_press) = true;
+          - if:
+              condition:
+                - lambda: 'return !id(hour_button_physical).state;'
+              then:
+                - lambda: |-
+                    id(minute_button_long_press) = true;
       # Release handler for continuous increment
       - timing:
           - OFF for at least 50ms
@@ -152,7 +168,7 @@ binary_sensor:
             id(minute_button_long_press) = false;
 
   # Maintenance Mode (Chord: Hour + Minute)
-  # - Hold Both for 3s: Reboot
+  # - Hold Both for 3s: Re-enable SNTP & Reboot
   # - Hold Both for 10s: Factory Reset
   - platform: template
     id: maintenance_mode
@@ -161,10 +177,11 @@ binary_sensor:
     lambda: |-
       return id(hour_button_physical).state && id(minute_button_physical).state;
     on_multi_click:
-      # Hold both 3-10s: Reboot
+      # Hold both 3-10s: SNTP On + Reboot
       - timing:
           - ON for 3s to 10s
         then:
+          - switch.turn_on: sntp_switch
           - rtttl.play: 'reboot:d=16,o=6,b=120:c7,g6,e6,c6'
           - delay: 500ms
           - button.press: restart_esp
