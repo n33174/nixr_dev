@@ -260,9 +260,6 @@ light:
     web_server:
       sorting_group_id: sorting_clock_led
     effects:
-      - automation:
-          name: "None"
-          sequence: []
       - random:
       - pulse:
           name: "Fast Pulse"

@@ -53,7 +53,7 @@ binary_sensor:
               else call.set_effect("Clock");
               call.perform();
           - rtttl.play: 'click:d=16,o=6,b=120:c'
-      # Double Click: Cycle all 9 Sensor Effects on Notification Layer
+      # Double Click: Cycle Sensory Effects on Notification Layer
       - timing:
           - ON for 50ms to 500ms
           - OFF for 50ms to 300ms
@@ -61,21 +61,49 @@ binary_sensor:
           - OFF for at least 50ms
         then:
           - lambda: |-
-              auto call = id(notification_color).turn_on();
-              std::string current = id(notification_color).get_effect_name();
+              bool is_on = id(notification_color).remote_values.is_on();
+              std::string effect = id(notification_color).get_effect_name();
               
-              if (current == "None") call.set_effect("Sensors: Dual Bars");
-              else if (current == "Sensors: Dual Bars") call.set_effect("Sensors: Temperature Bar");
-              else if (current == "Sensors: Temperature Bar") call.set_effect("Sensors: Humidity Bar");
-              else if (current == "Sensors: Humidity Bar") call.set_effect("Sensors: Dual Ticks");
-              else if (current == "Sensors: Dual Ticks") call.set_effect("Sensors: Temperature Tick");
-              else if (current == "Sensors: Temperature Tick") call.set_effect("Sensors: Humidity Tick");
-              else if (current == "Sensors: Humidity Tick") call.set_effect("Sensors: Dual Glow");
-              else if (current == "Sensors: Dual Glow") call.set_effect("Sensors: Temperature Glow");
-              else if (current == "Sensors: Temperature Glow") call.set_effect("Sensors: Humidity Glow");
-              else call.set_effect("None");
-              
-              call.perform();
+              if (!is_on || effect == "None") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Dual Bars");
+                call.perform();
+              } else if (effect == "Sensors: Dual Bars") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Temperature Bar");
+                call.perform();
+              } else if (effect == "Sensors: Temperature Bar") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Humidity Bar");
+                call.perform();
+              } else if (effect == "Sensors: Humidity Bar") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Dual Ticks");
+                call.perform();
+              } else if (effect == "Sensors: Dual Ticks") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Temperature Tick");
+                call.perform();
+              } else if (effect == "Sensors: Temperature Tick") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Humidity Tick");
+                call.perform();
+              } else if (effect == "Sensors: Humidity Tick") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Dual Glow");
+                call.perform();
+              } else if (effect == "Sensors: Dual Glow") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Temperature Glow");
+                call.perform();
+              } else if (effect == "Sensors: Temperature Glow") {
+                auto call = id(notification_color).turn_on();
+                call.set_effect("Sensors: Humidity Glow");
+                call.perform();
+              } else {
+                // Includes "Sensors: Humidity Glow" and any other stray states
+                id(notification_color).turn_off().perform();
+              }
           - rtttl.play: 'double:d=16,o=6,b=120:c,g'
       # Long Press: Toggle Presence detection
       - timing:
@@ -184,9 +212,9 @@ binary_sensor:
     lambda: |-
       return id(hour_button_physical).state && id(minute_button_physical).state;
     on_multi_click:
-      # Hold both 3-10s: SNTP On + Reboot
+      # Hold both 2-10s: SNTP On + Reboot
       - timing:
-          - ON for 3s to 10s
+          - ON for 2s to 10s
         then:
           - switch.turn_on: sntp_switch
           - rtttl.play: 'reboot:d=16,o=6,b=120:c7,g6,e6,c6'
