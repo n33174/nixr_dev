@@ -6,11 +6,11 @@ substitutions:
 
 packages:
   # Using local paths for the GitHub Action Build
-  core: packages/al60_core.yaml
-  time: packages/al60_time.yaml
-  sensors: packages/al60_sensors.yaml
-  inputs: packages/al60_inputs.yaml
-  light: packages/al60_light.yaml
+  core: !include packages/al60_core.yaml
+  time: !include packages/al60_time.yaml
+  sensors: !include packages/al60_sensors.yaml
+  inputs: !include packages/al60_inputs.yaml
+  light: !include packages/al60_light.yaml
 
 wifi:
   power_save_mode: none
