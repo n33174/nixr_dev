@@ -65,6 +65,7 @@ datetime:
     optimistic: True
     web_server:
       sorting_group_id: sorting_time
+      sorting_weight: 3
   
   # Alarm time setting
   - platform: template
@@ -86,6 +87,7 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_time
+      sorting_weight: 2
 
   # Alarm Controls
   - platform: template
@@ -95,15 +97,9 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
       sorting_group_id: sorting_alarm
-      
-  - platform: template
-    name: "Alarm Sounds"
-    id: alarm_sound
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_ON
-    web_server:
-      sorting_group_id: sorting_alarm
-      
+      sorting_weight: 1
+  
+  # Run alarm once then disable
   - platform: template
     name: "Alarm Once"
     id: alarm_once
@@ -111,7 +107,18 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
       sorting_group_id: sorting_alarm
-
+      sorting_weight: 2
+  
+  # Toggle alarm sounds
+  - platform: template
+    name: "Alarm Sounds"
+    id: alarm_sound
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_alarm
+      sorting_weight: 3
+    
 text:
   # Text field to set Time Zone (e.g. "Australia/Brisbane", "Europe/London")
   # Controls how the offset is calculated
@@ -123,3 +130,4 @@ text:
     initial_value: ${time_zone}
     web_server:
       sorting_group_id: sorting_time
+      sorting_weight: 1

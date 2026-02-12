@@ -262,7 +262,8 @@ button:
   - platform: template
     name: Buzzer
     web_server:
-      sorting_group_id: sorting_other
+      sorting_group_id: sorting_alarm
+      sorting_weight: 5
     on_press: 
       then:
         - rtttl.play: notification:d=16,o=6,b=160:c,e,g,c7
@@ -371,6 +372,7 @@ button:
     id: custom_sync
     web_server:
       sorting_group_id: sorting_time
+      sorting_weight: 4
     on_press:
       then:
         - if:

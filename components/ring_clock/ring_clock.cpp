@@ -691,6 +691,7 @@ namespace ring_clock {
     // Seconds on Inner Ring (Priority)
     
     clear_R1(it); clear_R2(it);
+    draw_markers(it);
 
     if (!_timer_active) return;
 
@@ -752,6 +753,7 @@ namespace ring_clock {
 
   void RingClock::render_stopwatch(light::AddressableLight & it) {
     clear_R1(it); clear_R2(it);
+    draw_markers(it);
 
     uint32_t elapsed_ms = _stopwatch_active ? (millis() - _stopwatch_start_ms) : _stopwatch_paused_ms;
     
