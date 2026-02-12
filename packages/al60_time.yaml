@@ -197,13 +197,13 @@ button:
                       if (root["utc_offset"].is<const char*>()) {
                         std::string offset = root["utc_offset"].as<std::string>();
                         // POSIX offsets have inverted signs (East is negative)
-                        // Example: "+10:00" -> "UTC-10"
+                        // Example: "+10:00" -> "UTC-10:00"
                         char sign = offset[0];
-                        std::string hours = offset.substr(1, 2);
+                        std::string hh_mm = offset.substr(1, 5); // Capture "10:00"
                         std::string inv_sign = (sign == '+') ? "-" : "+";
                         
-                        id(time_zone).publish_state("UTC" + inv_sign + hours);
-                        ESP_LOGI("main", "Auto-detected offset: UTC%c%s", inv_sign[0], hours.c_str());
+                        id(time_zone).publish_state("UTC" + inv_sign + hh_mm);
+                        ESP_LOGI("main", "Auto-detected: UTC%s%s", inv_sign.c_str(), hh_mm.c_str());
                         return true;
                       }
                       return false;
