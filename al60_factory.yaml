@@ -1,0 +1,30 @@
+substitutions:
+  name: "al60"
+  friendly_name: "NIX labs AL60 Clock"
+  version: "0.9.0"
+  time_zone: "Australia/Brisbane"
+
+packages:
+  # Using local paths for the GitHub Action Build
+  core: packages/al60_core.yaml
+  time: packages/al60_time.yaml
+  sensors: packages/al60_sensors.yaml
+  inputs: packages/al60_inputs.yaml
+  light: packages/al60_light.yaml
+
+wifi:
+  power_save_mode: none
+  ap:
+    password: "12345678"
+
+# Point this to the NEW import file we are about to create
+dashboard_import:
+  package_import_url: github://n33174/nixr_dev/al60.yaml@v${version}
+  import_full_config: false
+
+external_components:
+  # Using local path so the compiler finds the 'components' folder in your repo
+  - source:
+      type: local
+      path: components
+    components: [ ring_clock ]
