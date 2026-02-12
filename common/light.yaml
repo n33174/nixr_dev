@@ -140,7 +140,7 @@ ring_clock:
 light:
   # Main LED Rings Configuration (WS2812)
   - id: ring_light
-    name: "Ring Light"
+    name: "Ring Light Mode"
     platform: esp32_rmt_led_strip
     rgb_order: GRB
     chipset: ws2812
@@ -152,6 +152,7 @@ light:
     color_correct: [75%, 75%, 75%]
     web_server:
       sorting_group_id: sorting_clock
+      sorting_weight: 1
     on_state:
       - lambda: |-
           if (id(ring_light).remote_values.is_on()) {

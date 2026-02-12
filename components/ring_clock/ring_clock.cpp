@@ -260,6 +260,13 @@ namespace ring_clock {
 
   void RingClock::draw_markers(light::AddressableLight & it) {
     // Draws static markers on the Outer Ring (R2)
+    
+    // Check main clock mode for theme overrides
+    std::string clock_effect = "";
+    if (this->_clock_lights != nullptr) {
+        clock_effect = this->_clock_lights->get_effect_name();
+    }
+
     // Check if we are running a specialized sensor effect that replaces markers
     bool sensor_effect_active = false;
 
@@ -268,7 +275,6 @@ namespace ring_clock {
       
       // If a sensor effect is active in the "Notification" layer, delegate to it
       if (effect.find("Sensors:") != std::string::npos) {
-          // This complex if-chain dispatches the exact sensor effect found in the string
           if (effect == "Sensors: Dual Bars") { this->render_sensors_bars(it); sensor_effect_active = true; } 
           else if (effect == "Sensors: Temperature Bar") { this->render_sensors_bar_individual(it, true); sensor_effect_active = true; } 
           else if (effect == "Sensors: Humidity Bar") { this->render_sensors_bar_individual(it, false); sensor_effect_active = true; } 
@@ -300,7 +306,6 @@ namespace ring_clock {
 
         // Fill Outer Ring
         for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-          // If markers enabled, don't overwrite marker positions (every 4th LED)
           if (this->enable_markers != nullptr && this->enable_markers->state) {
               if ((i - R1_NUM_LEDS) % 4 != 0) it[i] = bg;
           } else {
@@ -313,13 +318,20 @@ namespace ring_clock {
       if (this->enable_markers != nullptr && this->enable_markers->state) {
         Color mc = _default_marker_color;
         
-        // Use custom marker color if set
+        // Theme overrides
+        if (clock_effect == "Clock (RGB)") {
+            mc = Color(100, 100, 100);
+        } else if (clock_effect == "Clock (Mono)") {
+            mc = Color(5, 5, 5); // Dim as they go
+        }
+        
         if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
-           auto cv = this->marker_color->current_values;
-           float b = cv.get_brightness();
-           mc = Color((uint8_t)(cv.get_red() * 255 * b), 
-                      (uint8_t)(cv.get_green() * 255 * b), 
-                      (uint8_t)(cv.get_blue() * 255 * b));
+            // Use custom marker color if set (User override)
+            auto cv = this->marker_color->current_values;
+            float b = cv.get_brightness();
+            mc = Color((uint8_t)(cv.get_red() * 255 * b), 
+                       (uint8_t)(cv.get_green() * 255 * b), 
+                       (uint8_t)(cv.get_blue() * 255 * b));
         }
 
         for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
@@ -334,6 +346,7 @@ namespace ring_clock {
   void RingClock::render_time(light::AddressableLight & it, bool fade) {
     clear_R1(it);
     clear_R2(it);
+    draw_markers(it);
     
     // Check for special themed modes
     std::string effect = "";
@@ -341,29 +354,21 @@ namespace ring_clock {
         effect = this->_clock_lights->get_effect_name();
     }
 
-    // Determine Colors based on Effect
-    Color mc_marker = _default_marker_color;
+    // Determine Hand Colors based on Effect
     Color hc_color = _default_hour_color;
     Color mc_hand = _default_minute_color;
     Color sc_color = _default_second_color;
 
     if (effect == "Clock (RGB)") {
-        mc_marker = Color(100, 100, 100); // White markers
         hc_color = Color(255, 0, 0);     // Red Hour
         mc_hand = Color(0, 255, 0);      // Green Minute
         sc_color = Color(0, 0, 255);     // Blue Second
     } else if (effect == "Clock (Mono)") {
-        mc_marker = Color(0, 0, 0);       // Black markers
         hc_color = Color(255, 255, 255); // White Hour
         mc_hand = Color(100, 100, 100);  // Gray Minute
         sc_color = Color(40, 40, 40);    // Deep Gray Second
     } else {
         // Standard Behavior: Use UI/Defaults
-        if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
-           auto cv = this->marker_color->current_values;
-           float b = cv.get_brightness();
-           mc_marker = Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
-        }
         if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
            auto cv = this->hour_hand_color->current_values;
            float b = cv.get_brightness();
@@ -378,13 +383,6 @@ namespace ring_clock {
            auto cv = this->second_hand_color->current_values;
            float b = cv.get_brightness();
            sc_color = Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
-        }
-    }
-
-    // 1. Draw Markers (if enabled)
-    if (this->enable_markers != nullptr && this->enable_markers->state) {
-        for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-          if ((i - R1_NUM_LEDS) % 4 == 0) it[i] = mc_marker;
         }
     }
     
@@ -422,20 +420,32 @@ namespace ring_clock {
   }
 
   void RingClock::render_rainbow(light::AddressableLight & it) {
+    clear_R1(it);
     clear_R2(it);
     draw_markers(it);
     
     esphome::ESPTime now = _time->now();
-    int hour = now.hour % 12;
+    
+    // Calculate 3 contrasting hues that shift slowly throughout the day (24h cycle)
+    float day_progress = (now.hour * 3600 + now.minute * 60 + now.second) / 86400.0f;
+    float base_hue = day_progress * 360.0f;
+    float h_hue = base_hue;
+    float m_hue = fmod(base_hue + 120.0f, 360.0f);
+    float s_hue = fmod(base_hue + 240.0f, 360.0f);
+
+    float r, g, b;
+    esphome::hsv_to_rgb(h_hue, 1.0f, 1.0f, r, g, b);
+    Color hc_dynamic((uint8_t)(r * 255), (uint8_t)(g * 255), (uint8_t)(b * 255));
+    
+    esphome::hsv_to_rgb(m_hue, 1.0f, 1.0f, r, g, b);
+    Color mc_dynamic((uint8_t)(r * 255), (uint8_t)(g * 255), (uint8_t)(b * 255));
+
+    esphome::hsv_to_rgb(s_hue, 1.0f, 1.0f, r, g, b);
+    Color sc_dynamic((uint8_t)(r * 255), (uint8_t)(g * 255), (uint8_t)(b * 255));
 
     // --- Hour Hand ---
-    Color hc = _default_hour_color;
-    if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
-       auto cv = this->hour_hand_color->current_values;
-       float b = cv.get_brightness();
-       hc = Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
-    }
-    it[R1_NUM_LEDS + (hour * 4)] = hc;
+    int hour = now.hour % 12;
+    it[R1_NUM_LEDS + (hour * 4)] = hc_dynamic;
 
     // --- Rainbow Seconds Tail ---
     if (this->enable_seconds != nullptr && this->enable_seconds->state) {
@@ -447,35 +457,33 @@ namespace ring_clock {
       if (progress > 1.0f) progress = 1.0f;
       float precise_pos = now.second + progress;
       
-      // Hue offset shifts the rainbow based on the minute, making it dynamic
       float hue_offset = now.minute * (360.0f/60.0f); 
       int tail_length = 40;
 
       for (int i = 0; i < 60; i++) {
         float dist = precise_pos - i;
-        if (dist < 0) dist += 60.0f; // Wrap around logic
+        if (dist < 0) dist += 60.0f;
 
         if (dist >= 0 && dist < tail_length) {
-          // Fade out intensity further back in the tail
           float tail_intensity = 1.0f - (dist / (float)tail_length);
-          tail_intensity = tail_intensity * tail_intensity; // Non-linear fade
+          tail_intensity = tail_intensity * tail_intensity;
           
-          float hue = (i * (360.0f / 60.0f)) + hue_offset; 
-          float r_f, g_f, b_f;
-          esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
-          it[i] = Color((uint8_t)(r_f * 255.0f * tail_intensity), (uint8_t)(g_f * 255.0f * tail_intensity), (uint8_t)(b_f * 255.0f * tail_intensity));
+          if (dist < 1.0f) {
+            // The very tip uses the dynamic contrasting color
+            it[i] = sc_dynamic;
+          } else {
+            // The rest of the tail is the moving rainbow
+            float hue = (i * (360.0f / 60.0f)) + hue_offset; 
+            float r_f, g_f, b_f;
+            esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
+            it[i] = Color((uint8_t)(r_f * 255.0f * tail_intensity), (uint8_t)(g_f * 255.0f * tail_intensity), (uint8_t)(b_f * 255.0f * tail_intensity));
+          }
         }
       }
     }
     
     // --- Minute Hand ---
-    Color mc = _default_minute_color;
-    if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
-       auto cv = this->minute_hand_color->current_values;
-       float b = cv.get_brightness();
-       mc = Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
-    }
-    it[now.minute] = mc;
+    it[now.minute] = mc_dynamic;
   }
 
   // --- Utility: Colors from Values ---
