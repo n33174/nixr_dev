@@ -153,7 +153,7 @@ switch:
       sorting_weight: 3
     
 text:
-  # Text field to set Time Zone (e.g. "Australia/Brisbane", "Europe/London")
+  # Text field to set Time Zone
   # Controls how the offset is calculated
   - platform: template
     name: "Time Zone"
@@ -219,7 +219,10 @@ button:
       then:
         - logger.log: "Stage 2: Looking up POSIX rule for city..."
         - http_request.get:
-            url: "https://n33174.github.io/nixr_dev/static/zones.json"
+            url: !lambda |-
+               std::string iana = id(detected_iana);
+               std::string continent = iana.substr(0, iana.find('/'));
+               return "https://n33174.github.io/nixr_dev/static/" + continent + ".json";
             request_headers:
               User-Agent: "ESPHome/AL60"
             capture_response: true
@@ -232,11 +235,12 @@ button:
                     }
                     
                     json::parse_json(body, [](JsonObject root) -> bool {
-                      std::string city = id(detected_iana);
+                      std::string iana = id(detected_iana);
+                      std::string city = iana.substr(iana.find('/') + 1);
                       if (root[city].is<const char*>()) {
                         std::string posix = root[city].as<std::string>();
                         id(time_zone).publish_state(posix);
-                        ESP_LOGI("main", "Success! Applied POSIX rule for %s: %s", city.c_str(), posix.c_str());
+                        ESP_LOGI("main", "Success! Applied POSIX rule for %s: %s", iana.c_str(), posix.c_str());
                         return true;
                       }
                       return false;

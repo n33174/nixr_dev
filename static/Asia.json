@@ -1,0 +1,13 @@
+{
+  "Bangkok": "<+07>-7",
+  "Dubai": "<+04>-4",
+  "Hong_Kong": "HKT-8",
+  "Jakarta": "WIB-7",
+  "Jerusalem": "IST-2IDT,M3.4.4/26,M10.5.0",
+  "Kolkata": "IST-5:30",
+  "Seoul": "KST-9",
+  "Shanghai": "CST-8",
+  "Singapore": "<+08>-8",
+  "Taipei": "CST-8",
+  "Tokyo": "JST-9"
+}

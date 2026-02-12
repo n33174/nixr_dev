@@ -1,0 +1,21 @@
+{
+  "Anchorage": "AKST9AKDT,M3.2.0,M11.1.0",
+  "Bogota": "<-05>5",
+  "Chicago": "CST6CDT,M3.2.0,M11.1.0",
+  "Denver": "MST7MDT,M3.2.0,M11.1.0",
+  "Detroit": "EST5EDT,M3.2.0,M11.1.0",
+  "Edmonton": "MST7MDT,M3.2.0,M11.1.0",
+  "Halifax": "AST4ADT,M3.2.0,M11.1.0",
+  "Havana": "CST5CDT,M3.2.0/0,M11.1.0/1",
+  "Indianapolis": "EST5EDT,M3.2.0,M11.1.0",
+  "Los_Angeles": "PST8PDT,M3.2.0,M11.1.0",
+  "Mexico_City": "CST6",
+  "New_York": "EST5EDT,M3.2.0,M11.1.0",
+  "Phoenix": "MST7",
+  "Santiago": "<-04>4<-03>,M9.1.6/24,M4.1.6/24",
+  "Sao_Paulo": "<-03>3",
+  "St_Johns": "NST3:30NDT,M3.2.0,M11.1.0",
+  "Toronto": "EST5EDT,M3.2.0,M11.1.0",
+  "Vancouver": "PST8PDT,M3.2.0,M11.1.0",
+  "Winnipeg": "CST6CDT,M3.2.0,M11.1.0"
+}
