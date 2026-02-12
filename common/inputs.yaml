@@ -43,7 +43,7 @@ binary_sensor:
       # Single Click: Next Clock Effect
       - timing:
           - ON for 50ms to 500ms
-          - OFF for at least 300ms
+          - OFF for at least 400ms
         then:
           - lambda: |-
               auto call = id(ring_light).turn_on();
@@ -56,7 +56,7 @@ binary_sensor:
       # Double Click: Cycle Sensory Effects on Notification Layer
       - timing:
           - ON for 50ms to 500ms
-          - OFF for 50ms to 300ms
+          - OFF for 50ms to 350ms
           - ON for 50ms to 500ms
           - OFF for at least 50ms
         then:
