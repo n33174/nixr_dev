@@ -27,7 +27,9 @@ switch:
 
 binary_sensor:
   # Mode Button (Physical)
-  # Toggles Presence Detection on press
+  # - Single Click: Cycle Clock Effects
+  # - Double Click: Cycle Sensor Effects
+  # - Long Press: Toggle Presence Detection
   - platform: gpio
     pin:
       number: GPIO2
@@ -36,20 +38,56 @@ binary_sensor:
     name: "Mode Button"
     internal: true
     filters:
-      delayed_on_off: 100ms # Debouncing
-    on_press: 
-      then:
-        - switch.toggle: presense_detection
-        - if:
-            condition:
-              - switch.is_on: presense_detection
-            then:
-              - rtttl.play: 'double:d=4,o=5,b=100:16e6,16e6'
-            else:
-              - rtttl.play: 'single:d=4,o=5,b=100:16e6'
-              
+      delayed_on_off: 50ms # Debouncing
+    on_multi_click:
+      # Single Click: Next Clock Effect
+      - timing:
+          - ON for 50ms to 500ms
+          - OFF for at least 300ms
+        then:
+          - lambda: |-
+              auto call = id(ring_light).turn_on();
+              std::string current = id(ring_light).get_effect_name();
+              if (current == "Clock") call.set_effect("Clock (Fade)");
+              else if (current == "Clock (Fade)") call.set_effect("Clock (Rainbow)");
+              else call.set_effect("Clock");
+              call.perform();
+          - rtttl.play: 'click:d=16,o=6,b=120:c'
+      # Double Click: Next Sensor Effect
+      - timing:
+          - ON for 50ms to 500ms
+          - OFF for 50ms to 300ms
+          - ON for 50ms to 500ms
+          - OFF for at least 50ms
+        then:
+          - lambda: |-
+              auto call = id(ring_light).turn_on();
+              std::string current = id(ring_light).get_effect_name();
+              if (current == "Sensors (Bars)") call.set_effect("Sensors (Ticks)");
+              else if (current == "Sensors (Ticks)") call.set_effect("Sensors (Dual Glow)");
+              else if (current == "Sensors (Dual Glow)") call.set_effect("Sensors (Temp Glow)");
+              else if (current == "Sensors (Temp Glow)") call.set_effect("Sensors (Humid Glow)");
+              else call.set_effect("Sensors (Bars)");
+              call.perform();
+          - rtttl.play: 'double:d=16,o=6,b=120:c,g'
+      # Long Press: Toggle Presence detection
+      - timing:
+          - ON for at least 1s
+        then:
+          - switch.toggle: presense_detection
+          - if:
+              condition:
+                - switch.is_on: presense_detection
+              then:
+                - rtttl.play: 'on:d=16,o=6,b=120:c,e,g'
+              else:
+                - rtttl.play: 'off:d=16,o=6,b=120:g,e,c'
+
   # Hour Button (Physical)
+  # - Single Click: Increment Hour
+  # - Long Press (1s): Start continuous increment
   - platform: gpio
+    id: hour_button_physical
     pin:
       number: GPIO8
       inverted: True
@@ -63,16 +101,16 @@ binary_sensor:
       # Single click: Increment Hour
       - timing:
           - ON for 40ms to 1s
-          - OFF for at least 50ms
+          - OFF for at least 300ms
         then:
          - button.press: hour_increment
-      # Long press start
+      # Long press (Hold 1s): Start continuous increment
       - timing:
           - ON for at least 1s
         then:
           lambda: |-
             id(hour_button_long_press) = true;
-      # Long press release
+      # Release handler for continuous increment
       - timing:
           - OFF for at least 50ms
         then:
@@ -80,7 +118,10 @@ binary_sensor:
             id(hour_button_long_press) = false;
             
   # Minute Button (Physical)
+  # - Single Click: Increment Minute
+  # - Long Press (1s): Start continuous increment
   - platform: gpio
+    id: minute_button_physical
     pin:
       number: GPIO9
       inverted: True
@@ -94,21 +135,46 @@ binary_sensor:
       # Single click
       - timing:
           - ON for 40ms to 1s
-          - OFF for at least 50ms
+          - OFF for at least 300ms
         then:
          - button.press: minute_increment
-      # Long press start
+      # Long press (1s): Start continuous increment
       - timing:
           - ON for at least 1s
         then:
           lambda: |-
             id(minute_button_long_press) = true;
-      # Long press release
+      # Release handler for continuous increment
       - timing:
           - OFF for at least 50ms
         then:
           lambda: |-
             id(minute_button_long_press) = false;
+
+  # Maintenance Mode (Chord: Hour + Minute)
+  # - Hold Both for 3s: Reboot
+  # - Hold Both for 10s: Factory Reset
+  - platform: template
+    id: maintenance_mode
+    name: "Maintenance Mode"
+    internal: true
+    lambda: |-
+      return id(hour_button_physical).state && id(minute_button_physical).state;
+    on_multi_click:
+      # Hold both 3-10s: Reboot
+      - timing:
+          - ON for 3s to 10s
+        then:
+          - rtttl.play: 'reboot:d=16,o=6,b=120:c7,g6,e6,c6'
+          - delay: 500ms
+          - button.press: restart_esp
+      # Hold both 10s+: Factory Reset
+      - timing:
+          - ON for at least 10s
+        then:
+          - rtttl.play: 'reset:d=8,o=6,b=120:c,c,c,c'
+          - delay: 500ms
+          - button.press: delete_all_config
 
 interval:
   # Polling loop for handling button "hold to increment" logic
@@ -131,6 +197,7 @@ button:
       sorting_group_id: sorting_system
   - platform: factory_reset
     name: Reset with Default Settings
+    id: delete_all_config
     disabled_by_default: True
     web_server:
       sorting_group_id: sorting_system
