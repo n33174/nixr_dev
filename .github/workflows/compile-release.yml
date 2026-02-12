@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.14'
 
       - name: Install ESPHome
         run: pip install esphome
@@ -87,22 +87,29 @@ jobs:
           cp -r static/* public/static/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            public/firmware/al60_${{ steps.get_version.outputs.firmware_version }}.bin
-            public/firmware/al60_${{ steps.get_version.outputs.firmware_version }}_factory.bin
-            public/firmware/bootloader.bin
-            public/firmware/partitions.bin
-            public/firmware/ota_data_initial.bin
-            public/firmware/manifest.json
-          tag_name: v${{ steps.get_version.outputs.firmware_version }}
-          name: Release ${{ steps.get_version.outputs.firmware_version }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V_NUM="v${{ steps.get_version.outputs.firmware_version }}"
+          gh release create "$V_NUM" \
+            public/firmware/*.bin \
+            public/firmware/manifest.json \
+            --title "Release ${{ steps.get_version.outputs.firmware_version }}" \
+            --notes "Automated firmware build for $V_NUM" \
+            --generate-notes
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
+          path: ./public
+
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

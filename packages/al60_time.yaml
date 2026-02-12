@@ -188,7 +188,9 @@ button:
       then:
         - logger.log: "Stage 1: Detecting IANA Timezone..."
         - http_request.get:
-            url: "https://worldtimeapi.org/api/ip"
+            url: "http://ipwho.is/"
+            headers:
+              User-Agent: "ESPHome/AL60"
             capture_response: true
             on_response:
               then:
@@ -198,9 +200,10 @@ button:
                       return;
                     }
                     json::parse_json(body, [](JsonObject root) -> bool {
-                      if (root["timezone"].is<const char*>() && root["utc_offset"].is<const char*>()) {
-                        id(detected_iana) = root["timezone"].as<std::string>();
-                        id(detected_offset) = root["utc_offset"].as<std::string>();
+                      JsonObject tz = root["timezone"];
+                      if (tz["id"].is<const char*>() && tz["utc"].is<const char*>()) {
+                        id(detected_iana) = tz["id"].as<std::string>();
+                        id(detected_offset) = tz["utc"].as<std::string>();
                         id(fetch_posix_rule).press(); // Trigger Stage 2
                         return true;
                       }
@@ -217,6 +220,8 @@ button:
         - logger.log: "Stage 2: Looking up POSIX rule for city..."
         - http_request.get:
             url: "https://n33174.github.io/nixr_dev/static/zones.json"
+            headers:
+              User-Agent: "ESPHome/AL60"
             capture_response: true
             on_response:
               then:
