@@ -189,7 +189,7 @@ button:
         - logger.log: "Stage 1: Detecting IANA Timezone..."
         - http_request.get:
             url: "http://ipwho.is/"
-            headers:
+            request_headers:
               User-Agent: "ESPHome/AL60"
             capture_response: true
             on_response:
@@ -220,7 +220,7 @@ button:
         - logger.log: "Stage 2: Looking up POSIX rule for city..."
         - http_request.get:
             url: "https://n33174.github.io/nixr_dev/static/zones.json"
-            headers:
+            request_headers:
               User-Agent: "ESPHome/AL60"
             capture_response: true
             on_response:
