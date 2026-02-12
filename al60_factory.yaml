@@ -17,7 +17,6 @@ wifi:
   ap:
     password: "12345678"
 
-# Point this to the NEW import file we are about to create
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/al60.yaml@v${version}
   import_full_config: false

@@ -4,7 +4,7 @@ substitutions:
   # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
   # Firmware version
-  version: 0.9.0
+  version: "0.9.0"
   # Default Time Zone (can be changed in Web UI later)
   # Format must match standard TZ database names
   time_zone: "Australia/Brisbane"
