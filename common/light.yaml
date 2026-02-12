@@ -198,38 +198,6 @@ light:
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::stopwatch);
             id(RingClock)->addressable_lights_lambdacall(it);
-
-      # Sensor Visualizations
-      - addressable_lambda:
-          name: "Sensors (Bars)"
-          update_interval: 500ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::sensors_bars);
-            id(RingClock)->addressable_lights_lambdacall(it);
-      - addressable_lambda:
-          name: "Sensors (Ticks)"
-          update_interval: 500ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::sensors_ticks);
-            id(RingClock)->addressable_lights_lambdacall(it);
-      - addressable_lambda:
-          name: "Sensors (Dual Glow)"
-          update_interval: 500ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::sensors_dual_glow);
-            id(RingClock)->addressable_lights_lambdacall(it);
-      - addressable_lambda:
-          name: "Sensors (Temp Glow)"
-          update_interval: 500ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::sensors_temp_glow);
-            id(RingClock)->addressable_lights_lambdacall(it);
-      - addressable_lambda:
-          name: "Sensors (Humid Glow)"
-          update_interval: 500ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::sensors_humid_glow);
-            id(RingClock)->addressable_lights_lambdacall(it);
             
   # Customisation Keys: Hands
   # These are dummy lights that allow the user to pick colors in the UI
@@ -292,6 +260,8 @@ light:
     web_server:
       sorting_group_id: sorting_clock_led
     effects:
+      - automation:
+          name: "None"
       - random:
       - pulse:
           name: "Fast Pulse"

@@ -53,7 +53,7 @@ binary_sensor:
               else call.set_effect("Clock");
               call.perform();
           - rtttl.play: 'click:d=16,o=6,b=120:c'
-      # Double Click: Next Sensor Effect
+      # Double Click: Cycle all 9 Sensor Effects on Notification Layer
       - timing:
           - ON for 50ms to 500ms
           - OFF for 50ms to 300ms
@@ -61,13 +61,20 @@ binary_sensor:
           - OFF for at least 50ms
         then:
           - lambda: |-
-              auto call = id(ring_light).turn_on();
-              std::string current = id(ring_light).get_effect_name();
-              if (current == "Sensors (Bars)") call.set_effect("Sensors (Ticks)");
-              else if (current == "Sensors (Ticks)") call.set_effect("Sensors (Dual Glow)");
-              else if (current == "Sensors (Dual Glow)") call.set_effect("Sensors (Temp Glow)");
-              else if (current == "Sensors (Temp Glow)") call.set_effect("Sensors (Humid Glow)");
-              else call.set_effect("Sensors (Bars)");
+              auto call = id(notification_color).turn_on();
+              std::string current = id(notification_color).get_effect_name();
+              
+              if (current == "None") call.set_effect("Sensors: Dual Bars");
+              else if (current == "Sensors: Dual Bars") call.set_effect("Sensors: Temperature Bar");
+              else if (current == "Sensors: Temperature Bar") call.set_effect("Sensors: Humidity Bar");
+              else if (current == "Sensors: Humidity Bar") call.set_effect("Sensors: Dual Ticks");
+              else if (current == "Sensors: Dual Ticks") call.set_effect("Sensors: Temperature Tick");
+              else if (current == "Sensors: Temperature Tick") call.set_effect("Sensors: Humidity Tick");
+              else if (current == "Sensors: Humidity Tick") call.set_effect("Sensors: Dual Glow");
+              else if (current == "Sensors: Dual Glow") call.set_effect("Sensors: Temperature Glow");
+              else if (current == "Sensors: Temperature Glow") call.set_effect("Sensors: Humidity Glow");
+              else call.set_effect("None");
+              
               call.perform();
           - rtttl.play: 'double:d=16,o=6,b=120:c,g'
       # Long Press: Toggle Presence detection
