@@ -1,9 +1,11 @@
 esphome:
   project:
     name: "NIXlabs.AL60"
-    version: "0.1.2"
+    version: "${version}"
+  # These reference the substitutions defined in the main yaml file
   name: "${name}"
   friendly_name: "${friendly_name}"
+  name_add_mac_suffix: true
   platformio_options:
     board_build.flash_mode: dio
     
@@ -13,46 +15,56 @@ esp32:
   framework:
     type: esp-idf
 
-# Enable logging
+# Logging Configuration
 logger:
   level: DEBUG
   logs:
+    # Reduce noise from sensors and date components
     sensor: INFO
     datetime.datetime_entity: INFO
 
-# Enable Home Assistant API
+# Native API for Home Assistant
 api:
-  # Encryption key should be defined in the main file or secrets if needed, 
-  # but nixr.yaml had it empty. nixr_dev.yaml has it.
-  # We will leave it empty here to allow overriding or merging if set in main.
+  # No encryption key by default to make local access easier
+  # Can be added in local overrides if desired
   reboot_timeout: 0s
 
+# Over-The-Air Updates
 ota:
-  - platform: http_request
-  - platform: web_server
-  - platform: esphome
+  - platform: http_request # Allow pulling updates from the network
+  - platform: web_server   # Allow uploading .bin via web UI
+  - platform: esphome      # Allow updating via ESPHome dashboard
 
+# Required for http_request OTA platform
 http_request:
 
+# Update Check
+# Compares current version against the manifest to notify of updates
 update:
   - platform: http_request
     name: Firmware Update
     source: https://raw.githubusercontent.com/nix-labs/esp-firmware/latest/manifest.json
 
+# Captive Portal for fallback wifi configuration
 captive_portal:
 
-# Sets up Bluetooth LE (Only on ESP32) to allow the user
-# to provision wifi credentials to the device.
+# Bluetooth LE Provisioning (Improv)
+# Allows setting up WiFi from a phone app locally
 esp32_improv:
   authorizer: none
 
-# Sets up the improv via serial client for Wi-Fi provisioning
+# Serial Provisioning
+# Allows setting up WiFi via USB cable
 improv_serial:
 
+# Web Interface Configuration
 web_server:
   port: 80
   version: 3
+  # Custom styling to match NIX labs branding
   css_url: https://cdn.jsdelivr.net/gh/n33174/nixr_dev@main/style/www.css
+  
+  # Organize the web entities into logical groups
   sorting_groups:
     - id: sorting_time
       name: "Time Settings"
@@ -66,26 +78,15 @@ web_server:
     - id: sorting_sensors
       name: "Sensors"
       sorting_weight: 30
-    - id: sorting_other
-      name: "Other"
-      sorting_weight: 40
     - id: sorting_timer
       name: "Timer & Stopwatch"
-      sorting_weight: 45
+      sorting_weight: 40
     - id: sorting_alarm
       name: "Alarm"
-      sorting_weight: 46
+      sorting_weight: 45
+    - id: sorting_other
+      name: "Other"
+      sorting_weight: 50
     - id: sorting_system
       name: "System"
-      sorting_weight: 50
-
-output:
-  # Buzzer Output
-  - platform: ledc
-    pin: GPIO7
-    id: buzzer
-
-rtttl:
-  output: buzzer
-  id: buzzer_rtttl
-  gain: 90%
+      sorting_weight: 60

@@ -1,4 +1,5 @@
 globals:
+  # Track long press state for continuous increment
   - id: minute_button_long_press
     type: bool
     initial_value: 'false'
@@ -7,15 +8,26 @@ globals:
     initial_value: 'false'
 
 switch:
+  # Toggle presense based dimming
+  - platform: template
+    name: "Presense Detection Dimming"
+    id: presense_detection
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_clock
+  # Toggle to mute timer/stopwatch sounds
   - platform: template
     name: "Timer or Stopwatch Sounds"
     id: timer_sounds
     optimistic: True
-    restore_mode: ${timer_sounds_restore_mode}
+    restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_timer
 
 binary_sensor:
+  # Mode Button (Physical)
+  # Toggles Presence Detection on press
   - platform: gpio
     pin:
       number: GPIO2
@@ -35,6 +47,8 @@ binary_sensor:
               - rtttl.play: 'double:d=4,o=5,b=100:16e6,16e6'
             else:
               - rtttl.play: 'single:d=4,o=5,b=100:16e6'
+              
+  # Hour Button (Physical)
   - platform: gpio
     pin:
       number: GPIO8
@@ -46,21 +60,26 @@ binary_sensor:
       - delayed_on: 20ms
       - delayed_off: 20ms
     on_multi_click:
+      # Single click: Increment Hour
       - timing:
           - ON for 40ms to 1s
           - OFF for at least 50ms
         then:
          - button.press: hour_increment
+      # Long press start
       - timing:
           - ON for at least 1s
         then:
           lambda: |-
             id(hour_button_long_press) = true;
+      # Long press release
       - timing:
           - OFF for at least 50ms
         then:
           lambda: |-
             id(hour_button_long_press) = false;
+            
+  # Minute Button (Physical)
   - platform: gpio
     pin:
       number: GPIO9
@@ -72,16 +91,19 @@ binary_sensor:
       - delayed_on: 20ms
       - delayed_off: 20ms
     on_multi_click:
+      # Single click
       - timing:
           - ON for 40ms to 1s
           - OFF for at least 50ms
         then:
          - button.press: minute_increment
+      # Long press start
       - timing:
           - ON for at least 1s
         then:
           lambda: |-
             id(minute_button_long_press) = true;
+      # Long press release
       - timing:
           - OFF for at least 50ms
         then:
@@ -89,6 +111,7 @@ binary_sensor:
             id(minute_button_long_press) = false;
 
 interval:
+  # Polling loop for handling button "hold to increment" logic
   - interval: 250ms
     then:
       lambda: |-
@@ -100,6 +123,7 @@ interval:
         }
 
 button:
+  # System Actions
   - platform: restart
     name: Restart
     id: restart_esp
@@ -110,6 +134,8 @@ button:
     disabled_by_default: True
     web_server:
       sorting_group_id: sorting_system
+
+  # Buzzer
   - platform: template
     name: Buzzer
     web_server:
@@ -117,9 +143,15 @@ button:
     on_press: 
       then:
         - rtttl.play: notification:d=16,o=6,b=160:c,e,g,c7
+
+  # Logic for Hour Increment
+  # - Plays sound
+  # - Disables SNTP (assumes manual override desired)
+  # - Updates System Time, RTC, and WebUI
   - platform: template
     name: "Hour Increment"
     id: hour_increment
+    disabled_by_default: True # Used by physical buttons - Hide from interface
     web_server:
       sorting_group_id: sorting_time
     on_press:
@@ -160,9 +192,15 @@ button:
         - logger.log: 
             format: "RTC incremented by 1 hour"
             level: INFO
+
+  # Logic for Minute Increment
+  # - Plays sound
+  # - Disables SNTP (assumes manual override desired)
+  # - Updates System Time, RTC, and WebUI
   - platform: template
     name: "Minute Increment"
     id: minute_increment
+    disabled_by_default: True # Used by physical buttons - Hide from interface
     web_server:
       sorting_group_id: sorting_time
     on_press:
@@ -204,64 +242,7 @@ button:
             format: "RTC incremented by 1 minute"
             level: INFO
 
-  - platform: template
-    name: "Start Timer"
-    id: start_timer_button
-    web_server:
-      sorting_group_id: sorting_timer
-    on_press:
-      then:
-        - lambda: |-
-            int h = (int)id(timer_hours).state;
-            int m = (int)id(timer_minutes).state;
-            int s = (int)id(timer_seconds).state;
-            id(RingClock)->start_timer(h, m, s);
-        - light.turn_on:
-            id: ring_light
-            effect: Timer
-
-  - platform: template
-    name: "Stop Timer & Stopwatch"
-    id: stop_timer_button
-    web_server:
-      sorting_group_id: sorting_timer
-    on_press:
-      then:
-        - lambda: 'id(RingClock)->stop_timer();'
-        - light.turn_on:
-            id: ring_light
-            effect: Clock
-
-  - platform: template
-    name: "Start Stopwatch"
-    id: start_stopwatch_button
-    web_server:
-      sorting_group_id: sorting_timer
-    on_press:
-      then:
-        - lambda: 'id(RingClock)->start_stopwatch();'
-        - light.turn_on:
-            id: ring_light
-            effect: Stopwatch
-
-  - platform: template
-    name: "Pause Stopwatch"
-    id: pause_stopwatch_button
-    web_server:
-      sorting_group_id: sorting_timer
-    on_press:
-      then:
-        - lambda: 'id(RingClock)->stop_stopwatch();'
-
-  - platform: template
-    name: "Reset Stopwatch"
-    id: reset_stopwatch_button
-    web_server:
-      sorting_group_id: sorting_timer
-    on_press:
-      then:
-        - lambda: 'id(RingClock)->reset_stopwatch();'
-
+  # Button to apply "Custom Time" text input to system
   - platform: template
     name: "Set Custom Time"
     id: custom_sync
@@ -299,6 +280,36 @@ button:
                   format: "Custom time NOT set - SNTP sync active"
                   level: WARN
 
+  # Timer Controls
+  - platform: template
+    name: "Start Timer"
+    id: start_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: |-
+            int h = (int)id(timer_hours).state;
+            int m = (int)id(timer_minutes).state;
+            int s = (int)id(timer_seconds).state;
+            id(RingClock)->start_timer(h, m, s);
+        - light.turn_on:
+            id: ring_light
+            effect: Timer
+
+  - platform: template
+    name: "Stop Timer & Stopwatch"
+    id: stop_timer_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_timer();'
+        - light.turn_on:
+            id: ring_light
+            effect: Clock
+
+# Template numbers for Timer Input
 number:
   - platform: template
     name: "Timer Hours"
@@ -330,3 +341,34 @@ number:
     optimistic: True
     web_server:
       sorting_group_id: sorting_timer
+
+  # Stopwatch Controls
+  - platform: template
+    name: "Start Stopwatch"
+    id: start_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->start_stopwatch();'
+        - light.turn_on:
+            id: ring_light
+            effect: Stopwatch
+
+  - platform: template
+    name: "Pause Stopwatch"
+    id: pause_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->stop_stopwatch();'
+
+  - platform: template
+    name: "Reset Stopwatch"
+    id: reset_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->reset_stopwatch();'

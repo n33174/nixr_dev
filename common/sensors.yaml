@@ -1,3 +1,10 @@
+# I2C Bus Config (Used by RTC and Environmental Sensor)
+i2c:
+  scl: GPIO5
+  sda: GPIO6
+  scan: true
+  
+# UART used for Radar Sensor (LD2410) communication
 uart:
   id: uart_bus
   baud_rate: 256000
@@ -9,6 +16,7 @@ uart:
 ld2410:
 
 sensor:
+  # AHT20 Temperature & Humidity Sensor
   - platform: aht10
     variant: AHT20
     address: 0x38
@@ -24,6 +32,8 @@ sensor:
       icon: mdi:water-percent
       web_server:
         sorting_group_id: sorting_sensors
+        
+  # Light Sensor (ADC)
   - platform: adc
     pin: GPIO4
     name: "Brightness"
@@ -36,29 +46,35 @@ sensor:
     update_interval: 5s
     unit_of_measurement: "%"
     filters:
+      # Map raw voltage (0-3V) into a percentage
       - calibrate_linear:
           - 0.0 -> 0.0
           - 3.0 -> 100.0
+      # Compensate for light interference from the clock's own LEDs
       - lambda: |-
           float interference = id(RingClock)->get_interference_factor();
           
-          // Multiplicative adjustment (as a divisor/factor)
-          // Using a softer weight of 1.8 to reflect the "slightly less" request
+          // Apply inverse weighting based on current LED brightness
+          // '1.8' is the damping factor - higher means more suppression
           float factor = 1.0f / (1.0f + (interference * 1.8f));
           
           float adjusted_value = x * factor;
           
+          // Clamp result between 0-100%
           return adjusted_value < 0 ? 0 : (adjusted_value > 100 ? 100 : adjusted_value);
+      # Smooth out jitter
       - sliding_window_moving_average:
           window_size: 5
           send_every: 1
 
 binary_sensor:
+  # MMwave Radar Presence Detection (LD2410)
   - platform: ld2410
     has_target:
       name: Occupancy
       web_server:
         sorting_group_id: sorting_sensors
+      # Trigger brightness changes based on presence
       on_press:
         - if:
             condition:
@@ -85,6 +101,8 @@ binary_sensor:
       name: Still Target
       web_server:
         sorting_group_id: sorting_sensors
+        
+  # LD2410 Presence input
   - platform: gpio
     pin: GPIO3
     name: "Presence"
@@ -92,11 +110,16 @@ binary_sensor:
       sorting_group_id: sorting_sensors
     device_class: presence
 
-switch:
-  - platform: template
-    name: "Presense Detection Dimming"
-    id: presense_detection
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_OFF
-    web_server:
-      sorting_group_id: sorting_clock
+# System Output Hardware
+output:
+  # Buzzer connected to GPIO7
+  - platform: ledc
+    pin: GPIO7
+    id: buzzer
+
+# RTTTL (Ring Tone Text Transfer Language)
+# Used for playing melodies (alarms, notifications)
+rtttl:
+  output: buzzer
+  id: buzzer_rtttl
+  gain: 90%

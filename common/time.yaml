@@ -1,24 +1,20 @@
 esphome:
   on_boot:
+    # Read time from the hardware RTC as early as possible on boot
     - priority: 300
       then:
-        - logger.log: 
-            format: "Starting Time Display"
-            level: DEBUG
         - pcf8563.read_time:
               id: rtc_time
 
-i2c:
-  scl: GPIO5
-  sda: GPIO6
-  scan: true
-
 time:
+  # Hardware Real Time Clock (PCF8563)
+  # Acts as the primary time source when offline
   - platform: pcf8563
     address: 0x51
-    update_interval: never
+    update_interval: never # Only update manually or on SNTP sync
     id: rtc_time
     on_time:
+      # Sync logic: Update the 'Custom Time' template every minute
       - seconds: 0
         minutes: /1
         then:
@@ -27,23 +23,28 @@ time:
               datetime: !lambda |-
                   auto time = id(rtc_time).now();
                   return time;
+      # Alarm logic: Check every minute if alarm should fire
       - seconds: 0
         minutes: /1
         then:
           - lambda: |-
               auto now = id(rtc_time).now();
               auto alarm = id(alarm_time);
+              // Check if alarm is enabled and matches current Hour/Minute
               if (id(alarm_enabled).state && now.hour == alarm->hour && now.minute == alarm->minute) {
                 id(RingClock)->start_alarm();
+                // Disable alarm after firing if 'Once' mode is active
                 if (id(alarm_once).state) {
                   id(alarm_enabled).turn_off();
                 }
               }
 
+  # Internet Time Sync (SNTP)
   - platform: sntp
     id: sntp_time
     on_time_sync:
       then:
+        # Update the hardware RTC if SNTP sync switch is enabled
         - if:
             condition:
               - switch.is_on: sntp_switch
@@ -55,6 +56,7 @@ time:
                   level: INFO
 
 datetime:
+  # Template to allow users to manually set time via Web UI
   - platform: template
     name: "Custom Time"
     id: custom_time
@@ -63,17 +65,20 @@ datetime:
     optimistic: True
     web_server:
       sorting_group_id: sorting_time
+  
+  # Alarm time setting
   - platform: template
     name: "Alarm Time"
     id: alarm_time
     type: time
     initial_value: "07:00:00"
     optimistic: True
-    restore_value: True
+    restore_value: True # Remember alarm time across reboots
     web_server:
       sorting_group_id: sorting_alarm
 
 switch:
+  # Master switch for internet time sync
   - platform: template
     name: "Enable SNTP Sync"
     id: sntp_switch
@@ -82,6 +87,7 @@ switch:
     web_server:
       sorting_group_id: sorting_time
 
+  # Alarm Controls
   - platform: template
     name: "Alarm Enabled"
     id: alarm_enabled
@@ -89,13 +95,15 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     web_server:
       sorting_group_id: sorting_alarm
+      
   - platform: template
     name: "Alarm Sounds"
     id: alarm_sound
     optimistic: True
-    restore_mode: ${alarm_sound_restore_mode}
+    restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_alarm
+      
   - platform: template
     name: "Alarm Once"
     id: alarm_once
@@ -105,6 +113,8 @@ switch:
       sorting_group_id: sorting_alarm
 
 text:
+  # Text field to set Time Zone (e.g. "Australia/Brisbane", "Europe/London")
+  # Controls how the offset is calculated
   - platform: template
     name: "Time Zone"
     id: time_zone

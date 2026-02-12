@@ -1,5 +1,13 @@
 esphome:
   on_boot:
+    # Display booting effect
+    - priority: 800
+      then:
+        - logger.log: 
+            format: "Booting 123"
+            level: DEBUG
+        - lambda: 'id(RingClock)->set_state(ring_clock::state::booting);'
+    # Restore brightness and last used effect on boot
     - priority: 300
       then:
         - lambda: |-
@@ -8,17 +16,20 @@ esphome:
             call.set_effect(id(last_clock_effect));
             call.perform();
   on_shutdown:
+    # Clean shutdown of the clock ring state
     - priority: 700
       then:
         - lambda: 'id(RingClock)->set_state(ring_clock::state::shutdown);'
 
 globals:
+  # Variable to persist the selected clock effect (Clock, Fade, Rainbow)
   - id: last_clock_effect
     type: std::string
     restore_value: yes
     initial_value: '"Clock"'
 
 number:
+  # Brightness slider for Active/Presence detected state
   - platform: template
     id: standard_percentage
     name: "Standard Brightness Percentage"
@@ -31,6 +42,8 @@ number:
     step: 1
     web_server:
       sorting_group_id: sorting_clock
+      
+  # Brightness slider for Inactive/No presence state
   - platform: template
     id: low_percentage
     name: "Low or Off Brightness Percentage"
@@ -45,6 +58,7 @@ number:
       sorting_group_id: sorting_clock
 
 switch:
+  # Toggles for specific visual elements
   - platform: template
     name: "Enable Seconds"
     id: enable_seconds
@@ -60,20 +74,28 @@ switch:
     web_server:
       sorting_group_id: sorting_clock
 
+# Custom Component: Ring Clock Logic
+# Links sensors, inputs, and lights together
 ring_clock:
+  # Core components
   id: RingClock
   time_id: rtc_time
   light_id: ring_light
+  # Display settings
   enable_markers: enable_markers
   enable_seconds: enable_seconds
+  # Color pointers for customisation
   hour_hand_color: hour_hand_color
   minute_hand_color: minute_hand_color
   second_hand_color: second_hand_color
   marker_color: marker_color
   notification_color: notification_color
+  # Sensors
   sound_enabled_switch: timer_sounds
   temperature_sensor: temp_sensor
   humidity_sensor: humidity_sensor
+  
+  # Event Handlers (Logic)
   on_ready:
     then:
       - lambda: |-
@@ -116,7 +138,7 @@ ring_clock:
       - rtttl.play: "sw_reset:d=16,o=6,b=120:c,d,e,f,g"
 
 light:
-  # Main LED Rings
+  # Main LED Rings Configuration (WS2812)
   - id: ring_light
     name: "Ring Light"
     platform: esp32_rmt_led_strip
@@ -125,7 +147,8 @@ light:
     pin: GPIO10
     num_leds: 108
     gamma_correct: 2.2
-    # WARNING Increasing the values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
+    # WARNING: High brightness draws significant current.
+    # Increasing these values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
     color_correct: [75%, 75%, 75%]
     web_server:
       sorting_group_id: sorting_clock
@@ -133,42 +156,51 @@ light:
       - lambda: |-
           if (id(ring_light).remote_values.is_on()) {
             std::string effect = id(ring_light).get_effect_name();
+            // Store the active "Clock" effect for reboot restoration
+            // Ignore temporary effects like Timer or Stopwatch
             if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)") {
               id(last_clock_effect) = effect;
             }
           }
     effects:
+      # Standard Steps
       - addressable_lambda:
           name: Clock
           update_interval: 50ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
             id(RingClock)->addressable_lights_lambdacall(it);
+      # Smooth Fading Steps
       - addressable_lambda:
           name: "Clock (Fade)"
           update_interval: 33ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_fade);
             id(RingClock)->addressable_lights_lambdacall(it);
+      # Rainbow Color steps
       - addressable_lambda:
           name: "Clock (Rainbow)"
           update_interval: 33ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_rainbow);
             id(RingClock)->addressable_lights_lambdacall(it);
+      # Timer Visuals
       - addressable_lambda:
           name: "Timer"
           update_interval: 100ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::timer);
             id(RingClock)->addressable_lights_lambdacall(it);
+      # Stopwatch Visuals
       - addressable_lambda:
           name: "Stopwatch"
           update_interval: 100ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::stopwatch);
             id(RingClock)->addressable_lights_lambdacall(it);
-  # Customise Hour Hand
+            
+  # Customisation Keys: Hands
+  # These are dummy lights that allow the user to pick colors in the UI
   - platform: rgb
     id: hour_hand_color
     name: "Hour Hand"
@@ -179,7 +211,7 @@ light:
     blue: output_hour_blue
     web_server:
       sorting_group_id: sorting_clock_led
-  # Customise Minute Hand
+      
   - platform: rgb
     id: minute_hand_color
     name: "Minute Hand"
@@ -190,7 +222,7 @@ light:
     blue: output_minute_blue
     web_server:
       sorting_group_id: sorting_clock_led
-  # Customise Second Hand
+      
   - platform: rgb
     id: second_hand_color
     name: "Second Hand"
@@ -201,7 +233,8 @@ light:
     blue: output_second_blue
     web_server:
       sorting_group_id: sorting_clock_led
-  # Customise Markers
+      
+  # Customisation Keys: Markers
   - platform: rgb
     id: marker_color
     name: "Markers"
@@ -214,7 +247,8 @@ light:
       sorting_group_id: sorting_clock_led
     effects:
       - random:
-  # Remaining Inner Ring LEDs
+      
+  # Customisation Keys: Notification/Background
   - platform: rgb
     id: notification_color
     name: "Notification"
@@ -237,6 +271,7 @@ light:
           name: "Slow Pulse"
           transition_length: 500ms
           update_interval: 2s
+      # Custom animations triggered by sensors
       - automation:
           name: "Sensors: Dual Bars"
           sequence: []
@@ -266,7 +301,8 @@ light:
           sequence: []
 
 output:
-  # Dummy LED Outputs
+  # "Dummy" outputs needed to bind the RGB lights above
+  # They don't control hardware directly
   - platform: template
     id: output_hour_red
     type: float

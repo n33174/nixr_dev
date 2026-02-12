@@ -1,29 +1,46 @@
 substitutions:
+  # Unique name for the device in Home Assistant and network
   name: "al60"
+  # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
+  # Firmware version
+  version: 0.9.0
+  # Default Time Zone (can be changed in Web UI later)
+  # Format must match standard TZ database names
   time_zone: "Australia/Brisbane"
-  # Audio Settings
-  timer_sounds_restore_mode: RESTORE_DEFAULT_ON
-  alarm_sound_restore_mode: RESTORE_DEFAULT_ON
 
 packages:
+  # Load common logic from the NIX labs repository
+  # Copy the contents of these files into this main yaml file and remove the remote if you wish to make changes
+
+  # Core system config (Logger, API, Web Server)
   core: github://n33174/nixr_dev/common/core.yaml@main
+  # Timekeeping (RTC, SNTP, Alarms)
   time: github://n33174/nixr_dev/common/time.yaml@main
+  # Environmental & Presence Sensors
   sensors: github://n33174/nixr_dev/common/sensors.yaml@main
+  # Buttons & Physical Inputs
   inputs: github://n33174/nixr_dev/common/inputs.yaml@main
+  # LED Display & Visual Effects
   light: github://n33174/nixr_dev/common/light.yaml@main
 
 wifi:
+  # Disable power save to ensure responsive web interface and API
   power_save_mode: none
-  # Set up a wifi access point
+  
+  # Fallback Access Point
+  # If no WiFi is configured or connection fails, the clock creates this hotspot
+  # Connect to this to set up your WiFi credentials
   ap:
     password: "12345678"
 
-# This should point to the public location of this yaml file.
+# Dashboard Import
+# Allows this device to be easily adopted into ESPHome Dashboard
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/al60.yaml@main
-  import_full_config: false # or true
+  import_full_config: false
 
 external_components:
+  # The custom component driving the clock faces
   - source: github://n33174/nixr_dev@main
     components: [ ring_clock ]
