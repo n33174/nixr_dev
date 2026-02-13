@@ -43,16 +43,6 @@ time:
     id: rtc_time
     timezone: UTC
     on_time:
-      # Sync logic: Update the 'Custom Time' template every minute
-      - seconds: 0
-        minutes: /1
-        then:
-          - datetime.datetime.set:
-              id: custom_time
-              datetime: !lambda |-
-                  // Return local time based on system TZ
-                  time_t t = ::time(NULL);
-                  return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
       # Alarm logic: Check every minute if alarm should fire
       - seconds: 0
         minutes: /1
@@ -102,7 +92,7 @@ datetime:
       then:
         - switch.turn_off: sntp_switch
         - lambda: |-
-            setenv("TZ", id(time_zone).state.c_str(), 1);
+            setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
             struct tm time_info;
             // Use 'x' which is the ESPTime provided by on_value
@@ -250,7 +240,8 @@ button:
         - http_request.get:
             url: !lambda |-
                std::string iana = id(detected_iana);
-               std::string continent = iana.substr(0, iana.find('/'));
+               size_t pos = iana.find('/');
+               std::string continent = (pos != std::string::npos) ? iana.substr(0, pos) : "Etc";
                return "https://n33174.github.io/nixr_dev/static/" + continent + ".json";
             request_headers:
               User-Agent: "ESPHome/AL60"
@@ -259,9 +250,11 @@ button:
               then:
                 - lambda: |-
                     bool found = false;
+                    std::string iana = id(detected_iana);
                     if (!body.empty()) {
-                      json::parse_json(body, [&found, &iana](JsonObject root) -> bool {
-                        std::string city = iana.substr(iana.find('/') + 1);
+                      json::parse_json(body, [&found, iana](JsonObject root) -> bool {
+                        size_t pos = iana.find('/');
+                        std::string city = (pos != std::string::npos) ? iana.substr(pos + 1) : iana;
                         if (root[city].is<const char*>()) {
                           std::string posix = root[city].as<std::string>();
                           id(time_zone).publish_state(posix);
@@ -274,6 +267,6 @@ button:
                     }
 
                     if (!found) {
-                      ESP_LOGW("main", "City not in DB or DB unreachable. Falling back to default: ${time_zone}");
+                      ESP_LOGW("main", "City '%s' not in DB or DB unreachable. Fallback: ${time_zone}", iana.c_str());
                       id(time_zone).publish_state("${time_zone}");
                     }

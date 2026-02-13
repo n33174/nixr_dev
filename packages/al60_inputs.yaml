@@ -283,39 +283,18 @@ button:
       then:
         - rtttl.play: 'short:d=4,o=5,b=100:16e6'
         - switch.turn_off: sntp_switch
-        - if:
-            condition:
-              time.has_time:
-                id: rtc_time
-            then:
-              - datetime.datetime.set:
-                    id: custom_time
-                    datetime: !lambda |-
-                        time_t t = ::time(NULL);
-                        return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - lambda: |-
             setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
-            struct tm time_info;
-            auto *time = id(custom_time); // Get TemplateDateTime pointer
-            time_info.tm_year = time->year - 1900;
-            time_info.tm_mon = time->month - 1;
-            time_info.tm_mday = time->day;
-            time_info.tm_hour = (time->hour + 1) % 24;
-            time_info.tm_min = time->minute;
-            time_info.tm_sec = time->second;
-            time_info.tm_isdst = -1;
-            std::time_t t = mktime(&time_info);
-            struct timeval tv = {t, 0};
+            time_t t_now = ::time(NULL);
+            struct tm *ti = ::localtime(&t_now);
+            ti->tm_hour = (ti->tm_hour + 1) % 24;
+            ti->tm_isdst = -1;
+            time_t t_new = mktime(ti);
+            struct timeval tv = {t_new, 0};
             settimeofday(&tv, NULL);
-            ESP_LOGD("main", "System time set to: %s", ctime(&t));
         - pcf8563.write_time:
             id: rtc_time
-        - datetime.datetime.set:
-              id: custom_time
-              datetime: !lambda |-
-                  time_t t = ::time(NULL);
-                  return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - logger.log: 
             format: "RTC incremented by 1 hour"
             level: INFO
@@ -334,38 +313,18 @@ button:
       then:
         - rtttl.play: 'short:d=4,o=5,b=100:16e6'
         - switch.turn_off: sntp_switch
-        - if:
-            condition:
-              time.has_time:
-                id: rtc_time
-            then:
-              - datetime.datetime.set:
-                    id: custom_time
-                    datetime: !lambda |-
-                        time_t t = ::time(NULL);
-                        return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - lambda: |-
             setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
-            struct tm time_info;
-            auto *time = id(custom_time);
-            time_info.tm_year = time->year - 1900;
-            time_info.tm_mon = time->month - 1;
-            time_info.tm_mday = time->day;
-            time_info.tm_hour = time->hour;
-            time_info.tm_min = (time->minute + 1) % 60;
-            time_info.tm_sec = time->second;
-            time_info.tm_isdst = -1;
-            std::time_t t = mktime(&time_info);
-            struct timeval tv = {t, 0};
+            time_t t_now = ::time(NULL);
+            struct tm *ti = ::localtime(&t_now);
+            ti->tm_min = (ti->tm_min + 1) % 60;
+            ti->tm_isdst = -1;
+            time_t t_new = mktime(ti);
+            struct timeval tv = {t_new, 0};
             settimeofday(&tv, NULL);
         - pcf8563.write_time:
             id: rtc_time
-        - datetime.datetime.set:
-            id: custom_time
-            datetime: !lambda |-
-                time_t t = ::time(NULL);
-                return esphome::ESPTime::from_c_tm(::localtime(&t), 0);
         - logger.log: 
             format: "RTC incremented by 1 minute"
             level: INFO
