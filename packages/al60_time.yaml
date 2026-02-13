@@ -100,35 +100,28 @@ datetime:
       sorting_weight: 3
     on_value:
       then:
-        - if:
-            condition:
-              - switch.is_off: sntp_switch
-            then:
-              - lambda: |-
-                  setenv("TZ", id(time_zone).state.c_str(), 1);
-                  tzset();
-                  struct tm time_info;
-                  // Use 'x' which is the ESPTime provided by on_value
-                  time_info.tm_year = x.year - 1900;
-                  time_info.tm_mon = x.month - 1;
-                  time_info.tm_mday = x.day_of_month;
-                  time_info.tm_hour = x.hour;
-                  time_info.tm_min = x.minute;
-                  time_info.tm_sec = x.second;
-                  time_info.tm_isdst = -1;
-                  std::time_t t = mktime(&time_info);
-                  struct timeval tv = {t, 0};
-                  settimeofday(&tv, NULL);
-                  ESP_LOGD("main", "System time updated from Web UI: %s", ctime(&t));
-              - pcf8563.write_time:
-                  id: rtc_time
-              - logger.log:
-                  format: "RTC updated from Web UI"
-                  level: INFO
-            else:
-              - logger.log:
-                  format: "Manual time change ignored. Disable 'Enable SNTP Sync' first."
-                  level: WARN
+        - switch.turn_off: sntp_switch
+        - lambda: |-
+            setenv("TZ", id(time_zone).state.c_str(), 1);
+            tzset();
+            struct tm time_info;
+            // Use 'x' which is the ESPTime provided by on_value
+            time_info.tm_year = x.year - 1900;
+            time_info.tm_mon = x.month - 1;
+            time_info.tm_mday = x.day_of_month;
+            time_info.tm_hour = x.hour;
+            time_info.tm_min = x.minute;
+            time_info.tm_sec = x.second;
+            time_info.tm_isdst = -1;
+            std::time_t t = mktime(&time_info);
+            struct timeval tv = {t, 0};
+            settimeofday(&tv, NULL);
+            ESP_LOGD("main", "System time updated from Web UI: %s", ctime(&t));
+        - pcf8563.write_time:
+            id: rtc_time
+        - logger.log:
+            format: "Manual time applied. SNTP sync disabled."
+            level: INFO
   
   # Alarm time setting
   - platform: template
@@ -152,6 +145,11 @@ switch:
     web_server:
       sorting_group_id: sorting_time
       sorting_weight: 2
+    on_turn_on:
+      then:
+        - logger.log:
+            format: "SNTP Sync enabled. It is recommended to restart the clock for optimal synchronization."
+            level: INFO
 
   # Alarm Controls
   - platform: template
@@ -260,31 +258,22 @@ button:
             on_response:
               then:
                 - lambda: |-
-                    if (body.empty()) {
-                       ESP_LOGW("main", "Stage 2 DB unreachable. Falling back to offset.");
-                       goto fallback;
+                    bool found = false;
+                    if (!body.empty()) {
+                      json::parse_json(body, [&found, &iana](JsonObject root) -> bool {
+                        std::string city = iana.substr(iana.find('/') + 1);
+                        if (root[city].is<const char*>()) {
+                          std::string posix = root[city].as<std::string>();
+                          id(time_zone).publish_state(posix);
+                          ESP_LOGI("main", "Success! Applied POSIX rule for %s: %s", iana.c_str(), posix.c_str());
+                          found = true;
+                          return true;
+                        }
+                        return false;
+                      });
                     }
-                    
-                    json::parse_json(body, [](JsonObject root) -> bool {
-                      std::string iana = id(detected_iana);
-                      std::string city = iana.substr(iana.find('/') + 1);
-                      if (root[city].is<const char*>()) {
-                        std::string posix = root[city].as<std::string>();
-                        id(time_zone).publish_state(posix);
-                        ESP_LOGI("main", "Success! Applied POSIX rule for %s: %s", iana.c_str(), posix.c_str());
-                        return true;
-                      }
-                      return false;
-                    });
-                    
-                    // If we reach here and status isn't updated, fallback to offset
-                    if (id(time_zone).state == "${time_zone}") {
-                      fallback:
-                      std::string offset = id(detected_offset);
-                      char sign = offset[0];
-                      std::string hh_mm = offset.substr(1, 5);
-                      std::string inv_sign = (sign == '+') ? "-" : "+";
-                      std::string fallback_posix = "UTC" + inv_sign + hh_mm;
-                      id(time_zone).publish_state(fallback_posix);
-                      ESP_LOGI("main", "City not in DB. Applied current offset fallback: %s", fallback_posix.c_str());
+
+                    if (!found) {
+                      ESP_LOGW("main", "City not in DB or DB unreachable. Falling back to default: ${time_zone}");
+                      id(time_zone).publish_state("${time_zone}");
                     }
