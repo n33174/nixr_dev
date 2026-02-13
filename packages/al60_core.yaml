@@ -15,10 +15,11 @@ esp32:
   framework:
     type: esp-idf
     sdkconfig_options:
-      CONFIG_TINYUSB_ENABLED: "y"
-      CONFIG_TINYUSB_DESC_MANUFACTURER_STRING: "NIX labs"
-      CONFIG_TINYUSB_DESC_PRODUCT_STRING: "NIX labs AL60"
-      CONFIG_TINYUSB_DESC_SERIAL_STRING: "AL60-CLOCK"
+      # This allows the chip to overwrite the default Espressif strings
+      CONFIG_USB_OTG_MANUFACTURER_STR: "NIX labs"
+      CONFIG_USB_OTG_PRODUCT_STR: "AL60 Clock"
+      # Crucial: This tells the Serial JTAG peripheral to use these strings
+      CONFIG_ESP_PHY_ENABLE_USB_CONTROLLER: "y"
 
 # Logging Configuration
 logger:
