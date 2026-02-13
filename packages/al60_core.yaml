@@ -14,11 +14,11 @@ esp32:
   variant: ESP32C3
   framework:
     type: esp-idf
-
-# Brand the USB Connection
-esp32_usb:
-  product: "NIX labs AL60"
-  manufacturer: "NIX labs"
+    sdkconfig_options:
+      CONFIG_TINYUSB_ENABLED: "y"
+      CONFIG_TINYUSB_DESC_MANUFACTURER_STRING: "NIX labs"
+      CONFIG_TINYUSB_DESC_PRODUCT_STRING: "NIX labs AL60"
+      CONFIG_TINYUSB_DESC_SERIAL_STRING: "AL60-CLOCK"
 
 # Logging Configuration
 logger:
