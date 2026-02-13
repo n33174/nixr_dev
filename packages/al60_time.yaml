@@ -195,11 +195,8 @@ text:
             setenv("TZ", x.c_str(), 1);
             tzset();
             ESP_LOGI("main", "Timezone updated to: %s", x.c_str());
-        - pcf8563.write_time:
-            id: rtc_time
-        - globals.set:
-            id: timezone_configured
-            value: 'true'
+        - lambda: |-
+            id(timezone_configured) = true;
 button:
   # Detect Timezone via IP Geolocation (WorldTimeAPI)
   - platform: template
@@ -225,12 +222,12 @@ button:
                     }
                     json::parse_json(body, [](JsonObject root) -> bool {
                       JsonObject tz = root["timezone"];
-                      if (tz["id"].is<const char*>() && tz["utc"].is<const char*>()) {
-                        id(detected_iana) = tz["id"].as<std::string>();
-                        id(detected_offset) = tz["utc"].as<std::string>();
-                        id(fetch_posix_rule).press(); // Trigger Stage 2
-                        return true;
-                      }
+                        if (tz["id"].is<const char*>() && tz["utc"].is<const char*>()) {
+                          id(detected_iana) = tz["id"].as<std::string>();
+                          id(detected_offset) = tz["utc"].as<std::string>();
+                          id(fetch_posix_rule).press(); // Trigger Stage 2
+                          return true;
+                        }
                       return false;
                     });
 
@@ -262,7 +259,7 @@ button:
                         std::string city = (pos != std::string::npos) ? iana.substr(pos + 1) : iana;
                         if (root[city].is<const char*>()) {
                           std::string posix = root[city].as<std::string>();
-                          id(time_zone).publish_state(posix);
+                          id(time_zone)->set(posix);
                           ESP_LOGI("main", "Success! Applied POSIX rule for %s: %s", iana.c_str(), posix.c_str());
                           found = true;
                           return true;
@@ -273,5 +270,5 @@ button:
 
                     if (!found) {
                       ESP_LOGW("main", "City '%s' not in DB or DB unreachable. Fallback: ${time_zone}", iana.c_str());
-                      id(time_zone).publish_state("${time_zone}");
+                      id(time_zone)->set("${time_zone}");
                     }

@@ -271,7 +271,7 @@ button:
         - delay: 3s # Allow time for manifest fetch and parsing
         - if:
             condition:
-              lambda: 'return id(firmware_update).status == esphome::update::UPDATE_STATUS_AVAILABLE;'
+              lambda: 'return id(firmware_update).state == esphome::update::UPDATE_STATE_AVAILABLE;'
             then:
               - logger.log: "New version found! Starting Over-The-Air (OTA) update..."
               - update.perform: firmware_update
