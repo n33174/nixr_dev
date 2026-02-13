@@ -4,7 +4,7 @@ substitutions:
   # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
   # Firmware version
-  version: "0.9.0"
+  version: "0.9.1"
   # Fallback Time Zone in case auto-detection fails
   # Should be POSIX Timezone String
   # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
@@ -19,13 +19,6 @@ wifi:
   # Connect to this to set up your WiFi credentials
   ap:
     password: "12345678"
-
-# Dashboard Import
-# Allows this device to be easily adopted into ESPHome Dashboard
-dashboard_import:
-  package_import_url: github://n33174/nixr_dev/al60.yaml@v${version}
-  # Set import_full_config to true to import all packages allowing for full customisation
-  import_full_config: true
 
 packages:
   core:
