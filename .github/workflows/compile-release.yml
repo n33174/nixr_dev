@@ -87,6 +87,7 @@ jobs:
           cp -r static/* public/static/
 
       - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -102,6 +103,12 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
+
+      - name: Upload Build Artifacts (Private Test)
+        uses: actions/upload-artifact@v4
+        with:
+          name: al60-firmware-${{ steps.get_version.outputs.firmware_version }}
+          path: public/firmware/
 
   deploy-pages:
     needs: build

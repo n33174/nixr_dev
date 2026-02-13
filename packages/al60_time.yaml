@@ -24,6 +24,7 @@ esphome:
         - wait_until:
             condition:
               wifi.connected:
+        - update.check: firmware_update
         - if:
             condition:
               lambda: |-
