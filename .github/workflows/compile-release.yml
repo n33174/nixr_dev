@@ -51,7 +51,7 @@ jobs:
           cp $BUILD_PATH/bootloader.bin public/firmware/bootloader.bin
           cp $BUILD_PATH/partitions.bin public/firmware/partitions.bin
           cp $BUILD_PATH/ota_data_initial.bin public/firmware/ota_data_initial.bin
-          cp $BUILD_PATH/firmware.bin public/firmware/al60_$V_NUM_ota.bin
+          cp $BUILD_PATH/firmware.bin public/firmware/al60_${V_NUM}_ota.bin
 
           # 3. Create the Merged Factory Binary
           esptool.py --chip esp32c3 merge_bin \
@@ -61,9 +61,12 @@ jobs:
             0x0000 public/firmware/bootloader.bin \
             0x8000 public/firmware/partitions.bin \
             0xd000 public/firmware/ota_data_initial.bin \
-            0x10000 public/firmware/al60_$V_NUM_ota.bin
+            0x10000 public/firmware/al60_${V_NUM}_ota.bin
 
-          # 4. Create the manifest.json
+          # 4. Calculate MD5 for OTA file
+          MD5_OTA=$(md5sum public/firmware/al60_${V_NUM}_ota.bin | awk '{ print $1 }')
+
+          # 5. Create the combined manifest.json
           cat <<EOF > public/firmware/manifest.json
           {
             "name": "NIX labs AL60",
@@ -76,8 +79,14 @@ jobs:
                   { "path": "bootloader.bin", "offset": 0 },
                   { "path": "partitions.bin", "offset": 32768 },
                   { "path": "ota_data_initial.bin", "offset": 53248 },
-                  { "path": "al60_$V_NUM_ota.bin", "offset": 65536 }
-                ]
+                  { "path": "al60_${V_NUM}_ota.bin", "offset": 65536 }
+                ],
+                "ota": {
+                  "path": "https://n33174.github.io/nixr_dev/firmware/al60_${V_NUM}_ota.bin",
+                  "md5": "$MD5_OTA",
+                  "release_url": "https://github.com/n33174/nixr_dev/releases/tag/v${V_NUM}",
+                  "summary": "Firmware update for NIX labs AL60 v${V_NUM}"
+                }
               }
             ]
           }

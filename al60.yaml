@@ -4,9 +4,9 @@ substitutions:
   # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
   # Firmware version
-  version: "0.9.1"
+  version: "0.9.2"
   # Fallback Time Zone in case auto-detection fails
-  # Format must match POSIX Timezone String
+  # Should be POSIX Timezone String
   # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
   time_zone: "AEST-10" 
 

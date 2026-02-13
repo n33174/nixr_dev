@@ -15,9 +15,13 @@ esphome:
       then:
         - pcf8563.read_time:
               id: rtc_time
+    # Set the timezone after enough time has passed for restoration from memory
+    - priority: 200
+      then:
         - lambda: |-
-            setenv("TZ", id(time_zone).state.c_str(), 1);
+            setenv("TZ", id(time_zone)->state.c_str(), 1);
             tzset();
+            ESP_LOGD("main", "Boot - Applied restored timezone: %s", id(time_zone)->state.c_str());
     # Auto-detect timezone on first connection if not already configured
     - priority: 100
       then:
