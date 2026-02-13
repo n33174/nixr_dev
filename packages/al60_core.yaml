@@ -48,6 +48,7 @@ update:
     source: https://n33174.github.io/nixr_dev/firmware/manifest.json
     web_server:
       sorting_group_id: sorting_system
+      sorting_weight: 1
 
 # Captive Portal for fallback wifi configuration
 captive_portal:

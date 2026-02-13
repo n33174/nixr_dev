@@ -263,7 +263,7 @@ button:
     id: update_firmware_button
     web_server:
       sorting_group_id: sorting_system
-      sorting_weight: 1
+      sorting_weight: 2
     on_press:
       then:
         - logger.log: "Initiating firmware update process..."

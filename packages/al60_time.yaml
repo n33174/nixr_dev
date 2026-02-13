@@ -259,8 +259,10 @@ button:
                         std::string city = (pos != std::string::npos) ? iana.substr(pos + 1) : iana;
                         if (root[city].is<const char*>()) {
                           std::string posix = root[city].as<std::string>();
-                          id(time_zone)->publish_state(posix);
-                          ESP_LOGI("main", "Success! Applied POSIX rule for %s: %s", iana.c_str(), posix.c_str());
+                          auto call = id(time_zone).make_call();
+                          call.set_value(posix);
+                          call.perform();
+                          ESP_LOGI("main", "Success! Applied and saved POSIX rule for %s: %s", iana.c_str(), posix.c_str());
                           found = true;
                           return true;
                         }
@@ -270,5 +272,7 @@ button:
 
                     if (!found) {
                       ESP_LOGW("main", "City '%s' not in DB or DB unreachable. Fallback: ${time_zone}", iana.c_str());
-                      id(time_zone)->publish_state("${time_zone}");
+                      auto call = id(time_zone).make_call();
+                      call.set_value("${time_zone}");
+                      call.perform();
                     }

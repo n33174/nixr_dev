@@ -1,2 +1,3 @@
 .DS_Store
 .esphome/
+components/ring_clock/__pycache__/
