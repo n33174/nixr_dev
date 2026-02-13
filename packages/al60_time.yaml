@@ -72,16 +72,9 @@ time:
     timezone: UTC
     on_time_sync:
       then:
-        # Update the hardware RTC if SNTP sync switch is enabled
-        - if:
-            condition:
-              - switch.is_on: sntp_switch
-            then:
-              - pcf8563.write_time:
-                  id: rtc_time
-              - logger.log: 
-                  format: "SNTP Time Synchronised and RTC updated"
-                  level: INFO
+        - logger.log: "SNTP Synchronized and RTC updated."
+        - pcf8563.write_time:
+            id: rtc_time
 
 datetime:
   # Template to allow users to manually set time via Web UI

@@ -250,18 +250,6 @@ button:
     id: restart_esp
     web_server:
       sorting_group_id: sorting_system
-
-  # Manual Time Sync
-  - platform: template
-    name: "Sync Internet Time"
-    id: sync_time_button
-    web_server:
-      sorting_group_id: sorting_system
-      sorting_weight: 3
-    on_press:
-      then:
-        - lambda: 'id(sntp_time).update();'
-        - logger.log: "Requesting immediate SNTP time sync..."
   - platform: factory_reset
     name: Reset with Default Settings
     id: delete_all_config
