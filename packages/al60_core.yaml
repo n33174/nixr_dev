@@ -15,6 +15,11 @@ esp32:
   framework:
     type: esp-idf
 
+# Brand the USB Connection
+esp32_usb:
+  product: "NIX labs AL60"
+  manufacturer: "NIX labs"
+
 # Logging Configuration
 logger:
   level: DEBUG
