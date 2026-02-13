@@ -25,7 +25,7 @@ wifi:
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/al60.yaml@v${version}
   # Set import_full_config to true to import all packages allowing for full customisation
-  import_full_config: false
+  import_full_config: true
 
 packages:
   core:
