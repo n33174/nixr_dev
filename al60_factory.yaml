@@ -1,8 +1,13 @@
 substitutions:
   name: "al60"
   friendly_name: "NIX labs AL60 Clock"
-  version: "0.9.1"
+  version: "0.9.0"
   time_zone: "AEST-10" 
+
+wifi:
+  power_save_mode: none
+  ap:
+    password: "12345678"
 
 packages:
   # Using local paths for the GitHub Action Build
@@ -11,11 +16,6 @@ packages:
   sensors: !include packages/al60_sensors.yaml
   inputs: !include packages/al60_inputs.yaml
   light: !include packages/al60_light.yaml
-
-wifi:
-  power_save_mode: none
-  ap:
-    password: "12345678"
 
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/al60.yaml@v${version}

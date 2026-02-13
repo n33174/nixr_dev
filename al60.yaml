@@ -4,23 +4,11 @@ substitutions:
   # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
   # Firmware version
-  version: "0.9.1"
+  version: "0.9.0"
   # Fallback Time Zone in case auto-detection fails
   # Should be POSIX Timezone String
   # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
   time_zone: "AEST-10" 
-
-packages:
-  # Core system config (Logger, API, Web Server)
-  core: github://n33174/nixr_dev/packages/al60_core.yaml@v${version}
-  # Timekeeping (RTC, SNTP, Alarms)
-  time: github://n33174/nixr_dev/packages/al60_time.yaml@v${version}
-  # Environmental & Presence Sensors
-  sensors: github://n33174/nixr_dev/packages/al60_sensors.yaml@v${version}
-  # Buttons & Physical Inputs
-  inputs: github://n33174/nixr_dev/packages/al60_inputs.yaml@v${version}
-  # LED Display & Visual Effects
-  light: github://n33174/nixr_dev/packages/al60_light.yaml@v${version}
 
 wifi:
   # Disable power save to ensure responsive web interface and API
@@ -36,10 +24,35 @@ wifi:
 # Allows this device to be easily adopted into ESPHome Dashboard
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/al60.yaml@v${version}
-  # Set mport_full_config to true to import all packages allowing for full customisation
+  # Set import_full_config to true to import all packages allowing for full customisation
   import_full_config: false
+
+packages:
+  core:
+    url: https://github.com/n33174/nixr_dev
+    file: packages/al60_core.yaml
+    ref: v${version}
+  time:
+    url: https://github.com/n33174/nixr_dev
+    file: packages/al60_time.yaml
+    ref: v${version}
+  sensors:
+    url: https://github.com/n33174/nixr_dev
+    file: packages/al60_sensors.yaml
+    ref: v${version}
+  inputs:
+    url: https://github.com/n33174/nixr_dev
+    file: packages/al60_inputs.yaml
+    ref: v${version}
+  light:
+    url: https://github.com/n33174/nixr_dev
+    file: packages/al60_light.yaml
+    ref: v${version}
 
 external_components:
   # The custom component driving the clock faces
-  - source: github://n33174/nixr_dev@v${version}
+  - source:
+      type: git
+      url: https://github.com/n33174/nixr_dev
+      ref: v${version}
     components: [ ring_clock ]
