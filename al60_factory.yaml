@@ -1,7 +1,7 @@
 substitutions:
   name: "al60"
   friendly_name: "NIX labs AL60 Clock"
-  version: "0.9.0"
+  version: "0.9.1"
   time_zone: "AEST-10" 
 
 packages:
@@ -22,7 +22,7 @@ dashboard_import:
   import_full_config: false
 
 external_components:
-  # Using local path so the compiler finds the 'components' folder in your repo
+  # Using local paths for the GitHub Action Build
   - source:
       type: local
       path: components

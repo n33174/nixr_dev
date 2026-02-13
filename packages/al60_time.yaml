@@ -138,7 +138,7 @@ switch:
     on_turn_on:
       then:
         - logger.log:
-            format: "SNTP Sync enabled. It is recommended to restart the clock for optimal synchronization."
+            format: "SNTP Sync enabled. It is recommended to restart the clock to trigger time sync."
             level: INFO
 
   # Alarm Controls

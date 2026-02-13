@@ -51,7 +51,7 @@ jobs:
           cp $BUILD_PATH/bootloader.bin public/firmware/bootloader.bin
           cp $BUILD_PATH/partitions.bin public/firmware/partitions.bin
           cp $BUILD_PATH/ota_data_initial.bin public/firmware/ota_data_initial.bin
-          cp $BUILD_PATH/firmware.bin public/firmware/al60_$V_NUM.bin
+          cp $BUILD_PATH/firmware.bin public/firmware/al60_$V_NUM_ota.bin
 
           # 3. Create the Merged Factory Binary
           esptool.py --chip esp32c3 merge_bin \
@@ -61,7 +61,7 @@ jobs:
             0x0000 public/firmware/bootloader.bin \
             0x8000 public/firmware/partitions.bin \
             0xd000 public/firmware/ota_data_initial.bin \
-            0x10000 public/firmware/al60_$V_NUM.bin
+            0x10000 public/firmware/al60_$V_NUM_ota.bin
 
           # 4. Create the manifest.json
           cat <<EOF > public/firmware/manifest.json
@@ -76,7 +76,7 @@ jobs:
                   { "path": "bootloader.bin", "offset": 0 },
                   { "path": "partitions.bin", "offset": 32768 },
                   { "path": "ota_data_initial.bin", "offset": 53248 },
-                  { "path": "al60_$V_NUM.bin", "offset": 65536 }
+                  { "path": "al60_$V_NUM_ota.bin", "offset": 65536 }
                 ]
               }
             ]

@@ -227,7 +227,7 @@ binary_sensor:
       - timing:
           - ON for at least 10s
         then:
-          - rtttl.play: 'reset:d=8,o=6,b=120:c,c,c,c'
+          - rtttl.play: 'reset:d=1,o=6,b=120:c'
           - delay: 500ms
           - button.press: delete_all_config
 
