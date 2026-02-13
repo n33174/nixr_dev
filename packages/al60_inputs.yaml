@@ -41,7 +41,7 @@ binary_sensor:
     name: "Mode Button"
     internal: true
     filters:
-      delayed_on_off: 50ms # Debouncing
+      - delayed_on_off: 50ms
     on_multi_click:
       # Single Click: Next Clock Effect
       - timing:
@@ -135,12 +135,11 @@ binary_sensor:
     name: "Hour Button"
     internal: true
     filters:
-      - delayed_on: 20ms
-      - delayed_off: 20ms
+      - delayed_on_off: 50ms
     on_multi_click:
       # Single click: Increment Hour
       - timing:
-          - ON for 40ms to 800ms
+          - ON for 50ms to 800ms
           - OFF for at least 100ms
         then:
           - if:
@@ -177,12 +176,11 @@ binary_sensor:
     name: "Minute Button"
     internal: true
     filters:
-      - delayed_on: 20ms
-      - delayed_off: 20ms
+      - delayed_on_off: 50ms
     on_multi_click:
       # Single click
       - timing:
-          - ON for 40ms to 800ms
+          - ON for 50ms to 800ms
           - OFF for at least 100ms
         then:
           - if:
