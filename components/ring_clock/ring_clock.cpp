@@ -134,12 +134,11 @@ namespace ring_clock {
   }
 
   void RingClock::stop_stopwatch() {
-    if (_stopwatch_active) {
-      // Pause
-      _stopwatch_paused_ms = millis() - _stopwatch_start_ms;
-      _stopwatch_active = false;
-      this->on_stopwatch_paused();
-    }
+    _stopwatch_active = false;
+    _stopwatch_paused_ms = 0;
+    _stopwatch_last_minute = -1;
+    this->on_stopwatch_paused();
+    this->on_stopwatch_reset();
   }
 
   void RingClock::reset_stopwatch() {
@@ -527,6 +526,11 @@ namespace ring_clock {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
 
+    float n_b = 1.0f;
+    if (this->notification_color != nullptr) {
+        n_b = this->notification_color->current_values.get_brightness();
+    }
+
     // 1. Temperature Bar (Right Side of R2: Hours 0-5)
     // Map -10C to 50C -> 0 to 18 LEDs (3 per hour * 6 hours)
     float t_p = (temp + 10.0f) / 60.0f;
@@ -539,7 +543,8 @@ namespace ring_clock {
         for (int s = 3; s >= 1; s--) { // Fill outer edge in
             if (count < t_leds) {
                 float val = -10.0f + (count * 3.33f);
-                it[R1_NUM_LEDS + (h * 4) + s] = get_temp_color(val);
+                Color c = get_temp_color(val);
+                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
             }
             count++;
         }
@@ -557,7 +562,8 @@ namespace ring_clock {
         for (int s = 1; s <= 3; s++) { // Fill inner edge out
             if (count < h_leds) {
                 float val = count * 5.55f;
-                 it[R1_NUM_LEDS + (h * 4) + s] = get_humid_color(val);
+                Color c = get_humid_color(val);
+                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
             }
             count++;
         }
@@ -566,7 +572,12 @@ namespace ring_clock {
 
   void RingClock::render_sensors_temp_glow(light::AddressableLight & it) {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
-    Color glow = get_temp_color(temp);
+    Color c = get_temp_color(temp);
+    float n_b = 1.0f;
+    if (this->notification_color != nullptr) {
+        n_b = this->notification_color->current_values.get_brightness();
+    }
+    Color glow = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
     // Fill all markers/spaces with glow color
     for (int i = 0; i < 12; i++) {
         it[R1_NUM_LEDS + (i * 4) + 1] = glow;
@@ -577,7 +588,12 @@ namespace ring_clock {
 
   void RingClock::render_sensors_humid_glow(light::AddressableLight & it) {
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
-    Color glow = get_humid_color(humid);
+    Color c = get_humid_color(humid);
+    float n_b = 1.0f;
+    if (this->notification_color != nullptr) {
+        n_b = this->notification_color->current_values.get_brightness();
+    }
+    Color glow = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
     for (int i = 0; i < 12; i++) {
         it[R1_NUM_LEDS + (i * 4) + 1] = glow;
         it[R1_NUM_LEDS + (i * 4) + 2] = glow;
@@ -589,6 +605,11 @@ namespace ring_clock {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
 
+    float n_b = 1.0f;
+    if (this->notification_color != nullptr) {
+        n_b = this->notification_color->current_values.get_brightness();
+    }
+
     // 1. Temperature Tick (Right Side)
     float t_p = (temp + 10.0f) / 60.0f;
     if (t_p < 0) t_p = 0; if (t_p > 1.0f) t_p = 1.0f;
@@ -599,7 +620,8 @@ namespace ring_clock {
         for (int s = 3; s >= 1; s--) {
             if (count == t_led_idx) {
                 float val = -10.0f + (count * 3.33f);
-                it[R1_NUM_LEDS + (h * 4) + s] = get_temp_color(val);
+                Color c = get_temp_color(val);
+                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
             }
             count++;
         }
@@ -615,7 +637,8 @@ namespace ring_clock {
         for (int s = 1; s <= 3; s++) {
             if (count == h_led_idx) {
                 float val = count * 5.55f;
-                it[R1_NUM_LEDS + (h * 4) + s] = get_humid_color(val);
+                Color c = get_humid_color(val);
+                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
             }
             count++;
         }
@@ -628,6 +651,11 @@ namespace ring_clock {
     float p = is_temp ? (val + 10.0f) / 60.0f : val / 100.0f;
     if (p < 0) p = 0; if (p > 1.0f) p = 1.0;
     
+    float n_b = 1.0f;
+    if (this->notification_color != nullptr) {
+        n_b = this->notification_color->current_values.get_brightness();
+    }
+
     // 36 positions (12 hours * 3 slots between markers)
     int led_idx = (int)(p * 35.99f);
 
@@ -635,7 +663,8 @@ namespace ring_clock {
     for (int h = 0; h < 12; h++) {
         for (int s = 1; s <= 3; s++) {
             if (count == led_idx) {
-                it[R1_NUM_LEDS + (h * 4) + s] = is_temp ? get_temp_color(val) : get_humid_color(val);
+                Color c = is_temp ? get_temp_color(val) : get_humid_color(val);
+                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
             }
             count++;
         }
@@ -647,6 +676,11 @@ namespace ring_clock {
     float val = is_temp ? (_temp_sensor ? _temp_sensor->state : 20.0f) : (_humidity_sensor ? _humidity_sensor->state : 50.0f);
     float p = is_temp ? (val + 10.0f) / 60.0f : val / 100.0f;
     
+    float n_b = 1.0f;
+    if (this->notification_color != nullptr) {
+        n_b = this->notification_color->current_values.get_brightness();
+    }
+
     int leds = (int)(p * 36.0f);
     if (leds < 0) leds = 0; if (leds > 36) leds = 36;
 
@@ -655,7 +689,8 @@ namespace ring_clock {
         for (int s = 1; s <= 3; s++) {
             if (count < leds) {
                 float current_val = is_temp ? (-10.0f + (count * (60.0f/36.0f))) : (count * (100.0f/36.0f));
-                it[R1_NUM_LEDS + (h * 4) + s] = is_temp ? get_temp_color(current_val) : get_humid_color(current_val);
+                Color c = is_temp ? get_temp_color(current_val) : get_humid_color(current_val);
+                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * n_b), (uint8_t)(c.g * n_b), (uint8_t)(c.b * n_b));
             }
             count++;
         }
@@ -666,20 +701,27 @@ namespace ring_clock {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
 
-    Color t_color = get_temp_color(temp);
-    Color h_color = get_humid_color(humid);
+    float n_b = 1.0f;
+    if (this->notification_color != nullptr) {
+        n_b = this->notification_color->current_values.get_brightness();
+    }
+
+    Color t_c = get_temp_color(temp);
+    Color h_c = get_humid_color(humid);
+    Color t_glow = Color((uint8_t)(t_c.r * n_b), (uint8_t)(t_c.g * n_b), (uint8_t)(t_c.b * n_b));
+    Color h_glow = Color((uint8_t)(h_c.r * n_b), (uint8_t)(h_c.g * n_b), (uint8_t)(h_c.b * n_b));
 
     // Apply Temperature color to Right Side (Hours 0-5)
     for (int h = 0; h <= 5; h++) {
         for (int s = 1; s <= 3; s++) {
-            it[R1_NUM_LEDS + (h * 4) + s] = t_color;
+            it[R1_NUM_LEDS + (h * 4) + s] = t_glow;
         }
     }
 
     // Apply Humidity color to Left Side (Hours 6-11)
     for (int h = 6; h <= 11; h++) {
         for (int s = 1; s <= 3; s++) {
-            it[R1_NUM_LEDS + (h * 4) + s] = h_color;
+            it[R1_NUM_LEDS + (h * 4) + s] = h_glow;
         }
     }
   }
@@ -704,12 +746,21 @@ namespace ring_clock {
     int seconds = total_seconds % 60;
 
     auto get_color = [&](light::LightState* state, Color def) {
-      if (state != nullptr && state->current_values.get_state()) {
+      if (state != nullptr) {
         auto cv = state->current_values;
         float b = cv.get_brightness();
         return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
       }
       return def;
+    };
+
+    auto get_notification_color_val = [&]() {
+      if (this->notification_color != nullptr) {
+        auto cv = this->notification_color->current_values;
+        float b = cv.get_brightness();
+        return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
+      }
+      return Color(0,0,0);
     };
 
     if (total_seconds > 0 && total_seconds < 60) {
@@ -742,7 +793,7 @@ namespace ring_clock {
 
         // Pulsing animation
         float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
-        Color nc = get_color(this->notification_color, _default_notification_color);
+        Color nc = get_notification_color_val();
         Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
         for (int i = 0; i < 12; i++) {
           int base = R1_NUM_LEDS + (i * 4);
@@ -793,18 +844,18 @@ namespace ring_clock {
   }
 
   void RingClock::render_alarm(light::AddressableLight & it) {
-    auto get_color = [&](light::LightState* state, Color def) {
-      if (state != nullptr && state->current_values.get_state()) {
-        auto cv = state->current_values;
+    auto get_notification_color_val = [&]() {
+      if (this->notification_color != nullptr) {
+        auto cv = this->notification_color->current_values;
         float b = cv.get_brightness();
         return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));
       }
-      return def;
+      return Color(0,0,0);
     };
 
     // Pulsing Alarm Overlay
     float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
-    Color nc = get_color(this->notification_color, _default_notification_color);
+    Color nc = get_notification_color_val();
     Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
     
     // Fill gaps between markers on Outer Ring

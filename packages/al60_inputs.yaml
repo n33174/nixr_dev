@@ -367,11 +367,11 @@ button:
             effect: Timer
 
   - platform: template
-    name: "Stop Timer & Stopwatch"
+    name: "Stop Timer"
     id: stop_timer_button
     web_server:
       sorting_group_id: sorting_timer
-      sorting_weight: 5
+      sorting_weight: 4.1
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_timer();'
@@ -394,24 +394,17 @@ button:
             effect: Stopwatch
 
   - platform: template
-    name: "Pause Stopwatch"
-    id: pause_stopwatch_button
+    name: "Stop Stopwatch"
+    id: stop_stopwatch_button
     web_server:
       sorting_group_id: sorting_timer
-      sorting_weight: 2
+      sorting_weight: 5
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_stopwatch();'
-
-  - platform: template
-    name: "Reset Stopwatch"
-    id: reset_stopwatch_button
-    web_server:
-      sorting_group_id: sorting_timer
-      sorting_weight: 3
-    on_press:
-      then:
-        - lambda: 'id(RingClock)->reset_stopwatch();'
+        - light.turn_on:
+            id: ring_light
+            effect: Clock
 
 # Template numbers for Timer Input
 number:
