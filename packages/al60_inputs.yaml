@@ -42,7 +42,7 @@ binary_sensor:
   # - Double Click: Cycle Sensor Effects
   # - Long Press: Toggle Presence Detection
   - platform: gpio
-    id: mode_button_physical
+    id: mode_button
     pin:
       number: GPIO2
       inverted: True
@@ -136,7 +136,7 @@ binary_sensor:
   # - Single Click: Increment Hour (if minute button not held)
   # - Long Press (1s): Start continuous increment (if minute button not held)
   - platform: gpio
-    id: hour_button_physical
+    id: hour_button
     pin:
       number: GPIO8
       inverted: True
@@ -153,16 +153,32 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(minute_button_physical).state;'
+                - lambda: 'return !id(minute_button).state;'
               then:
-                - button.press: hour_increment
+                - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+                - switch.turn_off: sntp_switch
+                - lambda: |-
+                    setenv("TZ", id(time_zone)->state.c_str(), 1);
+                    tzset();
+                    time_t t_now = ::time(NULL);
+                    struct tm *ti = ::localtime(&t_now);
+                    ti->tm_hour = (ti->tm_hour + 1) % 24;
+                    ti->tm_isdst = -1;
+                    time_t t_new = mktime(ti);
+                    struct timeval tv = {t_new, 0};
+                    settimeofday(&tv, NULL);
+                - pcf8563.write_time:
+                    id: rtc_time
+                - logger.log: 
+                    format: "RTC incremented by 1 hour"
+                    level: INFO
       # Long press (Hold 1s): Start continuous increment
       - timing:
           - ON for at least 1s
         then:
           - if:
               condition:
-                - lambda: 'return !id(minute_button_physical).state;'
+                - lambda: 'return !id(minute_button).state;'
               then:
                 - lambda: |-
                     id(hour_button_long_press) = true;
@@ -177,7 +193,7 @@ binary_sensor:
   # - Single Click: Increment Minute (if hour button not held)
   # - Long Press (1s): Start continuous increment (if hour button not held)
   - platform: gpio
-    id: minute_button_physical
+    id: minute_button
     pin:
       number: GPIO9
       inverted: True
@@ -187,23 +203,39 @@ binary_sensor:
     filters:
       - delayed_on_off: 50ms
     on_multi_click:
-      # Single click
+      # Single click: Increment Minute
       - timing:
           - ON for 50ms to 800ms
           - OFF for at least 100ms
         then:
           - if:
               condition:
-                - lambda: 'return !id(hour_button_physical).state;'
+                - lambda: 'return !id(hour_button).state;'
               then:
-                - button.press: minute_increment
+                - rtttl.play: 'short:d=4,o=5,b=100:16e6'
+                - switch.turn_off: sntp_switch
+                - lambda: |-
+                    setenv("TZ", id(time_zone)->state.c_str(), 1);
+                    tzset();
+                    time_t t_now = ::time(NULL);
+                    struct tm *ti = ::localtime(&t_now);
+                    ti->tm_min = (ti->tm_min + 1) % 60;
+                    ti->tm_isdst = -1;
+                    time_t t_new = mktime(ti);
+                    struct timeval tv = {t_new, 0};
+                    settimeofday(&tv, NULL);
+                - pcf8563.write_time:
+                    id: rtc_time
+                - logger.log: 
+                    format: "RTC incremented by 1 minute"
+                    level: INFO
       # Long press (1s): Start continuous increment
       - timing:
           - ON for at least 1s
         then:
           - if:
               condition:
-                - lambda: 'return !id(hour_button_physical).state;'
+                - lambda: 'return !id(hour_button).state;'
               then:
                 - lambda: |-
                     id(minute_button_long_press) = true;
@@ -222,7 +254,7 @@ binary_sensor:
     name: "Maintenance Mode"
     internal: true
     lambda: |-
-      return id(hour_button_physical).state && id(minute_button_physical).state;
+      return id(hour_button).state && id(minute_button).state;
     on_multi_click:
       # Hold both 2-10s: SNTP On + Reboot
       - timing:
@@ -246,10 +278,30 @@ interval:
     then:
       lambda: |-
         if (id(minute_button_long_press)) {
-          id(minute_increment)->press();
+          // Minute increment logic
+          setenv("TZ", id(time_zone)->state.c_str(), 1);
+          tzset();
+          time_t t_now = ::time(NULL);
+          struct tm *ti = ::localtime(&t_now);
+          ti->tm_min = (ti->tm_min + 1) % 60;
+          ti->tm_isdst = -1;
+          time_t t_new = mktime(ti);
+          struct timeval tv = {t_new, 0};
+          settimeofday(&tv, NULL);
+          id(rtc_time)->write_time();
         }
         if (id(hour_button_long_press)) {
-          id(hour_increment)->press();
+          // Hour increment logic
+          setenv("TZ", id(time_zone)->state.c_str(), 1);
+          tzset();
+          time_t t_now = ::time(NULL);
+          struct tm *ti = ::localtime(&t_now);
+          ti->tm_hour = (ti->tm_hour + 1) % 24;
+          ti->tm_isdst = -1;
+          time_t t_new = mktime(ti);
+          struct timeval tv = {t_new, 0};
+          settimeofday(&tv, NULL);
+          id(rtc_time)->write_time();
         }
 
 button:
@@ -297,65 +349,6 @@ button:
       then:
         - rtttl.play: notification:d=16,o=6,b=160:c,e,g,c7
 
-  # Logic for Hour Increment
-  # - Plays sound
-  # - Disables SNTP (assumes manual override desired)
-  # - Updates System Time, RTC, and WebUI
-  - platform: template
-    name: "Hour Increment"
-    id: hour_increment
-    disabled_by_default: True # Used by physical buttons - Hide from interface
-    web_server:
-      sorting_group_id: sorting_time
-    on_press:
-      then:
-        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
-        - switch.turn_off: sntp_switch
-        - lambda: |-
-            setenv("TZ", id(time_zone)->state.c_str(), 1);
-            tzset();
-            time_t t_now = ::time(NULL);
-            struct tm *ti = ::localtime(&t_now);
-            ti->tm_hour = (ti->tm_hour + 1) % 24;
-            ti->tm_isdst = -1;
-            time_t t_new = mktime(ti);
-            struct timeval tv = {t_new, 0};
-            settimeofday(&tv, NULL);
-        - pcf8563.write_time:
-            id: rtc_time
-        - logger.log: 
-            format: "RTC incremented by 1 hour"
-            level: INFO
-
-  # Logic for Minute Increment
-  # - Plays sound
-  # - Disables SNTP (assumes manual override desired)
-  # - Updates System Time, RTC, and WebUI
-  - platform: template
-    name: "Minute Increment"
-    id: minute_increment
-    disabled_by_default: True # Used by physical buttons - Hide from interface
-    web_server:
-      sorting_group_id: sorting_time
-    on_press:
-      then:
-        - rtttl.play: 'short:d=4,o=5,b=100:16e6'
-        - switch.turn_off: sntp_switch
-        - lambda: |-
-            setenv("TZ", id(time_zone)->state.c_str(), 1);
-            tzset();
-            time_t t_now = ::time(NULL);
-            struct tm *ti = ::localtime(&t_now);
-            ti->tm_min = (ti->tm_min + 1) % 60;
-            ti->tm_isdst = -1;
-            time_t t_new = mktime(ti);
-            struct timeval tv = {t_new, 0};
-            settimeofday(&tv, NULL);
-        - pcf8563.write_time:
-            id: rtc_time
-        - logger.log: 
-            format: "RTC incremented by 1 minute"
-            level: INFO
 
   # Timer Controls
   - platform: template
