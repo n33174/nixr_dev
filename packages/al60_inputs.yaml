@@ -34,7 +34,7 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_timer
-      sorting_weight: 9
+      sorting_weight: 7
 
 binary_sensor:
   # Mode Button (Physical)
@@ -363,7 +363,7 @@ button:
     id: start_timer_button
     web_server:
       sorting_group_id: sorting_timer
-      sorting_weight: 4
+      sorting_weight: 5
     on_press:
       then:
         - lambda: |-
@@ -377,7 +377,7 @@ button:
     id: stop_timer_button
     web_server:
       sorting_group_id: sorting_timer
-      sorting_weight: 4.1
+      sorting_weight: 6
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_timer();'
@@ -400,11 +400,21 @@ button:
             effect: Stopwatch
 
   - platform: template
+    name: "Pause Stopwatch"
+    id: pause_stopwatch_button
+    web_server:
+      sorting_group_id: sorting_timer
+      sorting_weight: 2
+    on_press:
+      then:
+        - lambda: 'id(RingClock)->pause_stopwatch();'
+
+  - platform: template
     name: "Stop Stopwatch"
     id: stop_stopwatch_button
     web_server:
       sorting_group_id: sorting_timer
-      sorting_weight: 5
+      sorting_weight: 3
     on_press:
       then:
         - lambda: 'id(RingClock)->stop_stopwatch();'
@@ -421,7 +431,7 @@ text:
     initial_value: "00:00:00"
     web_server:
       sorting_group_id: sorting_timer
-      sorting_weight: 6
+      sorting_weight: 4
     on_value:
       then:
         - lambda: |-

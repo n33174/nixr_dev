@@ -111,6 +111,7 @@ namespace ring_clock {
 
       // --- Stopwatch Logic ---
       void start_stopwatch();
+      void pause_stopwatch();
       void stop_stopwatch();
       void reset_stopwatch();
       void on_stopwatch_started();

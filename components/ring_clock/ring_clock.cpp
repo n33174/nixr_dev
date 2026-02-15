@@ -133,6 +133,15 @@ namespace ring_clock {
     _state = state::stopwatch;
   }
 
+  void RingClock::pause_stopwatch() {
+    if (_stopwatch_active) {
+      // Pause and preserve elapsed time
+      _stopwatch_paused_ms = millis() - _stopwatch_start_ms;
+      _stopwatch_active = false;
+      this->on_stopwatch_paused();
+    }
+  }
+
   void RingClock::stop_stopwatch() {
     _stopwatch_active = false;
     _stopwatch_paused_ms = 0;
@@ -746,7 +755,7 @@ namespace ring_clock {
     int seconds = total_seconds % 60;
 
     auto get_color = [&](light::LightState* state, Color def) {
-      if (state != nullptr) {
+      if (state != nullptr && state->current_values.get_state()) {
         auto cv = state->current_values;
         float b = cv.get_brightness();
         return Color((uint8_t)(cv.get_red() * 255 * b), (uint8_t)(cv.get_green() * 255 * b), (uint8_t)(cv.get_blue() * 255 * b));

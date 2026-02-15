@@ -17,11 +17,23 @@ esp32:
 
 # Logging Configuration
 logger:
-  level: DEBUG
+  level: INFO
   logs:
-    # Reduce noise from sensors and date components
-    sensor: INFO
-    datetime.datetime_entity: INFO
+    # Suppress noisy sensor value updates
+    sensor: WARN
+    binary_sensor: WARN
+    switch: WARN
+    number: WARN
+    text: WARN
+    datetime.datetime_entity: WARN
+    # Suppress radar sensor chatter
+    ld2410: WARN
+    # Keep important components visible
+    component: INFO
+    api: INFO
+    ota: INFO
+    wifi: INFO
+    web_server: INFO
 
 # Native API for Home Assistant
 api:
