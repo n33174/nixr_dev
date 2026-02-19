@@ -501,6 +501,8 @@ number:
     initial_value: ${temp_offset_default}
     optimistic: true
     restore_value: true
+    min_value: -20.0
+    max_value: 20.0
     disabled_by_default: True
     web_server:
       sorting_group_id: sorting_sensors
@@ -518,6 +520,8 @@ number:
     initial_value: ${humidity_offset_default}
     optimistic: true
     restore_value: true
+    min_value: -20
+    max_value: 20
     disabled_by_default: True
     web_server:
       sorting_group_id: sorting_sensors

@@ -115,7 +115,7 @@ binary_sensor:
     name: "Presence"
     web_server:
       sorting_group_id: sorting_sensors
-        sorting_weight: 6
+      sorting_weight: 6
     device_class: presence
     icon: mdi:target-account
     filters:
