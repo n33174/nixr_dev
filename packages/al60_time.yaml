@@ -65,6 +65,22 @@ time:
                   id(alarm_enabled).turn_off();
                 }
               }
+      
+      # Automatic Brightness: Take a clean reading with LEDs off
+      - seconds: 15
+        minutes: /1
+        then:
+          - if:
+              condition:
+                - switch.is_on: enable_brightness
+              then:
+                - lambda: |-
+                    id(RingClock)->set_blank_leds({15, 72});
+                - delay: 500ms
+                - component.update: brightness_sensor
+                - delay: 500ms
+                - lambda: |-
+                    id(RingClock)->set_blank_leds({});
 
   # Internet Time Sync (SNTP)
   - platform: sntp

@@ -1,3 +1,9 @@
+substitutions:
+  # Default offsets to compensate for internal heat
+  # These can be adjusted via the web UI or Home Assistant
+  temp_offset_default: "-4.0"
+  humidity_offset_default: "0.0"
+
 # I2C Bus Config (Used by RTC and Environmental Sensor)
 i2c:
   scl: GPIO5
@@ -19,12 +25,17 @@ ld2410:
 sensor:
   # AHT20 Temperature & Humidity Sensor
   - platform: aht10
+    id: aht_sensor
     variant: AHT20
     address: 0x38
+    update_interval: 15s
     temperature:
       id: temp_sensor
       name: "Temperature"
       icon: mdi:thermometer
+      accuracy_decimals: 1
+      filters:
+        - lambda: return x + id(temp_offset).state;
       web_server:
         sorting_group_id: sorting_sensors
         sorting_weight: 1
@@ -32,6 +43,26 @@ sensor:
       id: humidity_sensor
       name: "Humidity"
       icon: mdi:water-percent
+      accuracy_decimals: 0
+      filters:
+        - lambda: |-
+            // Get ambient (corrected) and raw (internal) temperature
+            float t_amb = id(temp_sensor).state;
+            float t_raw = t_amb - id(temp_offset).state;
+            
+            if (std::isnan(t_amb) || std::isnan(x)) return x;
+            
+            // Saturation Vapor Pressure formula (Magnus-Tetens)
+            auto esat = [](float t) {
+              return 6.112f * expf((17.67f * t) / (t + 243.5f));
+            };
+            
+            // Correct RH based on the ratio of saturation vapor pressures
+            // RH_amb = RH_raw * (e_sat(T_raw) / e_sat(T_amb))
+            float rh_corr = x * (esat(t_raw) / esat(t_amb));
+            
+            // Apply the manual trim offset on top of the physics-based correction
+            return rh_corr + id(humidity_offset).state;
       web_server:
         sorting_group_id: sorting_sensors
         sorting_weight: 2
@@ -47,29 +78,13 @@ sensor:
       sorting_group_id: sorting_sensors
       sorting_weight: 3
     attenuation: 12db
-    update_interval: 5s
+    update_interval: never # Manually triggered by time routine below
     unit_of_measurement: "%"
     filters:
       # Map raw voltage (0-3V) into a percentage
       - calibrate_linear:
           - 0.0 -> 0.0
           - 3.0 -> 100.0
-      # Compensate for light interference from the clock's own LEDs
-      - lambda: |-
-          float interference = id(RingClock)->get_interference_factor();
-          
-          // Apply inverse weighting based on current LED brightness
-          // '1.8' is the damping factor - higher means more suppression
-          float factor = 1.0f / (1.0f + (interference * 1.8f));
-          
-          float adjusted_value = x * factor;
-          
-          // Clamp result between 0-100%
-          return adjusted_value < 0 ? 0 : (adjusted_value > 100 ? 100 : adjusted_value);
-      # Smooth out jitter
-      - sliding_window_moving_average:
-          window_size: 5
-          send_every: 1
 
 binary_sensor:
   # MMwave Radar Presence Detection (LD2410)
@@ -134,3 +149,4 @@ rtttl:
   output: buzzer
   id: buzzer_rtttl
   gain: 90%
+
