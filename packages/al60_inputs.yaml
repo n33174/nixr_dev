@@ -24,10 +24,9 @@ switch:
     icon: mdi:brightness-auto
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
-    disabled_by_default: True
     web_server:
       sorting_group_id: sorting_sensors
-      sorting_weight: 10
+      sorting_weight: 8
   # Toggle presense based dimming
   - platform: template
     name: "Presense Detection Dimming"
@@ -39,7 +38,7 @@ switch:
       sorting_weight: 4
   # Toggle to mute timer/stopwatch sounds
   - platform: template
-    name: "Timer or Stopwatch Sounds"
+    name: "Timer & Stopwatch Sounds"
     id: timer_sounds
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
@@ -497,30 +496,24 @@ number:
     name: "Temperature Offset"
     id: temp_offset
     unit_of_measurement: "°C"
-    min_value: -15.0
-    max_value: 15.0
     step: 0.1
-    mode: box
-    icon: mdi:thermometer-plus
+    icon: mdi:thermometer-lines
     initial_value: ${temp_offset_default}
     optimistic: true
     restore_value: true
     disabled_by_default: True
     web_server:
       sorting_group_id: sorting_sensors
-      sorting_weight: 20
+      sorting_weight: 9
     on_value:
       then:
         - component.update: aht_sensor
 
   - platform: template
-    name: "Humidity Trim Offset"
+    name: "Humidity Offset"
     id: humidity_offset
     unit_of_measurement: "%"
-    min_value: -30.0
-    max_value: 30.0
     step: 1
-    mode: box
     icon: mdi:water-percent-alert
     initial_value: ${humidity_offset_default}
     optimistic: true
@@ -528,7 +521,7 @@ number:
     disabled_by_default: True
     web_server:
       sorting_group_id: sorting_sensors
-      sorting_weight: 21
+      sorting_weight: 10
     on_value:
       then:
         - component.update: aht_sensor

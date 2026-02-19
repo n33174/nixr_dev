@@ -76,7 +76,7 @@ sensor:
     accuracy_decimals: 0
     web_server:
       sorting_group_id: sorting_sensors
-      sorting_weight: 3
+      sorting_weight: 7
     attenuation: 12db
     update_interval: never # Manually triggered by time routine below
     unit_of_measurement: "%"
@@ -94,18 +94,19 @@ binary_sensor:
       name: Occupancy
       web_server:
         sorting_group_id: sorting_sensors
+        sorting_weight: 5
     has_moving_target:
       id: radar_moving
       name: Moving Target
       web_server:
         sorting_group_id: sorting_sensors
-        sorting_weight: 4
+        sorting_weight: 3
     has_still_target:
       id: radar_still
       name: Still Target
       web_server:
         sorting_group_id: sorting_sensors
-        sorting_weight: 5
+        sorting_weight: 4
         
   # LD2410 Presence input
   - platform: gpio
@@ -114,7 +115,9 @@ binary_sensor:
     name: "Presence"
     web_server:
       sorting_group_id: sorting_sensors
+        sorting_weight: 6
     device_class: presence
+    icon: mdi:target-account
     filters:
       - delayed_off: 60s
     on_press:
