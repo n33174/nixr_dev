@@ -497,6 +497,7 @@ number:
     id: temp_offset
     unit_of_measurement: "°C"
     step: 0.1
+    mode: box
     icon: mdi:thermometer-lines
     initial_value: ${temp_offset_default}
     optimistic: true
@@ -516,6 +517,7 @@ number:
     id: humidity_offset
     unit_of_measurement: "%"
     step: 1
+    mode: box
     icon: mdi:water-percent-alert
     initial_value: ${humidity_offset_default}
     optimistic: true
