@@ -354,15 +354,15 @@ namespace ring_clock {
 
           if (_marker_highlight_mode != MarkerHighlightMode::NONE) {
             if (highlight) {
-              // Boost highlighted by 20%
-              it[i] = Color(std::min((int)(mc.r * 1.20f + 0.5f), 255), 
-                            std::min((int)(mc.g * 1.20f + 0.5f), 255), 
-                            std::min((int)(mc.b * 1.20f + 0.5f), 255));
+              // Absolute offset boost
+              it[i] = Color(std::min((int)mc.r + 50, 255), 
+                            std::min((int)mc.g + 50, 255), 
+                            std::min((int)mc.b + 50, 255));
             } else {
-              // Dim others to 80% (20% reduction)
-              it[i] = Color((uint8_t)(mc.r * 0.60f + 0.5f), 
-                            (uint8_t)(mc.g * 0.60f + 0.5f), 
-                            (uint8_t)(mc.b * 0.60f + 0.5f));
+              // Absolute offset dimming with a floor of 3 to prevent "Blackout"
+              it[i] = Color((uint8_t)std::max((int)mc.r - 20, 3), 
+                            (uint8_t)std::max((int)mc.g - 20, 3), 
+                            (uint8_t)std::max((int)mc.b - 20, 3));
             }
           } else {
             it[i] = mc;
