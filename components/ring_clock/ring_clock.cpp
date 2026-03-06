@@ -354,15 +354,15 @@ namespace ring_clock {
 
           if (_marker_highlight_mode != MarkerHighlightMode::NONE) {
             if (highlight) {
-              // Scale up by 10% (relative to user brightness)
-              it[i] = Color(std::min((int)(mc.r * 1.10f + 0.5f), 255), 
-                            std::min((int)(mc.g * 1.10f + 0.5f), 255), 
-                            std::min((int)(mc.b * 1.10f + 0.5f), 255));
+              // Boost highlighted by 20%
+              it[i] = Color(std::min((int)(mc.r * 1.20f + 0.5f), 255), 
+                            std::min((int)(mc.g * 1.20f + 0.5f), 255), 
+                            std::min((int)(mc.b * 1.20f + 0.5f), 255));
             } else {
-              // Scale down by 10%
-              it[i] = Color((uint8_t)(mc.r * 0.90f + 0.5f), 
-                            (uint8_t)(mc.g * 0.90f + 0.5f), 
-                            (uint8_t)(mc.b * 0.90f + 0.5f));
+              // Dim others to 40% (60% reduction)
+              it[i] = Color((uint8_t)(mc.r * 0.40f + 0.5f), 
+                            (uint8_t)(mc.g * 0.40f + 0.5f), 
+                            (uint8_t)(mc.b * 0.40f + 0.5f));
             }
           } else {
             it[i] = mc;
