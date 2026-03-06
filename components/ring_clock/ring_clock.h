@@ -56,6 +56,13 @@ namespace ring_clock {
     sensors_humid_tick, // Single tick for humidity
   };
 
+  enum MarkerHighlightMode
+  {
+    NONE = 0,
+    TWELVE_ONLY = 1,
+    TWELVE_THREE_SIX_NINE = 2,
+  };
+
   class RingClock : public Component {
     public:
       // --- Component Lifecycle ---
@@ -89,6 +96,7 @@ namespace ring_clock {
       void set_second_hand_color_state(light::LightState* state);
       void set_marker_color_state(light::LightState* state);
       void set_notification_color_state(light::LightState* state);
+      void set_marker_highlight_mode(MarkerHighlightMode mode) { this->_marker_highlight_mode = mode; }
       
       // API to define LEDs that should be turned off
       void set_blank_leds(std::vector<int> leds);
@@ -166,6 +174,7 @@ namespace ring_clock {
       Color _default_second_color = DEFAULT_COLOR_SECOND;
       Color _default_notification_color = DEFAULT_COLOR_NOTIFICATION;
       Color _default_marker_color = DEFAULT_COLOR_MARKERS;
+      MarkerHighlightMode _marker_highlight_mode{NONE};
 
       // Time tracking for smooth animations
       int last_second{-1};

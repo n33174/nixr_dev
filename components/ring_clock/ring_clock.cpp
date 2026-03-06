@@ -343,7 +343,21 @@ namespace ring_clock {
 
       for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
         if ((i - R1_NUM_LEDS) % 4 == 0) {
-          it[i] = mc;
+          int marker_index = (i - R1_NUM_LEDS) / 4; // 0 to 11
+          bool highlight = false;
+          
+          if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_ONLY) {
+            if (marker_index == 0) highlight = true;
+          } else if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_THREE_SIX_NINE) {
+            if (marker_index == 0 || marker_index == 3 || marker_index == 6 || marker_index == 9) highlight = true;
+          }
+
+          if (_marker_highlight_mode != MarkerHighlightMode::NONE && !highlight) {
+            // Dim non-highlighted markers
+            it[i] = Color((uint8_t)(mc.r * 0.2f), (uint8_t)(mc.g * 0.2f), (uint8_t)(mc.b * 0.2f));
+          } else {
+            it[i] = mc;
+          }
         }
       }
     }

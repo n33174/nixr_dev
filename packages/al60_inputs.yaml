@@ -46,6 +46,32 @@ switch:
       sorting_group_id: sorting_timer
       sorting_weight: 7
 
+select:
+  - platform: template
+    name: "Marker Highlight"
+    id: marker_highlight
+    icon: mdi:clock-outline
+    optimistic: true
+    restore_value: true
+    initial_option: "None"
+    options:
+      - "None"
+      - "12 o'clock Only"
+      - "12, 3, 6, 9"
+    web_server:
+      sorting_group_id: sorting_clock
+      sorting_weight: 4
+    on_value:
+      then:
+        - lambda: |-
+            if (x == "None") {
+              id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::NONE);
+            } else if (x == "12 o'clock Only") {
+              id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_ONLY);
+            } else if (x == "12, 3, 6, 9") {
+              id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_THREE_SIX_NINE);
+            }
+
 binary_sensor:
   # Mode Button (Physical)
   # - Single Click: Cycle Clock Effects

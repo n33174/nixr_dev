@@ -107,6 +107,14 @@ ring_clock:
           call.set_brightness(id(standard_percentage).state / 100.0f);
           call.set_effect(id(last_clock_effect));
           call.perform();
+          
+          if (id(marker_highlight).state == "None") {
+            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::NONE);
+          } else if (id(marker_highlight).state == "12 o'clock Only") {
+            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_ONLY);
+          } else if (id(marker_highlight).state == "12, 3, 6, 9") {
+            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_THREE_SIX_NINE);
+          }
   on_alarm_triggered:
     then:
       - if:
