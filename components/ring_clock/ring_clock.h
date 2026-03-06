@@ -10,6 +10,7 @@
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 #include <vector>
+#include <algorithm>
 
 // Hardware Definition
 // The clock consists of two rings of WS2812 LEDs

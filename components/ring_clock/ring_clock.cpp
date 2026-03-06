@@ -352,9 +352,18 @@ namespace ring_clock {
             if (marker_index == 0 || marker_index == 3 || marker_index == 6 || marker_index == 9) highlight = true;
           }
 
-          if (_marker_highlight_mode != MarkerHighlightMode::NONE && !highlight) {
-            // Dim non-highlighted markers
-            it[i] = Color((uint8_t)(mc.r * 0.2f), (uint8_t)(mc.g * 0.2f), (uint8_t)(mc.b * 0.2f));
+          if (_marker_highlight_mode != MarkerHighlightMode::NONE) {
+            if (highlight) {
+              // Scale up by 10% (relative to user brightness)
+              it[i] = Color(std::min((int)(mc.r * 1.10f + 0.5f), 255), 
+                            std::min((int)(mc.g * 1.10f + 0.5f), 255), 
+                            std::min((int)(mc.b * 1.10f + 0.5f), 255));
+            } else {
+              // Scale down by 10%
+              it[i] = Color((uint8_t)(mc.r * 0.90f + 0.5f), 
+                            (uint8_t)(mc.g * 0.90f + 0.5f), 
+                            (uint8_t)(mc.b * 0.90f + 0.5f));
+            }
           } else {
             it[i] = mc;
           }
