@@ -360,9 +360,9 @@ namespace ring_clock {
                             std::min((int)(mc.b * 1.20f + 0.5f), 255));
             } else {
               // Dim others to 80% (20% reduction)
-              it[i] = Color((uint8_t)(mc.r * 0.80f + 0.5f), 
-                            (uint8_t)(mc.g * 0.80f + 0.5f), 
-                            (uint8_t)(mc.b * 0.80f + 0.5f));
+              it[i] = Color((uint8_t)(mc.r * 0.60f + 0.5f), 
+                            (uint8_t)(mc.g * 0.60f + 0.5f), 
+                            (uint8_t)(mc.b * 0.60f + 0.5f));
             }
           } else {
             it[i] = mc;
