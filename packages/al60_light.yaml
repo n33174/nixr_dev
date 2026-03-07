@@ -89,12 +89,14 @@ ring_clock:
           call.set_effect(id(last_clock_effect));
           call.perform();
           
-          if (id(marker_highlight).state == "None") {
-            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::NONE);
-          } else if (id(marker_highlight).state == "12 o'clock Only") {
+          // Initialise marker highlight from restored effect
+          std::string m_effect = id(marker_color).get_effect_name();
+          if (m_effect == "12 o'clock Only") {
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_ONLY);
-          } else if (id(marker_highlight).state == "12, 3, 6, 9") {
+          } else if (m_effect == "12, 3, 6, 9") {
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_THREE_SIX_NINE);
+          } else {
+            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::NONE);
           }
   on_alarm_triggered:
     then:
@@ -257,7 +259,24 @@ light:
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 4
+    on_state:
+      - lambda: |-
+          std::string effect = id(marker_color).get_effect_name();
+          if (effect == "12 o'clock Only") {
+            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_ONLY);
+          } else if (effect == "12, 3, 6, 9") {
+            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_THREE_SIX_NINE);
+          } else {
+            // Includes "None" and "Random"
+            id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::NONE);
+          }
     effects:
+      - automation:
+          name: "12 o'clock Only"
+          sequence: []
+      - automation:
+          name: "12, 3, 6, 9"
+          sequence: []
       - random:
       
   # Customisation Keys: Notification/Background
