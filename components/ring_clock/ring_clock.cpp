@@ -353,23 +353,25 @@ namespace ring_clock {
           }
 
           if (_marker_highlight_mode != MarkerHighlightMode::NONE) {
-            auto apply_scale = [](uint8_t val, float gamma, float mult, float floor) -> uint8_t {
+            auto apply_scale = [](uint8_t val, float gamma, float mult, float bias, float floor) -> uint8_t {
               if (val == 0) return 0;
               float norm = val / 255.0f;
-              float result = powf(norm, gamma) * mult;
+              // (norm^gamma * mult) + bias -> ensures visibility at low end 
+              // while accelerating differentiation at high end
+              float result = (powf(norm, gamma) * mult) + bias;
               return (uint8_t)std::min(255, std::max((int)floor, (int)(result * 255.0f + 0.5f)));
             };
 
             if (highlight) {
-              // Non-linear boost: Pop at low levels, stay punchy at high levels
-              it[i] = Color(apply_scale(mc.r, 0.8f, 1.2f, 0), 
-                            apply_scale(mc.g, 0.8f, 1.2f, 0), 
-                            apply_scale(mc.b, 0.8f, 1.2f, 0));
+              // High Aggression at low end (gamma 0.6, high bias)
+              it[i] = Color(apply_scale(mc.r, 0.6f, 0.70f, 0.25f, 10), 
+                            apply_scale(mc.g, 0.6f, 0.70f, 0.25f, 10), 
+                            apply_scale(mc.b, 0.6f, 0.70f, 0.25f, 10));
             } else {
-              // Non-linear dimming: Accelerate the gap as brightness increases
-              it[i] = Color(apply_scale(mc.r, 1.5f, 0.6f, 4), 
-                            apply_scale(mc.g, 1.5f, 0.6f, 4), 
-                            apply_scale(mc.b, 1.5f, 0.6f, 4));
+              // Low Aggression at low end, High Aggression at high end (gamma 2.2, low bias)
+              it[i] = Color(apply_scale(mc.r, 2.2f, 0.40f, 0.08f, 6), 
+                            apply_scale(mc.g, 2.2f, 0.40f, 0.08f, 6), 
+                            apply_scale(mc.b, 2.2f, 0.40f, 0.08f, 6));
             }
           } else {
             it[i] = mc;
