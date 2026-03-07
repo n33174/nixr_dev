@@ -353,16 +353,23 @@ namespace ring_clock {
           }
 
           if (_marker_highlight_mode != MarkerHighlightMode::NONE) {
+            auto apply_scale = [](uint8_t val, float gamma, float mult, float floor) -> uint8_t {
+              if (val == 0) return 0;
+              float norm = val / 255.0f;
+              float result = powf(norm, gamma) * mult;
+              return (uint8_t)std::min(255, std::max((int)floor, (int)(result * 255.0f + 0.5f)));
+            };
+
             if (highlight) {
-              // Absolute offset boost
-              it[i] = Color(std::min((int)mc.r + 50, 255), 
-                            std::min((int)mc.g + 50, 255), 
-                            std::min((int)mc.b + 50, 255));
+              // Non-linear boost: Pop at low levels, stay punchy at high levels
+              it[i] = Color(apply_scale(mc.r, 0.8f, 1.2f, 0), 
+                            apply_scale(mc.g, 0.8f, 1.2f, 0), 
+                            apply_scale(mc.b, 0.8f, 1.2f, 0));
             } else {
-              // Absolute offset dimming with a floor of 3 to prevent "Blackout"
-              it[i] = Color((uint8_t)std::max((int)mc.r - 20, 3), 
-                            (uint8_t)std::max((int)mc.g - 20, 3), 
-                            (uint8_t)std::max((int)mc.b - 20, 3));
+              // Non-linear dimming: Accelerate the gap as brightness increases
+              it[i] = Color(apply_scale(mc.r, 1.5f, 0.6f, 4), 
+                            apply_scale(mc.g, 1.5f, 0.6f, 4), 
+                            apply_scale(mc.b, 1.5f, 0.6f, 4));
             }
           } else {
             it[i] = mc;
