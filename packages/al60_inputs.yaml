@@ -17,6 +17,23 @@ globals:
     initial_value: '0'
 
 switch:
+  # Toggles for specific visual elements
+  - platform: template
+    name: "Enable Seconds"
+    id: enable_seconds
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_clock
+      sorting_weight: 4
+  - platform: template
+    name: "Enable Markers"
+    id: enable_markers
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+    web_server:
+      sorting_group_id: sorting_clock
+      sorting_weight: 2
   # Toggle for brightness sensor reading
   - platform: template
     name: "Enable Brightness Sensor"
@@ -50,7 +67,6 @@ select:
   - platform: template
     name: "Marker Highlight"
     id: marker_highlight
-    icon: mdi:clock-outline
     optimistic: true
     restore_value: true
     initial_option: "None"
@@ -60,7 +76,7 @@ select:
       - "12, 3, 6, 9"
     web_server:
       sorting_group_id: sorting_clock
-      sorting_weight: 4
+      sorting_weight: 3
     on_value:
       then:
         - lambda: |-
