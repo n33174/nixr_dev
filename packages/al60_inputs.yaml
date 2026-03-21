@@ -186,10 +186,17 @@ binary_sensor:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
                 - lambda: |-
+                    // Use the ESPTime object implementation as defined in the documentation
                     auto now = id(rtc_time).now();
                     now.hour = (now.hour + 1) % 24;
                     now.second = 0;
-                    timeval tv = {now.timestamp, 0};
+                    
+                    // Convert the updated ESPTime back to a system timestamp
+                    struct tm ti = now.to_c_tm();
+                    ti.tm_isdst = -1; // Let libc determine DST from the system TZ
+                    time_t t_new = mktime(&ti);
+                    
+                    timeval tv = {t_new, 0};
                     settimeofday(&tv, NULL);
                     id(rtc_time)->write_time();
                 - logger.log: "RTC incremented by 1 hour"
@@ -236,10 +243,17 @@ binary_sensor:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
                 - lambda: |-
+                    // Use the ESPTime object implementation as defined in the documentation
                     auto now = id(rtc_time).now();
                     now.minute = (now.minute + 1) % 60;
                     now.second = 0;
-                    timeval tv = {now.timestamp, 0};
+                    
+                    // Convert the updated ESPTime back to a system timestamp
+                    struct tm ti = now.to_c_tm();
+                    ti.tm_isdst = -1; // Let libc determine DST from the system TZ
+                    time_t t_new = mktime(&ti);
+                    
+                    timeval tv = {t_new, 0};
                     settimeofday(&tv, NULL);
                     id(rtc_time)->write_time();
                 - logger.log: "RTC incremented by 1 minute"
@@ -295,7 +309,10 @@ interval:
           auto now = id(rtc_time).now();
           now.minute = (now.minute + 1) % 60;
           now.second = 0;
-          timeval tv = {now.timestamp, 0};
+          struct tm ti = now.to_c_tm();
+          ti.tm_isdst = -1;
+          time_t t_new = mktime(&ti);
+          timeval tv = {t_new, 0};
           settimeofday(&tv, NULL);
           id(rtc_time)->write_time();
         }
@@ -303,7 +320,10 @@ interval:
           auto now = id(rtc_time).now();
           now.hour = (now.hour + 1) % 24;
           now.second = 0;
-          timeval tv = {now.timestamp, 0};
+          struct tm ti = now.to_c_tm();
+          ti.tm_isdst = -1;
+          time_t t_new = mktime(&ti);
+          timeval tv = {t_new, 0};
           settimeofday(&tv, NULL);
           id(rtc_time)->write_time();
         }
