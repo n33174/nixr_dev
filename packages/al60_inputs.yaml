@@ -189,7 +189,9 @@ binary_sensor:
                     auto now = id(rtc_time).now();
                     now.hour = (now.hour + 1) % 24;
                     now.second = 0;
-                    id(rtc_time).set_time(now);
+                    timeval tv = {now.timestamp, 0};
+                    settimeofday(&tv, NULL);
+                    id(rtc_time)->write_time();
                 - logger.log: "RTC incremented by 1 hour"
       # Long press (Hold 1s): Start continuous increment
       - timing:
@@ -237,7 +239,9 @@ binary_sensor:
                     auto now = id(rtc_time).now();
                     now.minute = (now.minute + 1) % 60;
                     now.second = 0;
-                    id(rtc_time).set_time(now);
+                    timeval tv = {now.timestamp, 0};
+                    settimeofday(&tv, NULL);
+                    id(rtc_time)->write_time();
                 - logger.log: "RTC incremented by 1 minute"
       # Long press (1s): Start continuous increment
       - timing:
@@ -291,13 +295,17 @@ interval:
           auto now = id(rtc_time).now();
           now.minute = (now.minute + 1) % 60;
           now.second = 0;
-          id(rtc_time).set_time(now);
+          timeval tv = {now.timestamp, 0};
+          settimeofday(&tv, NULL);
+          id(rtc_time)->write_time();
         }
         if (id(hour_button_long_press)) {
           auto now = id(rtc_time).now();
           now.hour = (now.hour + 1) % 24;
           now.second = 0;
-          id(rtc_time).set_time(now);
+          timeval tv = {now.timestamp, 0};
+          settimeofday(&tv, NULL);
+          id(rtc_time)->write_time();
         }
 
 button:

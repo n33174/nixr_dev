@@ -137,7 +137,7 @@ script:
     mode: restart # Restart if called again quickly
     then:
       - lambda: |-
-          std::string mode = id(light_control_mode).state;
+          std::string mode = id(light_control_mode).current_option();
           float target_pct = id(standard_percentage).state;
           
           if (mode == "Ambient Light") {
