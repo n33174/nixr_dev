@@ -424,8 +424,7 @@ namespace ring_clock {
         }
     }
     
-    time_t t = ::time(NULL);
-    esphome::ESPTime now = esphome::ESPTime::from_c_tm(::localtime(&t), 0);
+    esphome::ESPTime now = this->_time->now();
 
     // 2. Draw Hour Hand (R2)
     int hour = now.hour % 12;
@@ -463,8 +462,7 @@ namespace ring_clock {
     clear_R2(it);
     draw_markers(it);
 
-    time_t t = ::time(NULL);
-    esphome::ESPTime now = esphome::ESPTime::from_c_tm(::localtime(&t), 0);
+    esphome::ESPTime now = this->_time->now();
     
     // Calculate 2 contrasting hues that shift slowly throughout 12 hours
     float hour_12 = now.hour % 12;
