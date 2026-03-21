@@ -47,7 +47,7 @@ time:
     address: 0x51
     update_interval: never # Only update manually or on SNTP sync
     id: rtc_time
-    timezone: UTC
+    timezone: UTC0
     on_time:
       # Alarm logic: Check every minute if alarm should fire
       - seconds: 0
@@ -68,7 +68,7 @@ time:
   # Internet Time Sync (SNTP)
   - platform: sntp
     id: sntp_time
-    timezone: UTC
+    timezone: UTC0
     on_time_sync:
       then:
         - logger.log: "SNTP Synchronized and RTC updated."
