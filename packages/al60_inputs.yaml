@@ -34,16 +34,7 @@ switch:
     web_server:
       sorting_group_id: sorting_clock
       sorting_weight: 2
-  # Toggle for brightness sensor reading
-  - platform: template
-    name: "Enable Brightness Sensor"
-    id: enable_brightness
-    icon: mdi:brightness-auto
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    web_server:
-      sorting_group_id: sorting_sensors
-      sorting_weight: 8
+
   # Toggle presense based dimming
   - platform: template
     name: "Presense Detection Dimming"
