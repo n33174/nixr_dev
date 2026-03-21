@@ -10,9 +10,9 @@ esphome:
     # Restore brightness and last used effect on boot
     - priority: 300
       then:
+        - script.execute: update_ring_light
         - lambda: |-
             auto call = id(ring_light).turn_on();
-            call.set_brightness(id(standard_percentage).state / 100.0f);
             call.set_effect(id(last_clock_effect));
             call.perform();
   on_shutdown:
@@ -83,9 +83,9 @@ ring_clock:
   # Event Handlers (Logic)
   on_ready:
     then:
+      - script.execute: update_ring_light
       - lambda: |-
           auto call = id(ring_light).turn_on();
-          call.set_brightness(id(standard_percentage).state / 100.0f);
           call.set_effect(id(last_clock_effect));
           call.perform();
           
@@ -131,6 +131,46 @@ ring_clock:
   on_stopwatch_reset:
     then:
       - rtttl.play: "sw_reset:d=16,o=6,b=120:c,d,e,f,g"
+
+script:
+  - id: update_ring_light
+    mode: restart # Restart if called again quickly
+    then:
+      - lambda: |-
+          std::string mode = id(light_control_mode).state;
+          float target_pct = id(standard_percentage).state;
+          
+          if (mode == "Ambient Light") {
+            float min_a = id(ambient_min_threshold).state;
+            float max_a = id(ambient_max_threshold).state;
+            float curr_a = id(brightness_sensor).state;
+            float min_b = id(low_percentage).state;
+            float max_b = id(standard_percentage).state;
+            
+            // Clamp current ambient between thresholds
+            float clamped_a = std::max(min_a, std::min(max_a, curr_a));
+            // Calculate ratio (0.0 to 1.0)
+            float range_a = max_a - min_a;
+            float ratio = (range_a <= 0) ? 1.0f : (clamped_a - min_a) / range_a;
+            
+            target_pct = min_b + ratio * (max_b - min_b);
+          } else if (mode == "Motion Detection") {
+            // Use Presence sensor state
+            if (id(radar_presence).state) {
+              target_pct = id(standard_percentage).state;
+            } else {
+              target_pct = id(low_percentage).state;
+            }
+          } else {
+            // Manual/Off Mode: Just use standard percentage
+            target_pct = id(standard_percentage).state;
+          }
+          
+          // Apply brightness with smooth 1s transition
+          auto call = id(ring_light).turn_on();
+          call.set_brightness(target_pct / 100.0f);
+          call.set_transition_length(1000); 
+          call.perform();
 
 light:
   # Main LED Rings Configuration (WS2812)

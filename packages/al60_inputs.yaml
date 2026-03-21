@@ -35,16 +35,6 @@ switch:
       sorting_group_id: sorting_clock
       sorting_weight: 2
 
-  # Toggle presense based dimming
-  - platform: template
-    name: "Presense Detection Dimming"
-    id: presense_detection
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_ON
-    web_server:
-      sorting_group_id: sorting_clock
-      sorting_weight: 4
-  # Toggle to mute timer/stopwatch sounds
   - platform: template
     name: "Timer & Stopwatch Sounds"
     id: timer_sounds
@@ -53,6 +43,25 @@ switch:
     web_server:
       sorting_group_id: sorting_timer
       sorting_weight: 7
+
+select:
+  # Light Control Mode (Select)
+  - platform: template
+    name: "Light Control Mode"
+    id: light_control_mode
+    optimistic: True
+    restore_value: true
+    options:
+      - "Motion Detection"
+      - "Ambient Light"
+      - "Manual/Off"
+    initial_option: "Motion Detection"
+    web_server:
+      sorting_group_id: sorting_clock
+      sorting_weight: 4
+    on_value:
+      then:
+        - script.execute: update_ring_light
 
 binary_sensor:
   # Mode Button (Physical)
@@ -137,18 +146,20 @@ binary_sensor:
                 id(notification_color).turn_off().perform();
               }
           - rtttl.play: 'double:d=16,o=6,b=120:c,g'
-      # Long Press: Toggle Presence detection
+      # Long Press: Cycle Light Control Mode
       - timing:
           - ON for at least 1s
         then:
-          - switch.toggle: presense_detection
-          - if:
-              condition:
-                - switch.is_on: presense_detection
-              then:
-                - rtttl.play: 'on:d=16,o=6,b=120:c,e,g'
-              else:
-                - rtttl.play: 'off:d=16,o=6,b=120:g,e,c'
+          - select.next: light_control_mode
+          - lambda: |-
+              std::string mode = id(light_control_mode).state;
+              if (mode == "Motion Detection") {
+                id(buzzer_rtttl).play("on:d=16,o=6,b=120:c,e,g");
+              } else if (mode == "Ambient Light") {
+                id(buzzer_rtttl).play("ambient:d=16,o=6,b=120:c,g,e");
+              } else {
+                id(buzzer_rtttl).play("off:d=16,o=6,b=120:g,e,c");
+              }
 
   # Hour Button (Physical)
   # - Single Click: Increment Hour (if minute button not held)
@@ -499,6 +510,41 @@ text:
             }
 
 number:
+  # Calibration controls for environmental sensors
+  - platform: template
+    name: "Ambient Min Threshold"
+    id: ambient_min_threshold
+    unit_of_measurement: "%"
+    step: 1
+    min_value: 0
+    max_value: 100
+    initial_value: 10
+    optimistic: true
+    restore_value: true
+    web_server:
+      sorting_group_id: sorting_sensors
+      sorting_weight: 15
+    on_value:
+      then:
+        - script.execute: update_ring_light
+
+  - platform: template
+    name: "Ambient Max Threshold"
+    id: ambient_max_threshold
+    unit_of_measurement: "%"
+    step: 1
+    min_value: 0
+    max_value: 100
+    initial_value: 80
+    optimistic: true
+    restore_value: true
+    web_server:
+      sorting_group_id: sorting_sensors
+      sorting_weight: 16
+    on_value:
+      then:
+        - script.execute: update_ring_light
+
   # Calibration controls for environmental sensors
   - platform: template
     name: "Temperature Offset"

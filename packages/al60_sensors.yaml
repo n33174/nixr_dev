@@ -93,6 +93,9 @@ sensor:
       - exponential_moving_average:
           alpha: 0.1
           send_every: 1
+    on_value:
+      then:
+        - script.execute: update_ring_light
 
 binary_sensor:
   # MMwave Radar Presence Detection (LD2410)
@@ -129,23 +132,9 @@ binary_sensor:
     filters:
       - delayed_off: 60s
     on_press:
-      - if:
-          condition:
-            - switch.is_on: presense_detection
-          then:
-            - light.turn_on:
-                id: ring_light
-                brightness:  !lambda 'return id(standard_percentage)->state/100;'
-                transition_length: 1s
+      - script.execute: update_ring_light
     on_release:
-      - if:
-          condition:
-            - switch.is_on: presense_detection
-          then:
-            - light.turn_on:
-                id: ring_light
-                brightness:  !lambda 'return id(low_percentage)->state/100;'
-                transition_length: 1s
+      - script.execute: update_ring_light
 
 # System Output Hardware
 output:
