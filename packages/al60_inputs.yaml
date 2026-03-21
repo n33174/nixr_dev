@@ -186,19 +186,11 @@ binary_sensor:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
                 - lambda: |-
-                    time_t t_now = ::time(NULL);
-                    struct tm ti;
-                    localtime_r(&t_now, &ti);
-                    ti.tm_hour = (ti.tm_hour + 1) % 24;
-                    ti.tm_isdst = -1;
-                    time_t t_new = mktime(&ti);
-                    struct timeval tv = {t_new, 0};
-                    settimeofday(&tv, NULL);
-                - pcf8563.write_time:
-                    id: rtc_time
-                - logger.log: 
-                    format: "RTC incremented by 1 hour"
-                    level: INFO
+                    auto now = id(rtc_time).now();
+                    now.hour = (now.hour + 1) % 24;
+                    now.second = 0;
+                    id(rtc_time).set_time(now);
+                - logger.log: "RTC incremented by 1 hour"
       # Long press (Hold 1s): Start continuous increment
       - timing:
           - ON for at least 1s
@@ -209,14 +201,11 @@ binary_sensor:
               then:
                 - lambda: |-
                     id(hour_button_long_press) = true;
-      # Release handler for continuous increment: commit to RTC
+      # Release handler for continuous increment
       - timing:
           - OFF for at least 50ms
         then:
           - lambda: |-
-              if (id(hour_button_long_press)) {
-                id(rtc_time)->write_time();
-              }
               id(hour_button_long_press) = false;
             
   # Minute Button (Physical)
@@ -245,19 +234,11 @@ binary_sensor:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
                 - lambda: |-
-                    time_t t_now = ::time(NULL);
-                    struct tm ti;
-                    localtime_r(&t_now, &ti);
-                    ti.tm_min = (ti.tm_min + 1) % 60;
-                    ti.tm_isdst = -1;
-                    time_t t_new = mktime(&ti);
-                    struct timeval tv = {t_new, 0};
-                    settimeofday(&tv, NULL);
-                - pcf8563.write_time:
-                    id: rtc_time
-                - logger.log: 
-                    format: "RTC incremented by 1 minute"
-                    level: INFO
+                    auto now = id(rtc_time).now();
+                    now.minute = (now.minute + 1) % 60;
+                    now.second = 0;
+                    id(rtc_time).set_time(now);
+                - logger.log: "RTC incremented by 1 minute"
       # Long press (1s): Start continuous increment
       - timing:
           - ON for at least 1s
@@ -268,14 +249,11 @@ binary_sensor:
               then:
                 - lambda: |-
                     id(minute_button_long_press) = true;
-      # Release handler for continuous increment: commit to RTC
+      # Release handler for continuous increment
       - timing:
           - OFF for at least 50ms
         then:
           - lambda: |-
-              if (id(minute_button_long_press)) {
-                id(rtc_time)->write_time();
-              }
               id(minute_button_long_press) = false;
 
   # Maintenance Mode (Chord: Hour + Minute)
@@ -310,26 +288,16 @@ interval:
     then:
       lambda: |-
         if (id(minute_button_long_press)) {
-          // Minute increment logic (system clock only, RTC on release)
-          time_t t_now = ::time(NULL);
-          struct tm ti;
-          localtime_r(&t_now, &ti);
-          ti.tm_min = (ti.tm_min + 1) % 60;
-          ti.tm_isdst = -1;
-          time_t t_new = mktime(&ti);
-          struct timeval tv = {t_new, 0};
-          settimeofday(&tv, NULL);
+          auto now = id(rtc_time).now();
+          now.minute = (now.minute + 1) % 60;
+          now.second = 0;
+          id(rtc_time).set_time(now);
         }
         if (id(hour_button_long_press)) {
-          // Hour increment logic (system clock only, RTC on release)
-          time_t t_now = ::time(NULL);
-          struct tm ti;
-          localtime_r(&t_now, &ti);
-          ti.tm_hour = (ti.tm_hour + 1) % 24;
-          ti.tm_isdst = -1;
-          time_t t_new = mktime(&ti);
-          struct timeval tv = {t_new, 0};
-          settimeofday(&tv, NULL);
+          auto now = id(rtc_time).now();
+          now.hour = (now.hour + 1) % 24;
+          now.second = 0;
+          id(rtc_time).set_time(now);
         }
 
 button:
