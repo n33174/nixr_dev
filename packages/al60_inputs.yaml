@@ -185,7 +185,7 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - datetime.set:
+                - datetime.datetime.set:
                     id: custom_time
                     datetime: !lambda |-
                         auto now = id(sntp_time).now();
@@ -235,7 +235,7 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - datetime.set:
+                - datetime.datetime.set:
                     id: custom_time
                     datetime: !lambda |-
                         auto now = id(sntp_time).now();
@@ -294,7 +294,7 @@ interval:
           condition:
             - lambda: 'return id(minute_button_long_press);'
           then:
-            - datetime.set:
+            - datetime.datetime.set:
                 id: custom_time
                 datetime: !lambda |-
                     auto now = id(sntp_time).now();
@@ -305,7 +305,7 @@ interval:
           condition:
             - lambda: 'return id(hour_button_long_press);'
           then:
-            - datetime.set:
+            - datetime.datetime.set:
                 id: custom_time
                 datetime: !lambda |-
                     auto now = id(sntp_time).now();
