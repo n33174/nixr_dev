@@ -185,19 +185,13 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - lambda: |-
-                    // Delta-Epoch Arithmetic: Immune to timezone bugs
-                    time_t t = ::time(NULL);
-                    struct tm ti;
-                    localtime_r(&t, &ti);
-                    
-                    // Wrap hours 0-23
-                    int delta = (ti.tm_hour == 23) ? -23 * 3600 : 3600;
-                    t += delta;
-                    
-                    timeval tv = {t, 0};
-                    settimeofday(&tv, NULL);
-                    id(rtc_time)->write_time();
+                - datetime.datetime.set:
+                    id: custom_time
+                    datetime: !lambda |-
+                        auto now = id(sntp_time).now();
+                        now.hour = (now.hour + 1) % 24;
+                        now.second = 0;
+                        return now;
                 - logger.log: "Hour incremented"
       # Long press (Hold 1s): Start continuous increment
       - timing:
@@ -241,21 +235,14 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - lambda: |-
-                    // Delta-Epoch Arithmetic: Immune to timezone bugs
-                    time_t t = ::time(NULL);
-                    struct tm ti;
-                    localtime_r(&t, &ti);
-                    
-                    // Wrap minutes 0-59 (Without skipping hour)
-                    int delta = (ti.tm_min == 59) ? -59 * 60 : 60;
-                    t += delta;
-                    t -= ti.tm_sec; // Reset seconds to :00
-                    
-                    timeval tv = {t, 0};
-                    settimeofday(&tv, NULL);
-                    id(rtc_time)->write_time();
-                - logger.log: "Minute incremented"
+                - datetime.datetime.set:
+                    id: custom_time
+                    datetime: !lambda |-
+                        auto now = id(sntp_time).now();
+                        now.minute = (now.minute + 1) % 60;
+                        now.second = 0;
+                        return now;
+                - logger.log: "Minute incremented (Native)"
       # Long press (1s): Start continuous increment
       - timing:
           - ON for at least 1s
@@ -303,29 +290,28 @@ interval:
   # Polling loop for handling button "hold to increment" logic
   - interval: 250ms
     then:
-      - lambda: |-
-          time_t t = ::time(NULL);
-          struct tm ti;
-          localtime_r(&t, &ti);
-          bool changed = false;
-          
-          if (id(minute_button_long_press)) {
-            int delta = (ti.tm_min == 59) ? -59 * 60 : 60;
-            t += delta;
-            t -= ti.tm_sec; // reset seconds
-            changed = true;
-          }
-          if (id(hour_button_long_press)) {
-            int delta = (ti.tm_hour == 23) ? -23 * 3600 : 3600;
-            t += delta;
-            changed = true;
-          }
-          
-          if (changed) {
-            timeval tv = {t, 0};
-            settimeofday(&tv, NULL);
-            id(rtc_time)->write_time();
-          }
+      - if:
+          condition:
+            - lambda: 'return id(minute_button_long_press);'
+          then:
+            - datetime.datetime.set:
+                id: custom_time
+                datetime: !lambda |-
+                    auto now = id(sntp_time).now();
+                    now.minute = (now.minute + 1) % 60;
+                    now.second = 0;
+                    return now;
+      - if:
+          condition:
+            - lambda: 'return id(hour_button_long_press);'
+          then:
+            - datetime.datetime.set:
+                id: custom_time
+                datetime: !lambda |-
+                    auto now = id(sntp_time).now();
+                    now.hour = (now.hour + 1) % 24;
+                    now.second = 0;
+                    return now;
 
 button:
   # System Actions
