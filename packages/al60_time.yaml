@@ -19,9 +19,11 @@ esphome:
     - priority: 200
       then:
         - lambda: |-
-            setenv("TZ", id(time_zone)->state.c_str(), 1);
+            auto tz = id(time_zone)->state;
+            setenv("TZ", tz.c_str(), 1);
             tzset();
-            ESP_LOGD("main", "Boot - Applied restored timezone: %s", id(time_zone)->state.c_str());
+            id(sntp_time)->set_timezone(tz);
+            ESP_LOGD("main", "Boot - Applied restored timezone: %s", tz.c_str());
     # Auto-detect timezone on first connection if not already configured
     - priority: 100
       then:
@@ -91,15 +93,12 @@ datetime:
       then:
         - switch.turn_off: sntp_switch
         - lambda: |-
-            // In 2026.3, ESPTime objects provide the calculated UTC timestamp.
-            // This is the standardized way to bridge display time to the system clock.
+            // Sync system clock using calculated timestamp
             timeval tv = { (time_t)x.timestamp, 0 };
             settimeofday(&tv, NULL);
         - pcf8563.write_time:
             id: rtc_time
-        - logger.log:
-            format: "Manual time applied. SNTP sync disabled."
-            level: INFO
+        - logger.log: "Manual time applied. SNTP sync disabled."
   
   # Alarm time setting
   - platform: template
@@ -175,8 +174,10 @@ text:
     on_value:
       then:
         - lambda: |-
+            // refresh BOTH the libc environment and the component mapping
             setenv("TZ", x.c_str(), 1);
             tzset();
+            id(sntp_time)->set_timezone(x);
             ESP_LOGI("main", "Timezone updated to: %s", x.c_str());
         - lambda: |-
             id(timezone_configured) = true;
