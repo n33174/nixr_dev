@@ -20,8 +20,6 @@ esphome:
       then:
         - lambda: |-
             auto tz = id(time_zone)->state;
-            setenv("TZ", tz.c_str(), 1);
-            tzset();
             id(sntp_time)->set_timezone(tz);
             ESP_LOGD("main", "Boot - Applied restored timezone: %s", tz.c_str());
     # Auto-detect timezone on first connection if not already configured
@@ -30,7 +28,7 @@ esphome:
         - wait_until:
             condition:
               wifi.connected:
-        - lambda: 'id(sntp_time).update();'
+        - lambda: 'id(sntp_time)->update();'
         - update.check: firmware_update
         - if:
             condition:
@@ -57,8 +55,7 @@ time:
         minutes: /1
         then:
           - lambda: |-
-              time_t t = ::time(NULL);
-              auto now = esphome::ESPTime::from_c_tm(::localtime(&t), 0);
+              auto now = id(sntp_time)->now();
               auto alarm = id(alarm_time);
               // Check if alarm is enabled and matches current Hour/Minute
               if (id(alarm_enabled).state && now.hour == alarm->hour && now.minute == alarm->minute) {
@@ -174,9 +171,6 @@ text:
     on_value:
       then:
         - lambda: |-
-            // refresh BOTH the libc environment and the component mapping
-            setenv("TZ", x.c_str(), 1);
-            tzset();
             id(sntp_time)->set_timezone(x);
             ESP_LOGI("main", "Timezone updated to: %s", x.c_str());
         - lambda: |-
