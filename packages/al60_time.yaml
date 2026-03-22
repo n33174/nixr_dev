@@ -90,7 +90,11 @@ datetime:
     on_value:
       then:
         - switch.turn_off: sntp_switch
-        - lambda: 'id(sntp_time)->set_time(x);'
+        - lambda: |-
+            // In 2026.3, ESPTime objects provide the calculated UTC timestamp.
+            // This is the standardized way to bridge display time to the system clock.
+            timeval tv = { (time_t)x.timestamp, 0 };
+            settimeofday(&tv, NULL);
         - pcf8563.write_time:
             id: rtc_time
         - logger.log:

@@ -185,13 +185,13 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - lambda: |-
-                    auto now = id(sntp_time).now();
-                    now.hour = (now.hour + 1) % 24;
-                    now.second = 0;
-                    id(sntp_time)->set_time(now);
-                - pcf8563.write_time:
-                    id: rtc_time
+                - datetime.set:
+                    id: custom_time
+                    datetime: !lambda |-
+                        auto now = id(sntp_time).now();
+                        now.hour = (now.hour + 1) % 24;
+                        now.second = 0;
+                        return now;
                 - logger.log: "RTC incremented by 1 hour"
       # Long press (Hold 1s): Start continuous increment
       - timing:
@@ -235,13 +235,13 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - lambda: |-
-                    auto now = id(sntp_time).now();
-                    now.minute = (now.minute + 1) % 60;
-                    now.second = 0;
-                    id(sntp_time)->set_time(now);
-                - pcf8563.write_time:
-                    id: rtc_time
+                - datetime.set:
+                    id: custom_time
+                    datetime: !lambda |-
+                        auto now = id(sntp_time).now();
+                        now.minute = (now.minute + 1) % 60;
+                        now.second = 0;
+                        return now;
                 - logger.log: "RTC incremented by 1 minute"
       # Long press (1s): Start continuous increment
       - timing:
@@ -294,24 +294,24 @@ interval:
           condition:
             - lambda: 'return id(minute_button_long_press);'
           then:
-            - lambda: |-
-                auto now = id(sntp_time).now();
-                now.minute = (now.minute + 1) % 60;
-                now.second = 0;
-                id(sntp_time)->set_time(now);
-            - pcf8563.write_time:
-                id: rtc_time
+            - datetime.set:
+                id: custom_time
+                datetime: !lambda |-
+                    auto now = id(sntp_time).now();
+                    now.minute = (now.minute + 1) % 60;
+                    now.second = 0;
+                    return now;
       - if:
           condition:
             - lambda: 'return id(hour_button_long_press);'
           then:
-            - lambda: |-
-                auto now = id(sntp_time).now();
-                now.hour = (now.hour + 1) % 24;
-                now.second = 0;
-                id(sntp_time)->set_time(now);
-            - pcf8563.write_time:
-                id: rtc_time
+            - datetime.set:
+                id: custom_time
+                datetime: !lambda |-
+                    auto now = id(sntp_time).now();
+                    now.hour = (now.hour + 1) % 24;
+                    now.second = 0;
+                    return now;
 
 button:
   # System Actions
