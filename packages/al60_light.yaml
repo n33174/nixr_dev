@@ -64,7 +64,7 @@ number:
 ring_clock:
   # Core components
   id: RingClock
-  time_id: rtc_time
+  time_id: sntp_time
   light_id: ring_light
   # Display settings
   enable_markers: enable_markers

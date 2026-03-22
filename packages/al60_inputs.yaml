@@ -185,14 +185,15 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - lambda: |-
-                    // Raw Seconds Arithmetic: Immune to timezone/DST bugs
-                    time_t t = ::time(NULL);
-                    t += 3600; // Add exactly 3600 seconds
-                    
-                    timeval tv = {t, 0};
-                    settimeofday(&tv, NULL);
-                    id(rtc_time)->write_time();
+                - time.set:
+                    id: sntp_time
+                    time: !lambda |-
+                        auto now = id(sntp_time).now();
+                        now.hour = (now.hour + 1) % 24;
+                        now.second = 0;
+                        return now;
+                - pcf8563.write_time:
+                    id: rtc_time
                 - logger.log: "RTC incremented by 1 hour"
       # Long press (Hold 1s): Start continuous increment
       - timing:
@@ -236,15 +237,15 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - lambda: |-
-                    // Raw Seconds Arithmetic: Immune to timezone/DST bugs
-                    time_t t = ::time(NULL);
-                    t = (t / 60) * 60; // Reset seconds to 00
-                    t += 60;
-                    
-                    timeval tv = {t, 0};
-                    settimeofday(&tv, NULL);
-                    id(rtc_time)->write_time();
+                - time.set:
+                    id: sntp_time
+                    time: !lambda |-
+                        auto now = id(sntp_time).now();
+                        now.minute = (now.minute + 1) % 60;
+                        now.second = 0;
+                        return now;
+                - pcf8563.write_time:
+                    id: rtc_time
                 - logger.log: "RTC incremented by 1 minute"
       # Long press (1s): Start continuous increment
       - timing:
@@ -293,22 +294,32 @@ interval:
   # Polling loop for handling button "hold to increment" logic
   - interval: 250ms
     then:
-      lambda: |-
-        if (id(minute_button_long_press)) {
-          time_t t = ::time(NULL);
-          t = (t / 60) * 60;
-          t += 60;
-          timeval tv = {t, 0};
-          settimeofday(&tv, NULL);
-          id(rtc_time)->write_time();
-        }
-        if (id(hour_button_long_press)) {
-          time_t t = ::time(NULL);
-          t += 3600;
-          timeval tv = {t, 0};
-          settimeofday(&tv, NULL);
-          id(rtc_time)->write_time();
-        }
+      - if:
+          condition:
+            - lambda: 'return id(minute_button_long_press);'
+          then:
+            - time.set:
+                id: sntp_time
+                time: !lambda |-
+                    auto now = id(sntp_time).now();
+                    now.minute = (now.minute + 1) % 60;
+                    now.second = 0;
+                    return now;
+            - pcf8563.write_time:
+                id: rtc_time
+      - if:
+          condition:
+            - lambda: 'return id(hour_button_long_press);'
+          then:
+            - time.set:
+                id: sntp_time
+                time: !lambda |-
+                    auto now = id(sntp_time).now();
+                    now.hour = (now.hour + 1) % 24;
+                    now.second = 0;
+                    return now;
+            - pcf8563.write_time:
+                id: rtc_time
 
 button:
   # System Actions

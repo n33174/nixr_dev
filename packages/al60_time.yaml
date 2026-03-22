@@ -46,8 +46,9 @@ time:
   - platform: pcf8563
     address: 0x51
     update_interval: never # Only update manually or on SNTP sync
-    # No timezone here to allow global 'setenv' to dictate the offset
     id: rtc_time
+    # Hardware RTC always stores UTC for stability
+    timezone: UTC0
     on_time:
       # Alarm logic: Check every minute if alarm should fire
       - seconds: 0
@@ -67,7 +68,7 @@ time:
               }
   # Internet Time Sync (SNTP)
   - platform: sntp
-    # No timezone here to allow global 'setenv' to dictate the offset
+    # Use global/environment timezone for local sync
     id: sntp_time
     on_time_sync:
       then:
@@ -89,22 +90,9 @@ datetime:
     on_value:
       then:
         - switch.turn_off: sntp_switch
-        - lambda: |-
-            setenv("TZ", id(time_zone)->state.c_str(), 1);
-            tzset();
-            struct tm time_info;
-            // Use 'x' which is the ESPTime provided by on_value
-            time_info.tm_year = x.year - 1900;
-            time_info.tm_mon = x.month - 1;
-            time_info.tm_mday = x.day_of_month;
-            time_info.tm_hour = x.hour;
-            time_info.tm_min = x.minute;
-            time_info.tm_sec = x.second;
-            time_info.tm_isdst = -1;
-            std::time_t t = mktime(&time_info);
-            struct timeval tv = {t, 0};
-            settimeofday(&tv, NULL);
-            ESP_LOGD("main", "System time updated from Web UI: %s", ctime(&t));
+        - time.set:
+            id: sntp_time
+            time: !lambda 'return x;'
         - pcf8563.write_time:
             id: rtc_time
         - logger.log:
