@@ -90,9 +90,7 @@ datetime:
     on_value:
       then:
         - switch.turn_off: sntp_switch
-        - time.set:
-            id: sntp_time
-            time: !lambda 'return x;'
+        - lambda: 'id(sntp_time)->set_time(x);'
         - pcf8563.write_time:
             id: rtc_time
         - logger.log:
