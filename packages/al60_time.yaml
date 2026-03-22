@@ -13,8 +13,15 @@ esphome:
     # Read time from the hardware RTC as early as possible on boot
     - priority: 300
       then:
-        - pcf8563.read_time:
-              id: rtc_time
+        - pcf8563.read_time: rtc_time
+        - lambda: |-
+            // Seed the manual time box with current system time
+            auto now = id(sntp_time)->now();
+            if (now.is_valid()) {
+              auto call = id(custom_time).make_call();
+              call.set_datetime(now);
+              call.perform();
+            }
     # Set the timezone after enough time has passed for restoration from memory
     - priority: 200
       then:
@@ -82,10 +89,20 @@ time:
               - switch.is_on: sntp_switch
             then:
               - logger.log: "SNTP Synchronized and RTC updated."
-              - pcf8563.write_time:
-                  id: rtc_time
+              - pcf8563.write_time: rtc_time
             else:
               - logger.log: "SNTP Sync ignored (Manual Mode active)."
+
+interval:
+  # Maintain hardware RTC accuracy by writing system time once per hour
+  - interval: 1h
+    then:
+      - if:
+          condition:
+            lambda: 'return id(sntp_time)->now().is_valid();'
+          then:
+            - pcf8563.write_time: rtc_time
+            - logger.log: "Periodic RTC sync: System time written to hardware RTC."
 
 datetime:
   # Template to allow users to manually set time via Web UI
@@ -103,12 +120,17 @@ datetime:
       then:
         - switch.turn_off: sntp_switch
         - lambda: |-
-            // Sync system clock using calculated timestamp
-            timeval tv = { (time_t)x.timestamp, 0 };
-            settimeofday(&tv, NULL);
-        - pcf8563.write_time:
-            id: rtc_time
-        - logger.log: "Manual time applied. SNTP sync disabled."
+            // Use libc mktime to correctly convert local fields to UTC epoch
+            struct tm t = x.to_c_tm();
+            t.tm_isdst = -1; // Let system determine DST
+            time_t epoch = mktime(&t);
+            if (epoch != -1) {
+              timeval tv = { epoch, 0 };
+              settimeofday(&tv, NULL);
+              ESP_LOGI("main", "System clock updated manually to: %ld", epoch);
+            }
+        - pcf8563.write_time: rtc_time
+        - logger.log: "Manual time applied and saved to RTC."
   
   # Alarm time setting
   - platform: template
