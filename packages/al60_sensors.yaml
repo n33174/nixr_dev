@@ -35,7 +35,7 @@ sensor:
       icon: mdi:thermometer
       accuracy_decimals: 1
       filters:
-        - lambda: return x + id(temp_offset).state;
+        - lambda: return x + id(temp_offset)->state;
       web_server:
         sorting_group_id: sorting_sensors
         sorting_weight: 1
@@ -47,8 +47,8 @@ sensor:
       filters:
         - lambda: |-
             // Get ambient (corrected) and raw (internal) temperature
-            float t_amb = id(temp_sensor).state;
-            float t_raw = t_amb - id(temp_offset).state;
+            float t_amb = id(temp_sensor)->state;
+            float t_raw = t_amb - id(temp_offset)->state;
             
             if (std::isnan(t_amb) || std::isnan(x)) return x;
             
@@ -62,7 +62,7 @@ sensor:
             float rh_corr = x * (esat(t_raw) / esat(t_amb));
             
             // Apply the manual trim offset on top of the physics-based correction
-            return rh_corr + id(humidity_offset).state;
+            return rh_corr + id(humidity_offset)->state;
       web_server:
         sorting_group_id: sorting_sensors
         sorting_weight: 2

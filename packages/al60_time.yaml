@@ -20,15 +20,21 @@ esphome:
       then:
         - lambda: |-
             auto tz = id(time_zone)->state;
+            setenv("TZ", tz.c_str(), 1);
+            tzset();
             id(sntp_time)->set_timezone(tz);
-            ESP_LOGD("main", "Boot - Applied restored timezone: %s", tz.c_str());
+            ESP_LOGI("main", "Boot - Applied restored timezone: %s", tz.c_str());
     # Auto-detect timezone on first connection if not already configured
     - priority: 100
       then:
         - wait_until:
             condition:
               wifi.connected:
-        - lambda: 'id(sntp_time)->update();'
+        - if:
+            condition:
+              - switch.is_on: sntp_switch
+            then:
+              - lambda: 'id(sntp_time)->update();'
         - update.check: firmware_update
         - if:
             condition:
@@ -58,11 +64,11 @@ time:
               auto now = id(sntp_time)->now();
               auto alarm = id(alarm_time);
               // Check if alarm is enabled and matches current Hour/Minute
-              if (id(alarm_enabled).state && now.hour == alarm->hour && now.minute == alarm->minute) {
+              if (id(alarm_enabled)->state && now.hour == alarm->hour && now.minute == alarm->minute) {
                 id(RingClock)->start_alarm();
                 // Disable alarm after firing if 'Once' mode is active
-                if (id(alarm_once).state) {
-                  id(alarm_enabled).turn_off();
+                if (id(alarm_once)->state) {
+                  id(alarm_enabled)->turn_off();
                 }
               }
   # Internet Time Sync (SNTP)
@@ -71,9 +77,15 @@ time:
     id: sntp_time
     on_time_sync:
       then:
-        - logger.log: "SNTP Synchronized and RTC updated."
-        - pcf8563.write_time:
-            id: rtc_time
+        - if:
+            condition:
+              - switch.is_on: sntp_switch
+            then:
+              - logger.log: "SNTP Synchronized and RTC updated."
+              - pcf8563.write_time:
+                  id: rtc_time
+            else:
+              - logger.log: "SNTP Sync ignored (Manual Mode active)."
 
 datetime:
   # Template to allow users to manually set time via Web UI
@@ -81,8 +93,9 @@ datetime:
     name: "Custom Time"
     id: custom_time
     type: datetime
-    initial_value: "2025-01-01 12:00:00"
+    initial_value: "2026-01-01 12:00:00"
     optimistic: True
+    restore_value: True
     web_server:
       sorting_group_id: sorting_time
       sorting_weight: 3
@@ -121,9 +134,13 @@ switch:
       sorting_weight: 2
     on_turn_on:
       then:
-        - logger.log:
-            format: "SNTP Sync enabled. It is recommended to restart the clock to trigger time sync."
-            level: INFO
+        - component.resume: sntp_time
+        - lambda: 'id(sntp_time)->update();'
+        - logger.log: "SNTP Sync enabled and triggered."
+    on_turn_off:
+      then:
+        - component.suspend: sntp_time
+        - logger.log: "SNTP Sync disabled (System will rely on RTC or manual input)."
 
   # Alarm Controls
   - platform: template
@@ -171,6 +188,8 @@ text:
     on_value:
       then:
         - lambda: |-
+            setenv("TZ", x.c_str(), 1);
+            tzset();
             id(sntp_time)->set_timezone(x);
             ESP_LOGI("main", "Timezone updated to: %s", x.c_str());
         - lambda: |-

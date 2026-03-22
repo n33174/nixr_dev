@@ -64,11 +64,11 @@ select:
         - script.execute: update_ring_light
         - lambda: |-
             if (x == "Motion Detection") {
-              id(buzzer_rtttl).play("on:d=16,o=6,b=120:c,e,g");
+              id(buzzer_rtttl)->play("on:d=16,o=6,b=120:c,e,g");
             } else if (x == "Ambient Light") {
-              id(buzzer_rtttl).play("ambient:d=16,o=6,b=120:c,g,e");
+              id(buzzer_rtttl)->play("ambient:d=16,o=6,b=120:c,g,e");
             } else {
-              id(buzzer_rtttl).play("off:d=16,o=6,b=120:g,e,c");
+              id(buzzer_rtttl)->play("off:d=16,o=6,b=120:g,e,c");
             }
 
 binary_sensor:
@@ -93,8 +93,8 @@ binary_sensor:
           - OFF for at least 600ms
         then:
           - lambda: |-
-              auto call = id(ring_light).turn_on();
-              std::string current = id(ring_light).get_effect_name();
+              auto call = id(ring_light)->turn_on();
+              std::string current = id(ring_light)->get_effect_name();
               if (current == "Clock") call.set_effect("Clock (Fade)");
               else if (current == "Clock (Fade)") call.set_effect("Clock (Rainbow)");
               else if (current == "Clock (Rainbow)") call.set_effect("Clock (RGB)");
@@ -181,14 +181,14 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(minute_button).state;'
+                - lambda: 'return !id(minute_button)->state;'
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
                 - datetime.datetime.set:
                     id: custom_time
                     datetime: !lambda |-
-                        auto now = id(sntp_time).now();
+                        auto now = id(sntp_time)->now();
                         now.hour = (now.hour + 1) % 24;
                         now.second = 0;
                         return now;
@@ -199,7 +199,7 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(minute_button).state;'
+                - lambda: 'return !id(minute_button)->state;'
               then:
                 - lambda: |-
                     id(hour_button_long_press) = true;
@@ -231,14 +231,14 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(hour_button).state;'
+                - lambda: 'return !id(hour_button)->state;'
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
                 - datetime.datetime.set:
                     id: custom_time
                     datetime: !lambda |-
-                        auto now = id(sntp_time).now();
+                        auto now = id(sntp_time)->now();
                         now.minute = (now.minute + 1) % 60;
                         now.second = 0;
                         return now;
@@ -249,7 +249,7 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(hour_button).state;'
+                - lambda: 'return !id(hour_button)->state;'
               then:
                 - lambda: |-
                     id(minute_button_long_press) = true;
@@ -268,7 +268,7 @@ binary_sensor:
     name: "Maintenance Mode"
     internal: true
     lambda: |-
-      return id(hour_button).state && id(minute_button).state;
+      return id(hour_button)->state && id(minute_button)->state;
     on_multi_click:
       # Hold both 2-10s: SNTP On + Reboot
       - timing:
@@ -297,7 +297,7 @@ interval:
             - datetime.datetime.set:
                 id: custom_time
                 datetime: !lambda |-
-                    auto now = id(sntp_time).now();
+                    auto now = id(sntp_time)->now();
                     now.minute = (now.minute + 1) % 60;
                     now.second = 0;
                     return now;
@@ -308,7 +308,7 @@ interval:
             - datetime.datetime.set:
                 id: custom_time
                 datetime: !lambda |-
-                    auto now = id(sntp_time).now();
+                    auto now = id(sntp_time)->now();
                     now.hour = (now.hour + 1) % 24;
                     now.second = 0;
                     return now;
