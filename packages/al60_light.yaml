@@ -181,6 +181,7 @@ light:
     chipset: ws2812
     pin: GPIO10
     num_leds: 108
+    max_refresh_rate: 16ms
     gamma_correct: 2.2
     # WARNING: High brightness draws significant current.
     # Increasing these values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
