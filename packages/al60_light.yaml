@@ -91,9 +91,9 @@ ring_clock:
           
           // Initialise marker highlight from restored effect
           std::string m_effect = id(marker_color)->get_effect_name();
-          if (m_effect == "12 o'clock Only") {
+          if (m_effect == "Highlight 12 Marker") {
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_ONLY);
-          } else if (m_effect == "12, 3, 6, 9") {
+          } else if (m_effect == "Highlight 12, 3, 6, 9 Markers") {
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_THREE_SIX_NINE);
           } else {
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::NONE);
@@ -302,9 +302,9 @@ light:
     on_state:
       - lambda: |-
           std::string effect = id(marker_color)->get_effect_name();
-          if (effect == "12 o'clock Only") {
+          if (effect == "Highlight 12 Marker") {
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_ONLY);
-          } else if (effect == "12, 3, 6, 9") {
+          } else if (effect == "Highlight 12, 3, 6, 9 Markers") {
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::TWELVE_THREE_SIX_NINE);
           } else {
             // Includes "None" and "Random"
@@ -312,10 +312,10 @@ light:
           }
     effects:
       - automation:
-          name: "12 o'clock Only"
+          name: "Highlight 12 Marker"
           sequence: []
       - automation:
-          name: "12, 3, 6, 9"
+          name: "Highlight 12, 3, 6, 9 Markers"
           sequence: []
       - random:
       

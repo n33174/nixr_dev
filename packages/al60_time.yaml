@@ -10,28 +10,50 @@ globals:
 
 esphome:
   on_boot:
-    # Read time from the hardware RTC as early as possible on boot
-    - priority: 300
+    # Priority 500: Read time from hardware RTC to seed the system clock.
+    # Priority 500 is after DATA (600) so PCF8563 is guaranteed to be set up.
+    # pcf8563.read_time calls synchronize_epoch_() internally, which calls
+    # settimeofday() — this seeds the system clock so time is valid immediately.
+    # No timezone needed here since the RTC stores UTC and synchronize_epoch_
+    # expects a UTC epoch.
+    - priority: 500
       then:
         - pcf8563.read_time: rtc_time
         - lambda: |-
-            // Seed the manual time box with current system time
-            auto now = id(sntp_time)->now();
-            if (now.is_valid()) {
-              auto call = id(custom_time).make_call();
-              call.set_datetime(now);
-              call.perform();
+            if (!id(sntp_time)->now().is_valid()) {
+              // RTC had no valid time (brand new or dead battery).
+              // Seed with a sensible default so the clock displays something
+              // and buttons can be used to set the correct time.
+              // 1767225600 = 2026-01-01 00:00:00 UTC
+              struct timeval tv = { .tv_sec = 1767225600, .tv_usec = 0 };
+              settimeofday(&tv, NULL);
+              ESP_LOGW("main", "Boot: RTC invalid — seeded default time (2026-01-01).");
+            } else {
+              ESP_LOGI("main", "Boot: Hardware RTC time restored.");
             }
-    # Set the timezone after enough time has passed for restoration from memory
+
+    # Priority 200: Apply the restored timezone to sntp_time.
+    # The text component 'time_zone' restores its value at ~250,
+    # so by priority 200 it is available.
     - priority: 200
       then:
         - lambda: |-
-            auto tz = id(time_zone)->state;
-            setenv("TZ", tz.c_str(), 1);
-            tzset();
-            id(sntp_time)->set_timezone(tz);
-            ESP_LOGI("main", "Boot - Applied restored timezone: %s", tz.c_str());
-    # Auto-detect timezone on first connection if not already configured
+            std::string tz = id(time_zone)->state;
+            if (!tz.empty()) {
+              id(sntp_time)->set_timezone(tz);
+              ESP_LOGI("main", "Boot: Applied restored timezone: %s", tz.c_str());
+            }
+        # If user had SNTP disabled before reboot, keep it disabled.
+        # restore_mode restores the switch state but does NOT fire on_turn_off,
+        # so we must manually suspend the SNTP component here.
+        - if:
+            condition:
+              - switch.is_off: sntp_switch
+            then:
+              - component.suspend: sntp_time
+              - logger.log: "Boot: SNTP suspended (Manual Mode was active before reboot)."
+
+    # Priority 100: Network-dependent tasks (SNTP sync, update check, auto-detect TZ)
     - priority: 100
       then:
         - wait_until:
@@ -55,12 +77,11 @@ esphome:
 
 time:
   # Hardware Real Time Clock (PCF8563)
-  # Acts as the primary time source when offline
+  # Stores UTC — acts as offline time source
   - platform: pcf8563
     address: 0x51
-    update_interval: never # Only update manually or on SNTP sync
+    update_interval: never
     id: rtc_time
-    # Hardware RTC always stores UTC for stability
     timezone: UTC0
     on_time:
       # Alarm logic: Check every minute if alarm should fire
@@ -70,31 +91,31 @@ time:
           - lambda: |-
               auto now = id(sntp_time)->now();
               auto alarm = id(alarm_time);
-              // Check if alarm is enabled and matches current Hour/Minute
               if (id(alarm_enabled)->state && now.hour == alarm->hour && now.minute == alarm->minute) {
                 id(RingClock)->start_alarm();
-                // Disable alarm after firing if 'Once' mode is active
                 if (id(alarm_once)->state) {
                   id(alarm_enabled)->turn_off();
                 }
               }
+
   # Internet Time Sync (SNTP)
+  # Explicit timezone ensures correct local time from the start
   - platform: sntp
-    # Use global/environment timezone for local sync
     id: sntp_time
+    timezone: ${time_zone}
     on_time_sync:
       then:
         - if:
             condition:
               - switch.is_on: sntp_switch
             then:
-              - logger.log: "SNTP Synchronized and RTC updated."
+              - logger.log: "SNTP Synchronized — writing to hardware RTC."
               - pcf8563.write_time: rtc_time
             else:
               - logger.log: "SNTP Sync ignored (Manual Mode active)."
 
 interval:
-  # Maintain hardware RTC accuracy by writing system time once per hour
+  # Periodic RTC sync: keep hardware clock accurate
   - interval: 1h
     then:
       - if:
@@ -105,7 +126,7 @@ interval:
             - logger.log: "Periodic RTC sync: System time written to hardware RTC."
 
 datetime:
-  # Template to allow users to manually set time via Web UI
+  # Manual time setting via Web UI
   - platform: template
     name: "Custom Time"
     id: custom_time
@@ -120,14 +141,27 @@ datetime:
       then:
         - switch.turn_off: sntp_switch
         - lambda: |-
-            // Use libc mktime to correctly convert local fields to UTC epoch
-            struct tm t = x.to_c_tm();
-            t.tm_isdst = -1; // Let system determine DST
-            time_t epoch = mktime(&t);
-            if (epoch != -1) {
-              timeval tv = { epoch, 0 };
+            // Build a struct tm from the datetime fields
+            struct tm t = {};
+            t.tm_year = x.year - 1900;
+            t.tm_mon  = x.month - 1;
+            t.tm_mday = x.day_of_month;
+            t.tm_hour = x.hour;
+            t.tm_min  = x.minute;
+            t.tm_sec  = x.second;
+            t.tm_isdst = -1;
+
+            // Convert local time fields to UTC epoch
+            // recalc_timestamp_local() uses ESPHome's internal TZ parser
+            ESPTime esp_t = ESPTime::from_c_tm(&t, 0);
+            esp_t.recalc_timestamp_local();
+
+            if (esp_t.timestamp > 0) {
+              struct timeval tv = { .tv_sec = esp_t.timestamp, .tv_usec = 0 };
               settimeofday(&tv, NULL);
-              ESP_LOGI("main", "System clock updated manually to: %ld", epoch);
+              ESP_LOGI("main", "System clock set manually to epoch: %ld", (long)esp_t.timestamp);
+            } else {
+              ESP_LOGW("main", "Failed to convert custom time to epoch.");
             }
         - pcf8563.write_time: rtc_time
         - logger.log: "Manual time applied and saved to RTC."
@@ -139,7 +173,7 @@ datetime:
     type: time
     initial_value: "07:00:00"
     optimistic: True
-    restore_value: True # Remember alarm time across reboots
+    restore_value: True
     web_server:
       sorting_group_id: sorting_alarm
       sorting_weight: 4
@@ -195,8 +229,8 @@ switch:
       sorting_weight: 3
     
 text:
-  # Text field to set Time Zone
-  # Controls how the offset is calculated
+  # POSIX Timezone String
+  # Controls how UTC epoch is converted to local display time
   - platform: template
     name: "Time Zone"
     id: time_zone
@@ -210,12 +244,11 @@ text:
     on_value:
       then:
         - lambda: |-
-            setenv("TZ", x.c_str(), 1);
-            tzset();
             id(sntp_time)->set_timezone(x);
             ESP_LOGI("main", "Timezone updated to: %s", x.c_str());
         - lambda: |-
             id(timezone_configured) = true;
+
 button:
   # Detect Timezone via IP Geolocation
   - platform: template
@@ -244,7 +277,7 @@ button:
                         if (tz["id"].is<const char*>() && tz["utc"].is<const char*>()) {
                           id(detected_iana) = tz["id"].as<std::string>();
                           id(detected_offset) = tz["utc"].as<std::string>();
-                          id(fetch_posix_rule).press(); // Trigger Stage 2
+                          id(fetch_posix_rule).press();
                           return true;
                         }
                       return false;
@@ -254,7 +287,7 @@ button:
   - platform: template
     name: "Fetch POSIX Rule"
     id: fetch_posix_rule
-    internal: true # Hidden from UI
+    internal: true
     on_press:
       then:
         - logger.log: "Stage 2: Looking up POSIX rule for city..."

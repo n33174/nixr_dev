@@ -62,14 +62,6 @@ select:
     on_value:
       then:
         - script.execute: update_ring_light
-        - lambda: |-
-            if (x == "Motion Detection") {
-              id(buzzer_rtttl)->play("on:d=16,o=6,b=120:c,e,g");
-            } else if (x == "Ambient Light") {
-              id(buzzer_rtttl)->play("ambient:d=16,o=6,b=120:c,g,e");
-            } else {
-              id(buzzer_rtttl)->play("off:d=16,o=6,b=120:g,e,c");
-            }
 
 binary_sensor:
   # Mode Button (Physical)
@@ -159,6 +151,15 @@ binary_sensor:
           - ON for at least 1s
         then:
           - select.next: light_control_mode
+          - lambda: |-
+              std::string mode = id(light_control_mode).current_option();
+              if (mode == "Motion Detection") {
+                id(buzzer_rtttl)->play("on:d=16,o=6,b=120:c,e,g");
+              } else if (mode == "Ambient Light") {
+                id(buzzer_rtttl)->play("ambient:d=16,o=6,b=120:c,g,e");
+              } else {
+                id(buzzer_rtttl)->play("off:d=16,o=6,b=120:g,e,c");
+              }
 
   # Hour Button (Physical)
   # - Single Click: Increment Hour (if minute button not held)
