@@ -51,7 +51,9 @@ esphome:
               - switch.is_off: sntp_switch
             then:
               - component.suspend: sntp_time
-              - logger.log: "Boot: SNTP suspended (Manual Mode was active before reboot)."
+              - logger.log:
+                  level: WARN
+                  format: "Boot: SNTP suspended (Manual Mode was active before reboot)."
 
     # Priority 100: Network-dependent tasks (SNTP sync, update check, auto-detect TZ)
     - priority: 100
@@ -77,12 +79,13 @@ esphome:
 
 time:
   # Hardware Real Time Clock (PCF8563)
-  # Stores UTC — acts as offline time source
+  # read_time()/write_time() always use UTC internally regardless of this setting.
+  # We match sntp_time's timezone to avoid overwriting the global TZ in ESPHome 2026.3+
   - platform: pcf8563
     address: 0x51
     update_interval: never
     id: rtc_time
-    timezone: UTC0
+    timezone: ${time_zone}
     on_time:
       # Alarm logic: Check every minute if alarm should fire
       - seconds: 0
@@ -109,21 +112,27 @@ time:
             condition:
               - switch.is_on: sntp_switch
             then:
-              - logger.log: "SNTP Synchronized — writing to hardware RTC."
+              - logger.log:
+                  level: WARN
+                  format: "SNTP Synchronized — writing to hardware RTC."
               - pcf8563.write_time: rtc_time
             else:
-              - logger.log: "SNTP Sync ignored (Manual Mode active)."
+              - logger.log:
+                  level: INFO
+                  format: "SNTP Sync ignored (Manual Mode active)."
 
 interval:
   # Periodic RTC sync: keep hardware clock accurate
-  - interval: 1h
+  - interval: 15min
     then:
       - if:
           condition:
             lambda: 'return id(sntp_time)->now().is_valid();'
           then:
             - pcf8563.write_time: rtc_time
-            - logger.log: "Periodic RTC sync: System time written to hardware RTC."
+            - logger.log:
+                level: WARN
+                format: "Periodic RTC sync: System time written to hardware RTC."
 
 datetime:
   # Manual time setting via Web UI
@@ -141,28 +150,36 @@ datetime:
       then:
         - switch.turn_off: sntp_switch
         - lambda: |-
-            // Build a struct tm from the datetime fields
-            struct tm t = {};
-            t.tm_year = x.year - 1900;
-            t.tm_mon  = x.month - 1;
-            t.tm_mday = x.day_of_month;
-            t.tm_hour = x.hour;
-            t.tm_min  = x.minute;
-            t.tm_sec  = x.second;
-            t.tm_isdst = -1;
+            // Convert date/time fields to an epoch (treating fields as UTC).
+            // Uses a standard calendar formula — no ESPTime recalc dependency.
+            auto fields_to_epoch = [](int year, int month, int day,
+                                      int hour, int minute, int second) -> time_t {
+              int y = year, m = month;
+              if (m <= 2) { y--; m += 12; }
+              long days = 365L*y + y/4 - y/100 + y/400
+                        + (153*(m - 3) + 2)/5 + day - 719469;
+              return days * 86400L + hour * 3600L + minute * 60L + second;
+            };
 
-            // Convert local time fields to UTC epoch
-            // recalc_timestamp_local() uses ESPHome's internal TZ parser
-            ESPTime esp_t = ESPTime::from_c_tm(&t, 0);
-            esp_t.recalc_timestamp_local();
+            // Derive timezone offset from current known-good state:
+            // sntp_time->now() gives local fields, timestamp_now() gives UTC epoch.
+            time_t utc_now = id(sntp_time)->timestamp_now();
+            auto now = id(sntp_time)->now();
+            time_t local_now_as_utc = fields_to_epoch(
+                now.year, now.month, now.day_of_month,
+                now.hour, now.minute, now.second);
+            int32_t tz_offset = (int32_t)(local_now_as_utc - utc_now);
 
-            if (esp_t.timestamp > 0) {
-              struct timeval tv = { .tv_sec = esp_t.timestamp, .tv_usec = 0 };
-              settimeofday(&tv, NULL);
-              ESP_LOGI("main", "System clock set manually to epoch: %ld", (long)esp_t.timestamp);
-            } else {
-              ESP_LOGW("main", "Failed to convert custom time to epoch.");
-            }
+            // Convert the user-entered local time to UTC epoch
+            time_t entered_as_utc = fields_to_epoch(
+                x.year, x.month, x.day_of_month,
+                x.hour, x.minute, x.second);
+            time_t utc_epoch = entered_as_utc - tz_offset;
+
+            struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
+            settimeofday(&tv, NULL);
+            ESP_LOGI("main", "Custom time set — UTC epoch: %ld (tz_offset: %ds)",
+                     (long)utc_epoch, tz_offset);
         - pcf8563.write_time: rtc_time
         - logger.log: "Manual time applied and saved to RTC."
   
@@ -192,11 +209,20 @@ switch:
       then:
         - component.resume: sntp_time
         - lambda: 'id(sntp_time)->update();'
-        - logger.log: "SNTP Sync enabled and triggered."
+        - if:
+            condition:
+              lambda: 'return id(sntp_time)->now().is_valid();'
+            then:
+              - pcf8563.write_time: rtc_time
+        - logger.log:
+            level: WARN
+            format: "SNTP Sync enabled. Restart the clock to force a time sync."
     on_turn_off:
       then:
         - component.suspend: sntp_time
-        - logger.log: "SNTP Sync disabled (System will rely on RTC or manual input)."
+        - logger.log:
+            level: WARN
+            format: "SNTP Sync disabled"
 
   # Alarm Controls
   - platform: template

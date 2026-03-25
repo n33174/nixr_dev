@@ -186,13 +186,14 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - datetime.datetime.set:
-                    id: custom_time
-                    datetime: !lambda |-
-                        auto now = id(sntp_time)->now();
-                        now.hour = (now.hour + 1) % 24;
-                        now.second = 0;
-                        return now;
+                - lambda: |-
+                    // Direct epoch arithmetic: +3600s = +1 hour, zero seconds
+                    time_t epoch = id(sntp_time)->timestamp_now();
+                    epoch += 3600;
+                    epoch -= (epoch % 60);
+                    struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
+                    settimeofday(&tv, NULL);
+                - pcf8563.write_time: rtc_time
                 - logger.log: "Hour incremented"
       # Long press (Hold 1s): Start continuous increment
       - timing:
@@ -236,14 +237,15 @@ binary_sensor:
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
                 - switch.turn_off: sntp_switch
-                - datetime.datetime.set:
-                    id: custom_time
-                    datetime: !lambda |-
-                        auto now = id(sntp_time)->now();
-                        now.minute = (now.minute + 1) % 60;
-                        now.second = 0;
-                        return now;
-                - logger.log: "Minute incremented (Native)"
+                - lambda: |-
+                    // Direct epoch arithmetic: +60s = +1 minute, zero seconds
+                    time_t epoch = id(sntp_time)->timestamp_now();
+                    epoch += 60;
+                    epoch -= (epoch % 60);
+                    struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
+                    settimeofday(&tv, NULL);
+                - pcf8563.write_time: rtc_time
+                - logger.log: "Minute incremented"
       # Long press (1s): Start continuous increment
       - timing:
           - ON for at least 1s
@@ -295,24 +297,24 @@ interval:
           condition:
             - lambda: 'return id(minute_button_long_press);'
           then:
-            - datetime.datetime.set:
-                id: custom_time
-                datetime: !lambda |-
-                    auto now = id(sntp_time)->now();
-                    now.minute = (now.minute + 1) % 60;
-                    now.second = 0;
-                    return now;
+            - lambda: |-
+                time_t epoch = id(sntp_time)->timestamp_now();
+                epoch += 60;
+                epoch -= (epoch % 60);
+                struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
+                settimeofday(&tv, NULL);
+            - pcf8563.write_time: rtc_time
       - if:
           condition:
             - lambda: 'return id(hour_button_long_press);'
           then:
-            - datetime.datetime.set:
-                id: custom_time
-                datetime: !lambda |-
-                    auto now = id(sntp_time)->now();
-                    now.hour = (now.hour + 1) % 24;
-                    now.second = 0;
-                    return now;
+            - lambda: |-
+                time_t epoch = id(sntp_time)->timestamp_now();
+                epoch += 3600;
+                epoch -= (epoch % 60);
+                struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
+                settimeofday(&tv, NULL);
+            - pcf8563.write_time: rtc_time
 
 button:
   # System Actions
@@ -503,8 +505,8 @@ number:
     optimistic: true
     restore_value: true
     web_server:
-      sorting_group_id: sorting_sensors
-      sorting_weight: 15
+      sorting_group_id: sorting_clock
+      sorting_weight: 7
     on_value:
       then:
         - script.execute: update_ring_light
@@ -520,8 +522,8 @@ number:
     optimistic: true
     restore_value: true
     web_server:
-      sorting_group_id: sorting_sensors
-      sorting_weight: 16
+      sorting_group_id: sorting_clock
+      sorting_weight: 8
     on_value:
       then:
         - script.execute: update_ring_light
