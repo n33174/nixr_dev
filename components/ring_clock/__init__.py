@@ -57,6 +57,15 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional("temperature_sensor"): cv.use_id(sensor.Sensor),
     cv.Optional("humidity_sensor"): cv.use_id(sensor.Sensor),
 
+    cv.Optional("temperature_colors"): cv.ensure_list(cv.Schema({
+        cv.Required("value"): cv.float_,
+        cv.Required("color"): cv.All(cv.ensure_list(cv.int_), cv.Length(min=3, max=3)),
+    })),
+    cv.Optional("humidity_colors"): cv.ensure_list(cv.Schema({
+        cv.Required("value"): cv.float_,
+        cv.Required("color"): cv.All(cv.ensure_list(cv.int_), cv.Length(min=3, max=3)),
+    })),
+
 
     cv.Optional(CONF_ON_READY): automation.validate_automation({
         cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ReadyTrigger),
@@ -120,6 +129,16 @@ async def to_code(config):
     if "humidity_sensor" in config:
         sens = await cg.get_variable(config["humidity_sensor"])
         cg.add(var.set_humidity_sensor(sens))
+
+    if "temperature_colors" in config:
+        for point in config["temperature_colors"]:
+            c = point["color"]
+            cg.add(var.add_temperature_color_point(point["value"], cg.RawExpression(f"Color({c[0]}, {c[1]}, {c[2]})")))
+    
+    if "humidity_colors" in config:
+        for point in config["humidity_colors"]:
+            c = point["color"]
+            cg.add(var.add_humidity_color_point(point["value"], cg.RawExpression(f"Color({c[0]}, {c[1]}, {c[2]})")))
 
     for conf in config.get(CONF_ON_READY, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)

@@ -1,12 +1,5 @@
 esphome:
   on_boot:
-    # Display booting effect
-    - priority: 800
-      then:
-        - logger.log: 
-            format: "Booting 123"
-            level: DEBUG
-        - lambda: 'id(RingClock)->set_state(ring_clock::state::booting);'
     # Restore brightness and last used effect on boot
     - priority: 300
       then:
@@ -15,18 +8,6 @@ esphome:
             auto call = id(ring_light)->turn_on();
             call.set_effect(id(last_clock_effect));
             call.perform();
-  on_shutdown:
-    # Clean shutdown of the clock ring state
-    - priority: 700
-      then:
-        - lambda: 'id(RingClock)->set_state(ring_clock::state::shutdown);'
-
-globals:
-  # Variable to persist the selected clock effect (Clock, Fade, Rainbow)
-  - id: last_clock_effect
-    type: std::string
-    restore_value: yes
-    initial_value: '"Clock"'
 
 number:
   # Brightness slider for Active/Presence detected state
@@ -79,6 +60,21 @@ ring_clock:
   sound_enabled_switch: timer_sounds
   temperature_sensor: temp_sensor
   humidity_sensor: humidity_sensor
+  
+  # Sensor Color Ranges
+  temperature_colors:
+    - { value: -10.0, color: [26, 22, 73] }
+    - { value: 0.0, color: [18, 94, 131] }
+    - { value: 10.0, color: [60, 157, 116] }
+    - { value: 20.0, color: [207, 216, 113] }
+    - { value: 30.0, color: [223, 158, 60] }
+    - { value: 40.0, color: [193, 59, 44] }
+    - { value: 50.0, color: [136, 26, 23] }
+  humidity_colors:
+    - { value: 0.0, color: [190, 155, 47] }
+    - { value: 30.0, color: [160, 195, 27] }
+    - { value: 70.0, color: [60, 215, 127] }
+    - { value: 100.0, color: [20, 95, 227] }
   
   # Event Handlers (Logic)
   on_ready:
@@ -138,6 +134,11 @@ script:
     then:
       - lambda: |-
           std::string mode = id(light_control_mode).current_option();
+          
+          static std::string last_mode = "";
+          bool mode_changed = (mode != last_mode);
+          last_mode = mode;
+          
           float target_pct = id(standard_percentage).state;
           
           if (mode == "Ambient Light") {
@@ -162,8 +163,11 @@ script:
               target_pct = id(low_percentage)->state;
             }
           } else {
-            // Manual/Off Mode: Just use standard percentage
-            target_pct = id(standard_percentage)->state;
+            // Manual/Off Mode: Just use standard percentage but only when switching to it 
+            if (!mode_changed) {
+                return; // Do not constantly override the user's manual brightness changes
+            }
+            target_pct = id(standard_percentage).state;
           }
           
           // Apply brightness with smooth 1s transition
@@ -181,7 +185,6 @@ light:
     chipset: ws2812
     pin: GPIO10
     num_leds: 108
-    max_refresh_rate: 16ms
     gamma_correct: 2.2
     # WARNING: High brightness draws significant current.
     # Increasing these values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
@@ -195,8 +198,13 @@ light:
             std::string effect = id(ring_light)->get_effect_name();
             // Store the active "Clock" effect for reboot restoration
             // Ignore temporary effects like Timer or Stopwatch
-            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)" || effect == "Clock (RGB)" || effect == "Clock (Mono)") {
+            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)" || effect == "Clock (RGB)" || effect == "Clock (Mono)" || effect == "Clock (Hour Sweep)") {
               id(last_clock_effect) = effect;
+            }
+            if (effect == "Clock (Hour Sweep)") {
+              auto call = id(notification_color)->make_call();
+              call.set_effect("None");
+              call.perform();
             }
           }
     effects:
@@ -206,6 +214,27 @@ light:
           update_interval: 50ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      # Smooth Fading Steps
+      - addressable_lambda:
+          name: "Clock (Fade)"
+          update_interval: 33ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::time_fade);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      # Hour Sweep mode
+      - addressable_lambda:
+          name: "Clock (Hour Sweep)"
+          update_interval: 33ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::time_sweep);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      # Rainbow Color steps
+      - addressable_lambda:
+          name: "Clock (Rainbow)"
+          update_interval: 33ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::time_rainbow);
             id(RingClock)->addressable_lights_lambdacall(it);
       # RGB Theme (Custom hand overrides in YAML/C++ logic)
       - addressable_lambda:
@@ -220,20 +249,6 @@ light:
           update_interval: 50ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
-            id(RingClock)->addressable_lights_lambdacall(it);
-      # Smooth Fading Steps
-      - addressable_lambda:
-          name: "Clock (Fade)"
-          update_interval: 33ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::time_fade);
-            id(RingClock)->addressable_lights_lambdacall(it);
-      # Rainbow Color steps
-      - addressable_lambda:
-          name: "Clock (Rainbow)"
-          update_interval: 33ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::time_rainbow);
             id(RingClock)->addressable_lights_lambdacall(it);
       # Timer Visuals
       - addressable_lambda:
@@ -263,6 +278,13 @@ light:
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 1
+    effects:
+      - automation:
+          name: "Temperature Color"
+          sequence: []
+      - automation:
+          name: "Humidity Color"
+          sequence: []
       
   - platform: rgb
     id: minute_hand_color
@@ -275,6 +297,13 @@ light:
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 2
+    effects:
+      - automation:
+          name: "Temperature Color"
+          sequence: []
+      - automation:
+          name: "Humidity Color"
+          sequence: []
       
   - platform: rgb
     id: second_hand_color
@@ -287,6 +316,13 @@ light:
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 3
+    effects:
+      - automation:
+          name: "Temperature Color"
+          sequence: []
+      - automation:
+          name: "Humidity Color"
+          sequence: []
 
   # Customisation Keys: Markers
   - platform: rgb
@@ -312,6 +348,12 @@ light:
             id(RingClock)->set_marker_highlight_mode(ring_clock::MarkerHighlightMode::NONE);
           }
     effects:
+      - automation:
+          name: "Temperature Color"
+          sequence: []
+      - automation:
+          name: "Humidity Color"
+          sequence: []
       - automation:
           name: "Highlight 12 Marker"
           sequence: []

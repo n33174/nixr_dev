@@ -81,10 +81,10 @@ sensor:
     update_interval: 2s
     unit_of_measurement: "%"
     filters:
-      # Map raw voltage (0-3V) into a percentage
+      # Map raw voltage into a percentage
       - calibrate_linear:
           - 0.0 -> 0.0
-          - 3.0 -> 100.0
+          - 2.9 -> 100.0
       # Reject sudden blips (hands passing over, reflections, etc)
       - median:
           window_size: 7

@@ -36,14 +36,13 @@ namespace ring_clock {
   // Finite State Machine for the Clock's visual mode
   enum state
   {
-    booting,            // Startup animation
     time,               // Standard clock display
     time_fade,          // Clock with smooth fading seconds
     time_rainbow,       // Clock with rainbow effects
+    time_sweep,         // Clock with sweeping hour hand between markers
     timer,              // Countdown timer visualization
     stopwatch,          // Stopwatch visualization
     alarm,              // Alarm active state
-    shutdown,           // System shutdown state
     
     // Sensor visualizations
     sensors_bars,       // Dual bars: Temp (Right), Humid (Left)
@@ -62,6 +61,11 @@ namespace ring_clock {
     NONE = 0,
     TWELVE_ONLY = 1,
     TWELVE_THREE_SIX_NINE = 2,
+  };
+  
+  struct ColorPoint {
+    float value;
+    Color color;
   };
 
   class RingClock : public Component {
@@ -145,15 +149,18 @@ namespace ring_clock {
       void set_default_second_color(Color color) { _default_second_color = color; }
       void set_default_notification_color(Color color) { _default_notification_color = color; }
       void set_default_marker_color(Color color) { _default_marker_color = color; }
+      
+      void add_temperature_color_point(float value, Color color) { _temp_color_points.push_back({value, color}); }
+      void add_humidity_color_point(float value, Color color) { _humid_color_points.push_back({value, color}); }
 
     protected:
       // Internal state variables
-      state _state{state::booting};
+      state _state{state::time};
       bool _has_time{false};
       float _interference_factor{0.0f};
       std::vector<int> _blanked_leds;
 
-      // Pointers to external components
+      // Sensors to external components
       time::RealTimeClock *_time;
       switch_::Switch* enable_seconds{nullptr};
       switch_::Switch* enable_markers{nullptr};
@@ -176,6 +183,9 @@ namespace ring_clock {
       Color _default_notification_color = DEFAULT_COLOR_NOTIFICATION;
       Color _default_marker_color = DEFAULT_COLOR_MARKERS;
       MarkerHighlightMode _marker_highlight_mode{NONE};
+      
+      std::vector<ColorPoint> _temp_color_points;
+      std::vector<ColorPoint> _humid_color_points;
 
       // Time tracking for smooth animations
       int last_second{-1};
@@ -201,8 +211,9 @@ namespace ring_clock {
       void render_sensors_humid_glow(light::AddressableLight & it);
       void render_sensors_dual_glow(light::AddressableLight & it);
       void render_sensors_bar_individual(light::AddressableLight & it, bool is_temp);
-      void render_sensors_tick_individual(light::AddressableLight & it, bool is_temp);
-      
+      void render_sensors_tick_individual(light::AddressableLight & it, bool temperature);
+
+    private:  
       // Colors based on values
       Color get_temp_color(float t);
       Color get_humid_color(float h);

@@ -1,3 +1,44 @@
+globals:
+  - id: timezone_configured
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: boot_complete
+    type: bool
+    initial_value: 'false'
+  - id: detected_iana
+    type: std::string
+  - id: detected_offset
+    type: std::string
+  - id: wifi_configured
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  # Track long press state for continuous increment
+  - id: minute_button_long_press
+    type: bool
+    initial_value: 'false'
+  - id: hour_button_long_press
+    type: bool
+    initial_value: 'false'
+  - id: timer_h
+    type: int
+    initial_value: '0'
+  - id: timer_m
+    type: int
+    initial_value: '0'
+  - id: timer_s
+    type: int
+    initial_value: '10'
+  # Variable to persist the selected clock effect (Clock, Fade, Rainbow)
+  - id: last_clock_effect
+    type: std::string
+    restore_value: yes
+    initial_value: '"Clock"'
+  - id: last_light_control_mode
+    type: std::string
+    initial_value: '""'
+
 esphome:
   project:
     name: "NIXlabs.AL60"
@@ -73,6 +114,18 @@ esp32_improv:
 # Serial Provisioning
 # Allows setting up WiFi via USB cable
 improv_serial:
+
+wifi:
+  on_connect:
+    - if:
+        condition:
+          lambda: 'return !id(wifi_configured);'
+        then:
+          - switch.turn_on: sntp_switch
+          - globals.set:
+              id: wifi_configured
+              value: 'true'
+          - logger.log: "First Wi-Fi connection detected! Enabling SNTP sync."
 
 # Web Interface Configuration
 web_server:

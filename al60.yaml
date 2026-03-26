@@ -4,16 +4,14 @@ substitutions:
   # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
   # Firmware version
-  version: "0.9.5"
+  version: "0.9.6"
   # Fallback Time Zone in case auto-detection fails
   # Should be POSIX Timezone String
   # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
   time_zone: "AEST-10" 
 
 wifi:
-  # Disable power save to ensure responsive web interface and API
-  power_save_mode: none
-  
+  power_save_mode: light
   # Fallback Access Point
   # If no WiFi is configured or connection fails, the clock creates this hotspot
   # Connect to this to set up your WiFi credentials

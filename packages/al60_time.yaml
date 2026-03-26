@@ -1,16 +1,3 @@
-globals:
-  - id: timezone_configured
-    type: bool
-    restore_value: true
-    initial_value: 'false'
-  - id: boot_complete
-    type: bool
-    initial_value: 'false'
-  - id: detected_iana
-    type: std::string
-  - id: detected_offset
-    type: std::string
-
 esphome:
   on_boot:
     # Priority 500: Read time from hardware RTC to seed the system clock.
@@ -243,7 +230,7 @@ switch:
         - component.suspend: sntp_time
         - logger.log:
             level: WARN
-            format: "SNTP Sync disabled"
+            format: "SNTP Sync suspended"
 
   # Alarm Controls
   - platform: template
