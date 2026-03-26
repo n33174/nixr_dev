@@ -418,7 +418,7 @@ text:
     id: timer_duration
     mode: text
     optimistic: true
-    initial_value: "00:00:00"
+    initial_value: "00:00:10"
     web_server:
       sorting_group_id: sorting_timer
       sorting_weight: 4
