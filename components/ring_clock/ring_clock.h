@@ -88,6 +88,7 @@ namespace ring_clock {
       void set_time(time::RealTimeClock *time);
       void set_enable_seconds_state(switch_::Switch *enable_seconds);
       void set_enable_markers_state(switch_::Switch *enable_markers);
+      void set_hour_sweep_switch(switch_::Switch *hour_sweep) { this->_hour_sweep_switch = hour_sweep; }
       void set_clock_addressable_lights(light::LightState *it);
       void set_sound_enabled_state(switch_::Switch *sound_enabled) { this->_sound_enabled_switch = sound_enabled; }
       
@@ -164,6 +165,7 @@ namespace ring_clock {
       time::RealTimeClock *_time;
       switch_::Switch* enable_seconds{nullptr};
       switch_::Switch* enable_markers{nullptr};
+      switch_::Switch* _hour_sweep_switch{nullptr};
       switch_::Switch* _sound_enabled_switch{nullptr};
       sensor::Sensor* _temp_sensor{nullptr};
       sensor::Sensor* _humidity_sensor{nullptr};
@@ -212,6 +214,8 @@ namespace ring_clock {
       void render_sensors_dual_glow(light::AddressableLight & it);
       void render_sensors_bar_individual(light::AddressableLight & it, bool is_temp);
       void render_sensors_tick_individual(light::AddressableLight & it, bool temperature);
+
+      bool should_sweep();
 
     private:  
       // Colors based on values

@@ -174,6 +174,10 @@ namespace ring_clock {
   void RingClock::set_blank_leds(std::vector<int> leds) { this->_blanked_leds = leds; }
   float RingClock::get_interference_factor() { return this->_interference_factor; }
 
+  bool RingClock::should_sweep() {
+    return this->_hour_sweep_switch != nullptr && this->_hour_sweep_switch->state;
+  }
+
   // --- Helpers ---
 
   void RingClock::clear_R1(light::AddressableLight & it) {
@@ -453,21 +457,31 @@ namespace ring_clock {
 
     // 2. Draw Hour Hand (R2)
     int hour = now.hour % 12;
-    if (_state == state::time_sweep) {
+
+    if (this->should_sweep() || _state == state::time_sweep) {
         float precise_hour = (now.hour % 12) + (now.minute / 60.0f) + (now.second / 3600.0f);
-        float pos_index = R1_NUM_LEDS + (precise_hour * 4.0f);
-        for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-            float dist = pos_index - i;
-            if (dist < -24.0f) dist += 48.0f;
-            else if (dist > 24.0f) dist -= 48.0f;
+        float pos_offset = precise_hour * 4.0f; // 0.0 to 48.0 
+        
+        int idx1 = (int)floorf(pos_offset);
+        int idx2 = (idx1 + 1) % R2_NUM_LEDS;
+        float frac = pos_offset - floorf(pos_offset);
 
-            // Make the glow lopsided: drop off twice as fast ahead of the position
-            float effective_dist = (dist < 0) ? abs(dist) * 2.0f : abs(dist);
+        // Mix parameters: use square root for a "boosted" mid-point feel that stays within 100% brightness
+        float i1 = sqrtf(1.0f - frac);
+        float i2 = sqrtf(frac);
 
-            if (effective_dist < 2.0f) {
-                float intensity = 1.0f - (effective_dist / 2.0f);
-                it[i] = Color((uint8_t)(hc_color.r * intensity), (uint8_t)(hc_color.g * intensity), (uint8_t)(hc_color.b * intensity));
-            }
+        // Mix the primary LED
+        auto bg1 = it[R1_NUM_LEDS + idx1].get();
+        it[R1_NUM_LEDS + idx1] = Color((uint8_t)(hc_color.r * i1 + bg1.r * (1.0f - i1)), 
+                                       (uint8_t)(hc_color.g * i1 + bg1.g * (1.0f - i1)), 
+                                       (uint8_t)(hc_color.b * i1 + bg1.b * (1.0f - i1)));
+        
+        // Mix the secondary (next) LED
+        if (frac > 0.0f) {
+            auto bg2 = it[R1_NUM_LEDS + idx2].get();
+            it[R1_NUM_LEDS + idx2] = Color((uint8_t)(hc_color.r * i2 + bg2.r * (1.0f - i2)), 
+                                           (uint8_t)(hc_color.g * i2 + bg2.g * (1.0f - i2)), 
+                                           (uint8_t)(hc_color.b * i2 + bg2.b * (1.0f - i2)));
         }
     } else {
         it[R1_NUM_LEDS + (hour * 4)] = hc_color;
@@ -522,7 +536,33 @@ namespace ring_clock {
 
     // --- Hour Hand ---
     int hour = now.hour % 12;
-    it[R1_NUM_LEDS + (hour * 4)] = hc_dynamic;
+
+    if (this->should_sweep()) {
+        float precise_hour = (now.hour % 12) + (now.minute / 60.0f) + (now.second / 3600.0f);
+        float pos_offset = precise_hour * 4.0f;
+        
+        int idx1 = (int)floorf(pos_offset);
+        int idx2 = (idx1 + 1) % R2_NUM_LEDS;
+        float frac = pos_offset - floorf(pos_offset);
+
+        float i1 = sqrtf(1.0f - frac);
+        float i2 = sqrtf(frac);
+
+        // Mix the primary LED
+        auto bg1 = it[R1_NUM_LEDS + idx1].get();
+        it[R1_NUM_LEDS + idx1] = Color((uint8_t)(hc_dynamic.r * i1 + bg1.r * (1.0f - i1)), 
+                                       (uint8_t)(hc_dynamic.g * i1 + bg1.g * (1.0f - i1)), 
+                                       (uint8_t)(hc_dynamic.b * i1 + bg1.b * (1.0f - i1)));
+                                       
+        if (frac > 0.0f) {
+            auto bg2 = it[R1_NUM_LEDS + idx2].get();
+            it[R1_NUM_LEDS + idx2] = Color((uint8_t)(hc_dynamic.r * i2 + bg2.r * (1.0f - i2)), 
+                                           (uint8_t)(hc_dynamic.g * i2 + bg2.g * (1.0f - i2)), 
+                                           (uint8_t)(hc_dynamic.b * i2 + bg2.b * (1.0f - i2)));
+        }
+    } else {
+        it[R1_NUM_LEDS + (hour * 4)] = hc_dynamic;
+    }
 
     // --- Rainbow Seconds Tail ---
     if (this->enable_seconds != nullptr && this->enable_seconds->state) {

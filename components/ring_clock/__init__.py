@@ -44,6 +44,7 @@ CONFIG_SCHEMA = cv.Schema({
     # Custom Value Switches
     cv.Required("enable_seconds"): cv.use_id(switch.Switch),
     cv.Required("enable_markers"): cv.use_id(switch.Switch),
+    cv.Required("hour_sweep_switch"): cv.use_id(switch.Switch),
     # Custom Light Values
     cv.Required("hour_hand_color"): cv.use_id(light.LightState),
     cv.Required("minute_hand_color"): cv.use_id(light.LightState),
@@ -109,6 +110,8 @@ async def to_code(config):
     cg.add(var.set_enable_seconds_state(wrapped_enable_seconds))
     wrapped_enable_markers = await cg.get_variable(config["enable_markers"])
     cg.add(var.set_enable_markers_state(wrapped_enable_markers))
+    wrapped_hour_sweep = await cg.get_variable(config["hour_sweep_switch"])
+    cg.add(var.set_hour_sweep_switch(wrapped_hour_sweep))
     # Custom Light Values
     wrapped_hour_hand_color = await cg.get_variable(config["hour_hand_color"])
     cg.add(var.set_hour_hand_color_state(wrapped_hour_hand_color))

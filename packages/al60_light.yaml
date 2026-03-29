@@ -49,6 +49,7 @@ ring_clock:
   light_id: ring_light
   # Display settings
   enable_markers: enable_markers
+  hour_sweep_switch: hour_sweep
   enable_seconds: enable_seconds
   # Color pointers for customisation
   hour_hand_color: hour_hand_color
@@ -139,35 +140,33 @@ script:
           bool mode_changed = (mode != last_mode);
           last_mode = mode;
           
-          float target_pct = id(standard_percentage).state;
+          float min_a = id(ambient_min_threshold)->state;
+          float max_a = id(ambient_max_threshold)->state;
+          float curr_a = id(brightness_sensor)->state;
+          float min_b = id(low_percentage)->state;
+          float max_b = id(standard_percentage)->state;
           
-          if (mode == "Ambient Light") {
-            float min_a = id(ambient_min_threshold)->state;
-            float max_a = id(ambient_max_threshold)->state;
-            float curr_a = id(brightness_sensor)->state;
-            float min_b = id(low_percentage)->state;
-            float max_b = id(standard_percentage)->state;
-            
-            // Clamp current ambient between thresholds
-            float clamped_a = std::max(min_a, std::min(max_a, curr_a));
-            // Calculate ratio (0.0 to 1.0)
-            float range_a = max_a - min_a;
-            float ratio = (range_a <= 0) ? 1.0f : (clamped_a - min_a) / range_a;
-            
-            target_pct = min_b + ratio * (max_b - min_b);
+          // Pre-calculate ambient response
+          float clamped_a = std::max(min_a, std::min(max_a, curr_a));
+          float range_a = max_a - min_a;
+          float ratio = (range_a <= 0) ? 1.0f : (clamped_a - min_a) / range_a;
+          float ambient_target = min_b + ratio * (max_b - min_b);
+
+          float target_pct = max_b;
+          
+          if (mode == "Ambient Brightness") {
+            target_pct = ambient_target;
           } else if (mode == "Motion Detection") {
-            // Use Presence sensor state
-            if (id(radar_presence)->state) {
-              target_pct = id(standard_percentage)->state;
-            } else {
-              target_pct = id(low_percentage)->state;
-            }
+            target_pct = id(radar_presence)->state ? max_b : min_b;
+          } else if (mode == "Motion Ambient Brightness") {
+            // Motion detected: follow ambient. No motion: low percentage.
+            target_pct = id(radar_presence)->state ? ambient_target : min_b;
           } else {
             // Manual/Off Mode: Just use standard percentage but only when switching to it 
             if (!mode_changed) {
                 return; // Do not constantly override the user's manual brightness changes
             }
-            target_pct = id(standard_percentage).state;
+            target_pct = max_b;
           }
           
           // Apply brightness with smooth 1s transition
@@ -198,13 +197,8 @@ light:
             std::string effect = id(ring_light)->get_effect_name();
             // Store the active "Clock" effect for reboot restoration
             // Ignore temporary effects like Timer or Stopwatch
-            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)" || effect == "Clock (RGB)" || effect == "Clock (Mono)" || effect == "Clock (Hour Sweep)") {
+            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)" || effect == "Clock (RGB)" || effect == "Clock (Mono)") {
               id(last_clock_effect) = effect;
-            }
-            if (effect == "Clock (Hour Sweep)") {
-              auto call = id(notification_color)->make_call();
-              call.set_effect("None");
-              call.perform();
             }
           }
     effects:
@@ -221,13 +215,6 @@ light:
           update_interval: 33ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_fade);
-            id(RingClock)->addressable_lights_lambdacall(it);
-      # Hour Sweep mode
-      - addressable_lambda:
-          name: "Clock (Hour Sweep)"
-          update_interval: 33ms
-          lambda: |-
-            id(RingClock)->set_state(ring_clock::state::time_sweep);
             id(RingClock)->addressable_lights_lambdacall(it);
       # Rainbow Color steps
       - addressable_lambda:

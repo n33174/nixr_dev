@@ -16,6 +16,14 @@ switch:
     web_server:
       sorting_group_id: sorting_clock
       sorting_weight: 2
+  - platform: template
+    name: "Hour Hand Sweep"
+    id: hour_sweep
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    web_server:
+      sorting_group_id: sorting_clock
+      sorting_weight: 4
 
   - platform: template
     name: "Timer & Stopwatch Sounds"
@@ -34,10 +42,11 @@ select:
     optimistic: True
     restore_value: true
     options:
+      - "Ambient Brightness"
       - "Motion Detection"
-      - "Ambient Light"
+      - "Motion Ambient Brightness"
       - "Manual/Off"
-    initial_option: "Motion Detection"
+    initial_option: "Ambient Brightness"
     web_server:
       sorting_group_id: sorting_clock
       sorting_weight: 4
@@ -70,8 +79,7 @@ binary_sensor:
               auto call = id(ring_light)->turn_on();
               std::string current = id(ring_light)->get_effect_name();
               if (current == "Clock") call.set_effect("Clock (Fade)");
-              else if (current == "Clock (Fade)") call.set_effect("Clock (Hour Sweep)");
-              else if (current == "Clock (Hour Sweep)") call.set_effect("Clock (Rainbow)");
+              else if (current == "Clock (Fade)") call.set_effect("Clock (Rainbow)");
               else if (current == "Clock (Rainbow)") call.set_effect("Clock (RGB)");
               else if (current == "Clock (RGB)") call.set_effect("Clock (Mono)");
               else call.set_effect("Clock");
@@ -136,10 +144,12 @@ binary_sensor:
           - select.next: light_control_mode
           - lambda: |-
               std::string mode = id(light_control_mode).current_option();
-              if (mode == "Motion Detection") {
-                id(buzzer_rtttl)->play("on:d=16,o=6,b=120:c,e,g");
-              } else if (mode == "Ambient Light") {
-                id(buzzer_rtttl)->play("ambient:d=16,o=6,b=120:c,g,e");
+              if (mode == "Ambient Brightness") {
+                id(buzzer_rtttl)->play("on1:d=16,o=6,b=120:c,e,g,p,c");
+              } else if (mode == "Motion Detection") {
+                id(buzzer_rtttl)->play("on2:d=16,o=6,b=120:c,e,g,p,c,p,c");
+              } else if (mode == "Motion Ambient Brightness") {
+                id(buzzer_rtttl)->play("on3:d=16,o=6,b=120:c,e,g,p,c,p,c,p,c");
               } else {
                 id(buzzer_rtttl)->play("off:d=16,o=6,b=120:g,e,c");
               }
