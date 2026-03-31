@@ -23,7 +23,7 @@ dashboard_import:
 
 # Factory Overrides for Web Interface
 web_server:
-  id: !extend web_ui
+  id: web_ui
   # Local embedding for factory units (Full offline support)
   css_include: static/www.css
   js_include: static/www.js
