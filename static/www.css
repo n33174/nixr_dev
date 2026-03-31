@@ -1,79 +1,108 @@
 /* 
  * NIX labs AL60 - ESPHome Web Server v3 Custom Theme
- * Optimized for Shadow DOM penetration and Nix labs branding
- * 
- * BRAND COLORS:
- * Nix Orange: rgb(255, 145, 0) (#FF9100)
- * Background: #0A0A0B
- * Surface:    #151517
+ * Optimized for local embedding (no external dependencies)
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 :root {
-  /* --- Theme Constants --- */
+  /* --- Core ESPHome esp-app Variables (CRITICAL FOR SHADOW DOM) --- */
   --nix-orange: rgb(255, 145, 0);
-  --nix-orange-glow: rgba(255, 145, 0, 0.15);
+  --primary-color: var(--nix-orange) !important;
+  --secondary-color: var(--nix-orange) !important;
+  --accent-color: var(--nix-orange) !important;
   
-  /* --- HA Color Vars (ESPHome v3 base) --- */
-  --primary-color: var(--nix-orange);
-  --accent-color: var(--nix-orange);
-  --text-primary-color: #f8fafc; /* Slate-50 */
-  --text-secondary-color: #94a3b8; /* Slate-400 */
-  --primary-text-color: var(--text-primary-color);
-  --secondary-text-color: var(--text-secondary-color);
+  --background-color: #020617 !important; /* This matches your bg color that worked */
+  --secondary-background-color: #0f172a !important;
+  --card-background-color: #0f172a !important;
   
-  /* --- Backgrounds & Surfaces --- */
-  --primary-background-color: #020617; /* Slate-950 */
-  --secondary-background-color: #0f172a; /* Slate-900 */
-  --card-background-color: #0f172a;
-  --paper-card-background-color: #0f172a;
-  --paper-listbox-background-color: #0f172a;
-  --paper-dialog-background-color: #0f172a;
+  --text-color: #f8fafc !important;
+  --header-background-color: #020617 !important;
+  --header-text-color: #f8fafc !important;
+  --divider-color: #1e293b !important;
+
+  /* --- Material / HA Fallbacks --- */
+  --primary-text-color: var(--text-color) !important;
+  --secondary-text-color: #94a3b8 !important;
+  --mdc-theme-primary: var(--nix-orange) !important;
+  --mdc-theme-surface: var(--secondary-background-color) !important;
+  --mdc-theme-on-surface: var(--text-color) !important;
   
   /* --- UI Details --- */
-  --divider-color: #1e293b; /* Slate-800 */
-  --paper-item-icon-color: var(--nix-orange);
-  --state-icon-color: var(--nix-orange);
-  --state-icon-active-color: var(--nix-orange);
-  
-  /* --- Status Colors --- */
-  --error-color: #ef4444;
-  --warning-color: #f59e0b;
-  --success-color: #10b981;
-  --info-color: #3b82f6;
-
-  /* --- MDC (Material Design) Overrides --- */
-  --mdc-theme-primary: var(--nix-orange);
-  --mdc-theme-secondary: var(--nix-orange);
-  --mdc-theme-surface: var(--card-background-color);
-  --mdc-theme-on-primary: #000000;
-  --mdc-theme-on-surface: var(--text-primary-color);
-  --mdc-theme-text-primary-on-background: var(--text-primary-color);
-  --mdc-theme-text-secondary-on-background: var(--text-secondary-color);
-  --mdc-theme-text-hint-on-background: var(--text-secondary-color);
-  --mdc-theme-text-disabled-on-background: #334155;
-  
-  /* --- HA-styled Web Components --- */
-  --ha-card-background: var(--card-background-color);
-  --ha-card-border-radius: 16px;
-  --ha-card-border-width: 1px;
-  --ha-card-border-color: var(--divider-color);
-  --ha-card-box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  --ha-card-background: var(--card-background-color) !important;
+  --ha-card-border-radius: 12px !important;
 }
 
-/* Global Reset & Typography */
+/* Base Body Styles */
 body {
-  background-color: var(--primary-background-color) !important;
-  color: var(--text-primary-color) !important;
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
   font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
   margin: 0;
-  box-sizing: border-box;
 }
 
-/* Targeting the esphome-dashboard component if accessible */
-esphome-dashboard, .dashboard {
-  background-color: var(--primary-background-color) !important;
+/* Force styling on esp-app and its internals if possible */
+esp-app {
+  --primary-color: var(--nix-orange);
+  --background-color: #020617;
+  --text-color: #f8fafc;
+}
+
+/* Target elements from the HTML snippet using global selectors 
+   Note: If these are in Shadow DOM, these might not work, but 
+   we include them as fallback for any light-DOM elements. */
+header {
+  background-color: var(--background-color) !important;
+  border-bottom: 2px solid var(--nix-orange) !important;
+  padding: 1rem !important;
+}
+
+header h1 {
+  color: var(--nix-orange) !important;
+  font-size: 1.8rem !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  background: none !important; /* Overriding previous gradient if it failed */
+  -webkit-text-fill-color: initial !important;
+}
+
+#logo esp-logo {
+  filter: sepia(100%) saturate(500%) hue-rotate(-20deg) !important; /* Tint ESPHome logo orange */
+}
+
+.btn, input[type="submit"], input[type="file"]::file-selector-button {
+  background-color: var(--nix-orange) !important;
+  color: #000 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: opacity 0.2s !important;
+}
+
+.btn:hover {
+  opacity: 0.8 !important;
+}
+
+.tab-header {
+  color: var(--nix-orange) !important;
+  font-weight: 700 !important;
+  margin-top: 20px !important;
+  font-size: 1.2rem !important;
+}
+
+.tab-container {
+  background-color: var(--secondary-background-color) !important;
+  border: 1px solid var(--divider-color) !important;
+  border-radius: 12px !important;
+  padding: 1rem !important;
+}
+
+/* Logs */
+esp-log {
+  --log-background-color: #000 !important;
+  --log-text-color: #cbd5e1 !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--divider-color) !important;
 }
 
 /* Custom Scrollbar for premium feel */
