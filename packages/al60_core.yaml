@@ -132,8 +132,7 @@ web_server:
   id: web_ui
   port: 80
   version: 3
-  # Default (Hosted) versions for end-users
-  css_url: https://n33174.github.io/nixr_dev/static/www.css
+  # Custom NIX labs branded JavaScript (Theme built-in)
   js_url: https://n33174.github.io/nixr_dev/static/www.js
   
   # Organize the web entities into logical groups

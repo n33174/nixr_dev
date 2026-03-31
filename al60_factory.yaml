@@ -25,10 +25,8 @@ dashboard_import:
 web_server:
   id: web_ui
   # Local embedding for factory units (Full offline support)
-  css_include: static/www.css
   js_include: static/www.js
-  # Blank out the hosted URLs
-  css_url: ""
+  # Blank out the hosted URL
   js_url: ""
 
 external_components:

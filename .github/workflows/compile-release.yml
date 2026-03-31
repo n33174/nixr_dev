@@ -94,7 +94,7 @@ jobs:
           }
           EOF
 
-          # 5. Copy static assets (CSS and Timezone DB) to public folder
+          # 5. Copy static assets (JS and Timezone DB) to public folder
           cp -r static/* public/static/
 
       - name: Create GitHub Release
