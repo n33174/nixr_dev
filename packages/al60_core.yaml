@@ -1,4 +1,12 @@
+# Variable to used by the system
 globals:
+  - id: last_clock_effect
+    type: std::string
+    restore_value: yes
+    initial_value: '"Clock"'
+  - id: last_light_control_mode
+    type: std::string
+    initial_value: '""'
   - id: timezone_configured
     type: bool
     restore_value: true
@@ -14,7 +22,6 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
-  # Track long press state for continuous increment
   - id: minute_button_long_press
     type: bool
     initial_value: 'false'
@@ -30,23 +37,14 @@ globals:
   - id: timer_s
     type: int
     initial_value: '0'
-  # Variable to persist the selected clock effect (Clock, Fade, Rainbow)
-  - id: last_clock_effect
-    type: std::string
-    restore_value: yes
-    initial_value: '"Clock"'
-  - id: last_light_control_mode
-    type: std::string
-    initial_value: '""'
 
 esphome:
   project:
     name: "NIXlabs.AL60"
     version: "${version}"
-  # These reference the substitutions defined in the main yaml file
   name: "${name}"
   friendly_name: "${friendly_name}"
-  name_add_mac_suffix: true
+  name_add_mac_suffix: false
   platformio_options:
     board_build.flash_mode: dio
     
@@ -60,6 +58,7 @@ esp32:
 logger:
   level: INFO
   logs:
+
     # Suppress noisy sensor value updates
     sensor: WARN
     binary_sensor: WARN
@@ -67,8 +66,8 @@ logger:
     number: WARN
     text: WARN
     datetime.datetime_entity: WARN
-    # Suppress radar sensor chatter
     ld2410: WARN
+
     # Keep important components visible
     component: INFO
     api: INFO
@@ -84,16 +83,15 @@ api:
 
 # Over-The-Air Updates
 ota:
-  - platform: http_request # Allow pulling updates from the network
-  - platform: web_server   # Allow uploading .bin via web UI
+  - platform: http_request # Allow pulling updates from the internet
+  - platform: web_server   # Allow uploading via web UI
   - platform: esphome      # Allow updating via ESPHome dashboard
 
 # Required for http_request OTA platform and timezone discovery
 http_request:
 json:
 
-# Update Check
-# Compares current version against the manifest to notify of updates
+# Update Check for NIX labs compiled firmware
 update:
   - platform: http_request
     id: firmware_update
@@ -103,19 +101,23 @@ update:
       sorting_group_id: sorting_system
       sorting_weight: 1
 
-# Captive Portal for fallback wifi configuration
-captive_portal:
-
-# Bluetooth LE Provisioning (Improv)
-# Allows setting up WiFi from a phone app locally
+# Bluetooth Provisioning
 esp32_improv:
   authorizer: none
 
 # Serial Provisioning
-# Allows setting up WiFi via USB cable
 improv_serial:
 
 wifi:
+  # Enable Wi-Fi power saving mode for maximum stability
+  power_save_mode: light
+
+  # Fallback Access Point
+  ap:
+    ssid: "${friendly_name}"
+    password: "12345678"
+
+  # Re-enable SNTP sync on first Wi-Fi connection
   on_connect:
     - if:
         condition:
@@ -127,11 +129,15 @@ wifi:
               value: 'true'
           - logger.log: "First Wi-Fi connection detected! Enabling SNTP sync."
 
+# Captive Portal for fallback wifi configuration
+captive_portal:
+
 # Web Interface Configuration
 web_server:
   id: web_ui
   port: 80
   version: 3
+
   # Custom NIX labs branded JavaScript (Theme built-in)
   js_url: https://n33174.github.io/nixr_dev/static/www.js
   

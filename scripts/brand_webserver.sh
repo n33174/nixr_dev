@@ -9,8 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_URL="https://github.com/esphome/esphome-webserver.git"
 TEMP_DIR="$SCRIPT_DIR/../.build_tmp/esphome_webserver"
 BRAND_COLOR="#FF9100"
-BG_BASE="#030712"
-BG_CARD="rgba(17, 24, 39, 0.8)"
+BG_BASE="#101828"
+BG_CARD="rgba(106, 114, 130, 0.1)"
 STATIC_OUT="$SCRIPT_DIR/../static"
 
 # Clean up temp dir on script exit (success or failure)
@@ -48,8 +48,16 @@ sed -i '' "s/h1 {/h1 { font-family: 'Exo 2', sans-serif !important; color: $BRAN
 # Brand orange on header icon color
 sed -i '' "s/color: rgba(127, 127, 127, 0.5);/color: $BRAND_COLOR;/g" src/css/app.ts
 
-# Exo 2 on tab headers (white text)
-sed -i '' "s/.tab-header {/.tab-header { font-family: 'Exo 2', sans-serif !important; color: #ffffff !important; /g" src/css/tab.ts
+# Tab container: glass card bg + blur (Shadow DOM — must modify source directly, injected CSS cannot pierce it)
+# Note: .tab-container and .tab-header are inside Lit component shadow roots
+# border-radius is intentionally not overridden — the default keeps the top-left corner square
+sed -i '' "s/\.tab-container {/\.tab-container { background: $BG_CARD !important; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important; backdrop-filter: blur(8px) !important; /g" src/css/tab.ts
+
+# Tab header: Exo 2, white, with blur (also inside Shadow DOM)
+sed -i '' "s/\.tab-header {/\.tab-header { font-family: 'Exo 2', sans-serif !important; color: #ffffff !important; backdrop-filter: blur(8px) !important; /g" src/css/tab.ts
+
+# Entity rows: padding and spacing between rows (inside Shadow DOM of esp-entity-table — must be done at source level)
+sed -i '' "s/\.entity-row {/\.entity-row { padding: 0.5rem 0.75rem !important; margin: 4px 0 !important; /g" src/css/esp-entity-table.ts
 
 # FIX: Force charts above glass card backgrounds so they remain visible
 sed -i '' "s/z-index: -100;/z-index: 10; pointer-events: none;/g" src/esp-entity-chart.ts
@@ -75,11 +83,13 @@ BP_BRANDING_CSS="
    NIX labs Global Style Injection
    Palette:
      Brand orange : #FF9100
-     Page base    : #030712  (near-black)
-     Card bg      : rgba(17, 24, 39, 0.8)  (gray-900 / 80%)
+     Page base    : #101828
+     Card bg      : rgba(16, 24, 40, 0.8)
    Fonts:
      Body    : Inter
      Headings: Exo 2
+   Note: Shadow DOM elements (.tab-container, .tab-header, .entity-row etc.)
+   cannot be styled here — they are handled via source-level sed in step 3.
    ============================================= */
 
 :root {
@@ -125,7 +135,7 @@ header, .col, .tab-container, form, esp-entity-table, esp-log {
   border: none !important;
   border-radius: 12px !important;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important;
-  backdrop-filter: blur(10px) saturate(130%) !important;
+  backdrop-filter: blur(8px) !important;
   padding: 1rem !important;
 }
 

@@ -24,7 +24,6 @@ switch:
     web_server:
       sorting_group_id: sorting_clock
       sorting_weight: 4
-
   - platform: template
     name: "Timer & Stopwatch Sounds"
     id: timer_sounds

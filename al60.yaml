@@ -10,14 +10,6 @@ substitutions:
   # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
   time_zone: "AEST-10" 
 
-wifi:
-  power_save_mode: light
-  # Fallback Access Point
-  # If no WiFi is configured or connection fails, the clock creates this hotspot
-  # Connect to this to set up your WiFi credentials
-  ap:
-    password: "12345678"
-
 packages:
   core:
     url: https://github.com/n33174/nixr_dev

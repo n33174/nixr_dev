@@ -4,11 +4,6 @@ substitutions:
   version: "0.9.7"
   time_zone: "AEST-10" 
 
-wifi:
-  power_save_mode: light
-  ap:
-    password: "12345678"
-
 packages:
   # Using local paths for the GitHub Action Build
   core: !include packages/al60_core.yaml

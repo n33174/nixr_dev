@@ -84,7 +84,8 @@ sensor:
       # Map raw voltage into a percentage
       - calibrate_linear:
           - 0.0 -> 0.0
-          - 2.9 -> 100.0
+          - 3.0 -> 100.0
+          - 3.3 -> 100.0
       # Reject sudden blips (hands passing over, reflections, etc)
       - median:
           window_size: 7
