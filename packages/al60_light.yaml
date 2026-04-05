@@ -8,6 +8,33 @@ esphome:
             auto call = id(ring_light)->turn_on();
             call.set_effect(id(last_clock_effect));
             call.perform();
+    # First-boot: initialise hand colours to defaults if not previously set
+    - priority: 250
+      then:
+        - if:
+            condition:
+              lambda: 'return !id(colours_initialized);'
+            then:
+              - lambda: |-
+                  // Hour: Orange (255, 145, 0)
+                  auto h = id(hour_hand_color).turn_on();
+                  h.set_effect((uint32_t)0);
+                  h.set_red(255/255.0f); h.set_green(145/255.0f); h.set_blue(0/255.0f); h.set_color_brightness(1.0f); h.perform();
+                  // Minute: Cyan (0, 255, 255)
+                  auto m = id(minute_hand_color).turn_on();
+                  m.set_effect((uint32_t)0);
+                  m.set_red(0/255.0f); m.set_green(255/255.0f); m.set_blue(255/255.0f); m.set_color_brightness(1.0f); m.perform();
+                  // Second: White (200, 200, 200)
+                  auto s = id(second_hand_color).turn_on();
+                  s.set_effect((uint32_t)0);
+                  s.set_red(200/255.0f); s.set_green(200/255.0f); s.set_blue(200/255.0f); s.set_color_brightness(200/255.0f); s.perform();
+                  // Markers: Dim White (50, 50, 50)
+                  auto mk = id(marker_color).turn_on();
+                  mk.set_effect((uint32_t)0);
+                  mk.set_red(50/255.0f); mk.set_green(50/255.0f); mk.set_blue(50/255.0f); mk.set_color_brightness(50/255.0f); mk.perform();
+              - globals.set:
+                  id: colours_initialized
+                  value: 'true'
 
 number:
   # Brightness slider for Active/Presence detected state
@@ -48,9 +75,7 @@ ring_clock:
   time_id: sntp_time
   light_id: ring_light
   # Display settings
-  enable_markers: enable_markers
   hour_sweep_switch: hour_sweep
-  enable_seconds: enable_seconds
   # Color pointers for customisation
   hour_hand_color: hour_hand_color
   minute_hand_color: minute_hand_color
@@ -195,10 +220,58 @@ light:
       - lambda: |-
           if (id(ring_light)->remote_values.is_on()) {
             std::string effect = id(ring_light)->get_effect_name();
+            static std::string last_effect = "";
+            bool effect_changed = (effect != last_effect);
+            last_effect = effect;
+
             // Store the active "Clock" effect for reboot restoration
             // Ignore temporary effects like Timer or Stopwatch
-            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Rainbow)" || effect == "Clock (RGB)" || effect == "Clock (Mono)") {
+            if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Tail)" ||
+                effect == "Clock (Rainbow Tail)" || effect == "Clock (RGB)" || effect == "Clock (Mono)") {
               id(last_clock_effect) = effect;
+            }
+
+            if (effect_changed) {
+              auto set_hand = [](light::LightState* ls, uint8_t r, uint8_t g, uint8_t b, float br = 1.0f) {
+                if (ls->get_effect_name().str() != "None") {
+                  auto clear = ls->turn_on();
+                  clear.set_effect((uint32_t)0);
+                  clear.perform();
+                }
+                auto call = ls->turn_on();
+                float r_f = r / 255.0f; float g_f = g / 255.0f; float b_f = b / 255.0f;
+                float max_val = std::max(r_f, std::max(g_f, b_f));
+                call.set_red(r_f); call.set_green(g_f); call.set_blue(b_f);
+                call.set_color_brightness(max_val);
+                call.set_brightness(br);
+                call.set_transition_length(500);
+                call.perform();
+              };
+              auto set_rainbow = [](light::LightState* ls) {
+                auto call = ls->turn_on(); call.set_effect("Rainbow"); call.perform();
+              };
+
+              if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Tail)") {
+                set_hand(id(hour_hand_color), 255, 145, 0);
+                set_hand(id(minute_hand_color), 0, 255, 255);
+                set_hand(id(second_hand_color), 200, 200, 200);
+                set_hand(id(marker_color), 50, 50, 50);
+              } else if (effect == "Clock (Rainbow Tail)") {
+                set_rainbow(id(hour_hand_color));
+                set_rainbow(id(minute_hand_color));
+                set_rainbow(id(second_hand_color));
+                set_hand(id(marker_color), 50, 50, 50);
+              } else if (effect == "Clock (RGB)") {
+                set_hand(id(hour_hand_color), 255, 0, 0);
+                set_hand(id(minute_hand_color), 0, 255, 0);
+                set_hand(id(second_hand_color), 0, 0, 255);
+                set_hand(id(marker_color), 50, 50, 50);
+              } else if (effect == "Clock (Mono)") {
+                set_hand(id(hour_hand_color), 255, 255, 255);
+                set_hand(id(minute_hand_color), 100, 100, 100);
+                set_hand(id(second_hand_color), 40, 40, 40);
+                set_hand(id(marker_color), 10, 10, 10);
+              }
             }
           }
     effects:
@@ -216,21 +289,28 @@ light:
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_fade);
             id(RingClock)->addressable_lights_lambdacall(it);
-      # Rainbow Color steps
+      # 15-LED Trailing Seconds (colours from individual hand lights)
       - addressable_lambda:
-          name: "Clock (Rainbow)"
+          name: "Clock (Tail)"
           update_interval: 33ms
           lambda: |-
-            id(RingClock)->set_state(ring_clock::state::time_rainbow);
+            id(RingClock)->set_state(ring_clock::state::time_tail);
             id(RingClock)->addressable_lights_lambdacall(it);
-      # RGB Theme (Custom hand overrides in YAML/C++ logic)
+      # 15-LED Trailing Seconds with Rainbow colours on all hands
+      - addressable_lambda:
+          name: "Clock (Rainbow Tail)"
+          update_interval: 33ms
+          lambda: |-
+            id(RingClock)->set_state(ring_clock::state::time_tail);
+            id(RingClock)->addressable_lights_lambdacall(it);
+      # RGB Theme (hand colours set by mode button)
       - addressable_lambda:
           name: "Clock (RGB)"
           update_interval: 50ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
             id(RingClock)->addressable_lights_lambdacall(it);
-      # Monochromatic Theme
+      # Monochromatic Theme (hand colours set by mode button)
       - addressable_lambda:
           name: "Clock (Mono)"
           update_interval: 50ms
@@ -257,8 +337,8 @@ light:
   - platform: rgb
     id: hour_hand_color
     name: "Hour Hand"
-    restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 0s
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: 500ms
     red: output_hour_red
     green: output_hour_green
     blue: output_hour_blue
@@ -266,6 +346,9 @@ light:
       sorting_group_id: sorting_clock_led
       sorting_weight: 1
     effects:
+      - automation:
+          name: "Rainbow"
+          sequence: []
       - automation:
           name: "Temperature Color"
           sequence: []
@@ -276,8 +359,8 @@ light:
   - platform: rgb
     id: minute_hand_color
     name: "Minute Hand"
-    restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 0s
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: 500ms
     red: output_minute_red
     green: output_minute_green
     blue: output_minute_blue
@@ -285,6 +368,9 @@ light:
       sorting_group_id: sorting_clock_led
       sorting_weight: 2
     effects:
+      - automation:
+          name: "Rainbow"
+          sequence: []
       - automation:
           name: "Temperature Color"
           sequence: []
@@ -295,8 +381,8 @@ light:
   - platform: rgb
     id: second_hand_color
     name: "Second Hand"
-    restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 0s
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: 500ms
     red: output_second_red
     green: output_second_green
     blue: output_second_blue
@@ -304,6 +390,9 @@ light:
       sorting_group_id: sorting_clock_led
       sorting_weight: 3
     effects:
+      - automation:
+          name: "Rainbow"
+          sequence: []
       - automation:
           name: "Temperature Color"
           sequence: []
@@ -315,8 +404,8 @@ light:
   - platform: rgb
     id: marker_color
     name: "Markers"
-    restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 1s
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: 500ms
     red: output_marker_red
     green: output_marker_green
     blue: output_marker_blue
@@ -354,7 +443,7 @@ light:
     id: notification_color
     name: "Notification"
     restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 1s
+    default_transition_length: 500ms
     red: output_notification_red
     green: output_notification_green
     blue: output_notification_blue

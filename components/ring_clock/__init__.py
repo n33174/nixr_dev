@@ -42,8 +42,8 @@ CONFIG_SCHEMA = cv.Schema({
     # Light Object
     cv.Required("light_id"): cv.use_id(light.AddressableLightState),
     # Custom Value Switches
-    cv.Required("enable_seconds"): cv.use_id(switch.Switch),
-    cv.Required("enable_markers"): cv.use_id(switch.Switch),
+    cv.Optional("enable_seconds"): cv.use_id(switch.Switch),
+    cv.Optional("enable_markers"): cv.use_id(switch.Switch),
     cv.Required("hour_sweep_switch"): cv.use_id(switch.Switch),
     # Custom Light Values
     cv.Required("hour_hand_color"): cv.use_id(light.LightState),
@@ -105,11 +105,13 @@ async def to_code(config):
     # Light Object
     wrapped_clock_leds = await cg.get_variable(config["light_id"])
     cg.add(var.set_clock_addressable_lights(wrapped_clock_leds))
-    #Custom Value Switches
-    wrapped_enable_seconds = await cg.get_variable(config["enable_seconds"])
-    cg.add(var.set_enable_seconds_state(wrapped_enable_seconds))
-    wrapped_enable_markers = await cg.get_variable(config["enable_markers"])
-    cg.add(var.set_enable_markers_state(wrapped_enable_markers))
+    #Custom Value Switches (optional — visibility now driven by light element on/off state)
+    if "enable_seconds" in config:
+        wrapped_enable_seconds = await cg.get_variable(config["enable_seconds"])
+        cg.add(var.set_enable_seconds_state(wrapped_enable_seconds))
+    if "enable_markers" in config:
+        wrapped_enable_markers = await cg.get_variable(config["enable_markers"])
+        cg.add(var.set_enable_markers_state(wrapped_enable_markers))
     wrapped_hour_sweep = await cg.get_variable(config["hour_sweep_switch"])
     cg.add(var.set_hour_sweep_switch(wrapped_hour_sweep))
     # Custom Light Values

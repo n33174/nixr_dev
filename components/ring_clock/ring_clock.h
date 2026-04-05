@@ -38,7 +38,7 @@ namespace ring_clock {
   {
     time,               // Standard clock display
     time_fade,          // Clock with smooth fading seconds
-    time_rainbow,       // Clock with rainbow effects
+    time_tail,          // Clock with 15-LED trailing seconds (colours from individual lights)
     time_sweep,         // Clock with sweeping hour hand between markers
     timer,              // Countdown timer visualization
     stopwatch,          // Stopwatch visualization
@@ -86,8 +86,6 @@ namespace ring_clock {
 
       // --- Data Setters (Usually called from YAML) ---
       void set_time(time::RealTimeClock *time);
-      void set_enable_seconds_state(switch_::Switch *enable_seconds);
-      void set_enable_markers_state(switch_::Switch *enable_markers);
       void set_hour_sweep_switch(switch_::Switch *hour_sweep) { this->_hour_sweep_switch = hour_sweep; }
       void set_clock_addressable_lights(light::LightState *it);
       void set_sound_enabled_state(switch_::Switch *sound_enabled) { this->_sound_enabled_switch = sound_enabled; }
@@ -163,8 +161,6 @@ namespace ring_clock {
 
       // Sensors to external components
       time::RealTimeClock *_time;
-      switch_::Switch* enable_seconds{nullptr};
-      switch_::Switch* enable_markers{nullptr};
       switch_::Switch* _hour_sweep_switch{nullptr};
       switch_::Switch* _sound_enabled_switch{nullptr};
       sensor::Sensor* _temp_sensor{nullptr};
@@ -201,7 +197,7 @@ namespace ring_clock {
       // Specific Renderers
       void draw_markers(light::AddressableLight & it);
       void render_time(light::AddressableLight & it, bool fade);
-      void render_rainbow(light::AddressableLight & it);
+      void render_tail(light::AddressableLight & it);
       void render_timer(light::AddressableLight & it);
       void render_stopwatch(light::AddressableLight & it);
       void render_alarm(light::AddressableLight & it);
@@ -221,6 +217,12 @@ namespace ring_clock {
       // Colors based on values
       Color get_temp_color(float t);
       Color get_humid_color(float h);
+
+      // Seconds rendering helpers
+      // draw_tail: 15-LED trailing tail in a solid colour (quadratic falloff)
+      void draw_tail(light::AddressableLight & it, float precise_pos, Color color);
+      // draw_fade: smooth single-pixel fade centred on precise second position
+      void draw_fade(light::AddressableLight & it, float precise_pos, Color color);
 
       // --- Timer State ---
       bool _timer_active{false};

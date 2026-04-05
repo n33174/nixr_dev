@@ -130,7 +130,7 @@ esp-app, main, .flex-grid-half, section, .col, .tab-container, .tab-header {
 }
 
 /* Floating glass card panels */
-header, .col, .tab-container, form, esp-entity-table, esp-log {
+header, .col, esp-entity-table, esp-log {
   background: $BG_CARD !important;
   border: none !important;
   border-radius: 12px !important;
@@ -139,13 +139,15 @@ header, .col, .tab-container, form, esp-entity-table, esp-log {
   padding: 1rem !important;
 }
 
-/* Entity row subtle inset cards */
-.entity-row {
+/* Entity row subtle inset cards & OTA Form */
+.entity-row, form.tab-container {
   background: rgba(0, 0, 0, 0.2) !important;
   border: none !important;
   border-radius: 10px !important;
   margin: 4px 0 !important;
   padding: 0.5rem 0.75rem !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
 }
 
 /* Form field styling */

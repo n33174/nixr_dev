@@ -1,22 +1,6 @@
 switch:
   # Toggles for specific visual elements
   - platform: template
-    name: "Enable Seconds"
-    id: enable_seconds
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_ON
-    web_server:
-      sorting_group_id: sorting_clock
-      sorting_weight: 3
-  - platform: template
-    name: "Enable Markers"
-    id: enable_markers
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_ON
-    web_server:
-      sorting_group_id: sorting_clock
-      sorting_weight: 2
-  - platform: template
     name: "Hour Hand Sweep"
     id: hour_sweep
     optimistic: True
@@ -69,20 +53,41 @@ binary_sensor:
     filters:
       - delayed_on_off: 50ms
     on_multi_click:
-      # Single Click: Next Clock Effect
+      # Single Click: Cycle through 6 clock presets
+      # Each step applies both the ring_light effect AND the matching colours/effects to individual hand lights
       - timing:
           - ON for 50ms to 500ms
           - OFF for at least 600ms
         then:
           - lambda: |-
-              auto call = id(ring_light)->turn_on();
               std::string current = id(ring_light)->get_effect_name();
-              if (current == "Clock") call.set_effect("Clock (Fade)");
-              else if (current == "Clock (Fade)") call.set_effect("Clock (Rainbow)");
-              else if (current == "Clock (Rainbow)") call.set_effect("Clock (RGB)");
-              else if (current == "Clock (RGB)") call.set_effect("Clock (Mono)");
-              else call.set_effect("Clock");
-              call.perform();
+              std::string hour_eff = id(hour_hand_color)->get_effect_name();
+
+              if (current == "Clock") {
+                auto call = id(ring_light)->turn_on();
+                call.set_effect("Clock (Fade)");
+                call.perform();
+              } else if (current == "Clock (Fade)") {
+                auto call = id(ring_light)->turn_on();
+                call.set_effect("Clock (Tail)");
+                call.perform();
+              } else if (current == "Clock (Tail)" && hour_eff != "Rainbow") {
+                auto call = id(ring_light)->turn_on();
+                call.set_effect("Clock (Rainbow Tail)");
+                call.perform();
+              } else if (current == "Clock (Rainbow Tail)" || (current == "Clock (Tail)" && hour_eff == "Rainbow")) {
+                auto call = id(ring_light)->turn_on();
+                call.set_effect("Clock (RGB)");
+                call.perform();
+              } else if (current == "Clock (RGB)") {
+                auto call = id(ring_light)->turn_on();
+                call.set_effect("Clock (Mono)");
+                call.perform();
+              } else {
+                auto call = id(ring_light)->turn_on();
+                call.set_effect("Clock");
+                call.perform();
+              }
           - rtttl.play: 'click:d=16,o=6,b=120:c'
       # Double Click: Cycle Sensory Effects on Notification Layer
       - timing:

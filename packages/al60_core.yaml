@@ -37,6 +37,10 @@ globals:
   - id: timer_s
     type: int
     initial_value: '0'
+  - id: colours_initialized
+    type: bool
+    restore_value: true
+    initial_value: 'false'
 
 esphome:
   project:
