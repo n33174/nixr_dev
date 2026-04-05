@@ -83,13 +83,23 @@ esp-app, main, .flex-grid-half, section, .col, .tab-container, .tab-header {
 }
 
 /* Floating glass card panels */
-header, .col, esp-entity-table, esp-log {
+header, .col, section, esp-entity-table, esp-log {
   background: rgba(106, 114, 130, 0.1) !important;
   border: none !important;
   border-radius: 12px !important;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important;
   backdrop-filter: blur(8px) !important;
   padding: 1rem !important;
+  margin-bottom: 1rem !important;
+}
+
+/* Ensure tab containers inside cards don't add extra padding */
+.tab-container {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
 }
 
 /* Entity row subtle inset cards & OTA Form */
@@ -101,6 +111,10 @@ header, .col, esp-entity-table, esp-log {
   padding: 0.5rem 0.75rem !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  align-items: center !important;
 }
 
 /* Form field styling */
