@@ -136,8 +136,6 @@ header, .col, section, esp-entity-table, esp-log {
   border-radius: 12px !important;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important;
   backdrop-filter: blur(8px) !important;
-  padding: 1rem !important;
-  margin-bottom: 1rem !important;
 }
 
 /* Ensure tab containers inside cards don't add extra padding */
@@ -154,14 +152,19 @@ header, .col, section, esp-entity-table, esp-log {
   background: rgba(0, 0, 0, 0.2) !important;
   border: none !important;
   border-radius: 10px !important;
-  margin: 4px 0 !important;
-  padding: 0.5rem 0.75rem !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   display: flex !important;
   flex-wrap: wrap !important;
-  gap: 10px !important;
   align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.tab-header {
+  font-family: 'Exo 2', sans-serif !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
 }
 
 /* Form field styling */

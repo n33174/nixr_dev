@@ -1,7 +1,7 @@
 substitutions:
   # Default offsets to compensate for internal heat
   # These can be adjusted via the web UI or Home Assistant
-  temp_offset_default: "-4.0"
+  temp_offset_default: "-6.7"
   humidity_offset_default: "0.0"
 
 # I2C Bus Config (Used by RTC and Environmental Sensor)
@@ -50,7 +50,7 @@ sensor:
             float t_amb = id(temp_sensor)->state;
             float t_raw = t_amb - id(temp_offset)->state;
             
-            if (std::isnan(t_amb) || std::isnan(x)) return x;
+            if (std::isnan(t_amb) || std::isnan(x)) return std::max(0.0f, std::min(100.0f, x + id(humidity_offset)->state));
             
             // Saturation Vapor Pressure formula (Magnus-Tetens)
             auto esat = [](float t) {
@@ -58,11 +58,10 @@ sensor:
             };
             
             // Correct RH based on the ratio of saturation vapor pressures
-            // RH_amb = RH_raw * (e_sat(T_raw) / e_sat(T_amb))
             float rh_corr = x * (esat(t_raw) / esat(t_amb));
             
             // Apply the manual trim offset on top of the physics-based correction
-            return rh_corr + id(humidity_offset)->state;
+            return std::max(0.0f, std::min(100.0f, rh_corr + id(humidity_offset)->state));
       web_server:
         sorting_group_id: sorting_sensors
         sorting_weight: 2
