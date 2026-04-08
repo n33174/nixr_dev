@@ -3,41 +3,42 @@
 namespace esphome {
 namespace ring_clock {
 
-  // Define TAG for logging
   const char *TAG = "ring_clock.component";
 
   // --- Helpers ---
+
   static Color get_cv_color(const light::LightColorValues& cv) {
-      // Explicitly compound Master and Color brightness for UI consistency
-      float r = cv.get_red() * cv.get_color_brightness();
-      float g = cv.get_green() * cv.get_color_brightness();
-      float b = cv.get_blue() * cv.get_color_brightness();
-      float br = cv.get_brightness();
-      return Color((uint8_t)(r * 255.0f * br), (uint8_t)(g * 255.0f * br), (uint8_t)(b * 255.0f * br));
+      // Use standard as_rgb to capture all compounded brightness factors.
+      // Gamma correction is disabled on the source lights to keep these values linear.
+      float r, g, b;
+      cv.as_rgb(&r, &g, &b);
+      return Color((uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f));
   }
 
   // --- Lifecycle ---
 
   void RingClock::setup() {
-    // Standard setup hooks if needed
+    // Sort color gradient points once at boot so per-frame calls to
+    // get_temp_color() / get_humid_color() don't need to sort on every call.
+    auto cmp = [](const ColorPoint &a, const ColorPoint &b) { return a.value < b.value; };
+    std::sort(_temp_color_points.begin(), _temp_color_points.end(), cmp);
+    std::sort(_humid_color_points.begin(), _humid_color_points.end(), cmp);
   }
 
-  void RingClock::loop(){
+  void RingClock::loop() {
     // Check if time has become valid (synced via NTP or RTC)
-    if(!_has_time && _time->now().is_valid()) {
+    if (!_has_time && _time->now().is_valid()) {
       _has_time = true;
-      on_ready(); // Trigger ready event (enables clock display)
-      return;
+      on_ready();
+      // Do not return early — fall through so the alarm check runs this tick too
     }
 
     // Handle Alarm Timeout
     if (_alarm_active) {
-      // Trigger the automation once
       if (!_alarm_dispatched) {
         this->on_alarm_triggered();
         _alarm_dispatched = true;
       }
-
       // Auto-dismiss visual alarm after 10 seconds
       if (millis() - _alarm_triggered_ms > 10000) {
         _alarm_active = false;
@@ -57,52 +58,51 @@ namespace ring_clock {
     this->_on_ready_callback_.add(std::move(callback));
   }
 
-  // Timer Events
   void RingClock::add_on_timer_finished_callback(std::function<void()> callback) { this->_on_timer_finished_callback_.add(std::move(callback)); }
   void RingClock::on_timer_finished() {
-    // Only fire event if sound is enabled (or switch not configured)
-    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) {
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state)
       this->_on_timer_finished_callback_.call();
-    }
   }
 
   void RingClock::add_on_timer_started_callback(std::function<void()> callback) { this->_on_timer_started_callback_.add(std::move(callback)); }
-  void RingClock::on_timer_started() { 
-      if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_timer_started_callback_.call(); 
+  void RingClock::on_timer_started() {
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state)
+      this->_on_timer_started_callback_.call();
   }
 
   void RingClock::add_on_timer_stopped_callback(std::function<void()> callback) { this->_on_timer_stopped_callback_.add(std::move(callback)); }
-  void RingClock::on_timer_stopped() { 
-      if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_timer_stopped_callback_.call(); 
+  void RingClock::on_timer_stopped() {
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state)
+      this->_on_timer_stopped_callback_.call();
   }
 
-  // Stopwatch Events
   void RingClock::add_on_stopwatch_minute_callback(std::function<void()> callback) { this->_on_stopwatch_minute_callback_.add(std::move(callback)); }
   void RingClock::on_stopwatch_minute() {
-    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) {
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state)
       this->_on_stopwatch_minute_callback_.call();
-    }
   }
 
   void RingClock::add_on_stopwatch_started_callback(std::function<void()> callback) { this->_on_stopwatch_started_callback_.add(std::move(callback)); }
-  void RingClock::on_stopwatch_started() { 
-      if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_stopwatch_started_callback_.call(); 
+  void RingClock::on_stopwatch_started() {
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state)
+      this->_on_stopwatch_started_callback_.call();
   }
 
   void RingClock::add_on_stopwatch_paused_callback(std::function<void()> callback) { this->_on_stopwatch_paused_callback_.add(std::move(callback)); }
-  void RingClock::on_stopwatch_paused() { 
-      if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_stopwatch_paused_callback_.call(); 
+  void RingClock::on_stopwatch_paused() {
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state)
+      this->_on_stopwatch_paused_callback_.call();
   }
 
   void RingClock::add_on_stopwatch_reset_callback(std::function<void()> callback) { this->_on_stopwatch_reset_callback_.add(std::move(callback)); }
-  void RingClock::on_stopwatch_reset() { 
-      if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state) this->_on_stopwatch_reset_callback_.call(); 
+  void RingClock::on_stopwatch_reset() {
+    if (this->_sound_enabled_switch == nullptr || this->_sound_enabled_switch->state)
+      this->_on_stopwatch_reset_callback_.call();
   }
 
-  // Alarm Events
   void RingClock::add_on_alarm_triggered_callback(std::function<void()> callback) { this->_on_alarm_triggered_callback_.add(std::move(callback)); }
   void RingClock::on_alarm_triggered() { this->_on_alarm_triggered_callback_.call(); }
-  
+
   void RingClock::start_alarm() {
     _alarm_triggered_ms = millis();
     _alarm_dispatched = false;
@@ -112,7 +112,6 @@ namespace ring_clock {
   // --- Logic Control ---
 
   void RingClock::start_timer(int hours, int minutes, int seconds) {
-    // Limit to max 12h 59m 59s
     if (hours > 12) hours = 12;
     if (hours == 12 && minutes > 59) minutes = 59;
     if (hours == 12 && minutes == 59 && seconds > 59) seconds = 59;
@@ -122,19 +121,18 @@ namespace ring_clock {
     _timer_active = true;
     _timer_finished_ms = 0;
     _timer_finishing_dispatched = false;
-    
     _state = state::timer;
     this->on_timer_started();
   }
 
   void RingClock::stop_timer() {
     _timer_active = false;
+    _state = state::time;
     this->on_timer_stopped();
   }
 
   void RingClock::start_stopwatch() {
     if (!_stopwatch_active) {
-      // Resume from pause or start new
       _stopwatch_start_ms = millis() - _stopwatch_paused_ms;
       _stopwatch_active = true;
       _stopwatch_last_minute = -1;
@@ -145,7 +143,6 @@ namespace ring_clock {
 
   void RingClock::pause_stopwatch() {
     if (_stopwatch_active) {
-      // Pause and preserve elapsed time
       _stopwatch_paused_ms = millis() - _stopwatch_start_ms;
       _stopwatch_active = false;
       this->on_stopwatch_paused();
@@ -156,7 +153,7 @@ namespace ring_clock {
     _stopwatch_active = false;
     _stopwatch_paused_ms = 0;
     _stopwatch_last_minute = -1;
-    this->on_stopwatch_paused();
+    _state = state::time;
     this->on_stopwatch_reset();
   }
 
@@ -168,17 +165,17 @@ namespace ring_clock {
   }
 
   state RingClock::get_state() { return _state; }
-  void RingClock::set_state(state state) { _state = state; }
+  void RingClock::set_state(state s) { _state = s; }
 
   // --- Configuration Setters ---
 
   void RingClock::set_time(time::RealTimeClock *time) { _time = time; }
-  void RingClock::set_hour_hand_color_state(light::LightState* state) { this->hour_hand_color = state; }
-  void RingClock::set_minute_hand_color_state(light::LightState* state) { this->minute_hand_color = state; }
-  void RingClock::set_second_hand_color_state(light::LightState* state) { this->second_hand_color = state; }
-  void RingClock::set_marker_color_state(light::LightState* state) { this->marker_color = state; }
-  void RingClock::set_notification_color_state(light::LightState* state) { this->notification_color = state; }
-  void RingClock::set_clock_addressable_lights(light::LightState *it) { this->_clock_lights = it; }
+  void RingClock::set_hour_hand_color_state(light::LightState* s)   { this->hour_hand_color   = s; }
+  void RingClock::set_minute_hand_color_state(light::LightState* s) { this->minute_hand_color = s; }
+  void RingClock::set_second_hand_color_state(light::LightState* s) { this->second_hand_color = s; }
+  void RingClock::set_marker_color_state(light::LightState* s)      { this->marker_color      = s; }
+  void RingClock::set_notification_color_state(light::LightState* s){ this->notification_color = s; }
+  void RingClock::set_clock_addressable_lights(light::LightState *it){ this->_clock_lights = it; }
   void RingClock::set_blank_leds(std::vector<int> leds) { this->_blanked_leds = leds; }
   float RingClock::get_interference_factor() { return this->_interference_factor; }
 
@@ -186,7 +183,7 @@ namespace ring_clock {
     return this->_hour_sweep_switch != nullptr && this->_hour_sweep_switch->state;
   }
 
-  // --- Helpers ---
+  // --- Ring Helpers ---
 
   void RingClock::clear_R1(light::AddressableLight & it) {
     for (int i = 0; i < R1_NUM_LEDS; i++) it[i] = Color(0, 0, 0);
@@ -196,12 +193,74 @@ namespace ring_clock {
     for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) it[i] = Color(0, 0, 0);
   }
 
-  // --- Rendering Logic ---
+  // Resolves the display color for one clock hand.
+  // Priority: Rainbow effect → sensor effects → custom CV color → default.
+  // is_minute_complement shifts the Rainbow hue by 180° so minute and hour hands
+  // sit on opposite sides of the colour wheel.
+  Color RingClock::resolve_hand_color(light::LightState* ls, Color default_color,
+                                      const esphome::ESPTime& now,
+                                      bool is_minute_complement) {
+    if (ls == nullptr) return default_color;
+
+    std::string eff = ls->get_effect_name().str();
+
+    if (eff == "Rainbow") {
+      float cycle = ((now.hour % 12) * 3600 + now.minute * 60 + now.second) / 43200.0f;
+      float hue = fmod(cycle * 360.0f + (is_minute_complement ? 180.0f : 0.0f), 360.0f);
+      float r, g, b;
+      esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r, g, b);
+      float br = ls->current_values.get_brightness();
+      return Color((uint8_t)(r * 255.0f * br), (uint8_t)(g * 255.0f * br), (uint8_t)(b * 255.0f * br));
+    }
+
+    if (!ls->current_values.get_state()) return default_color;
+
+    float br = ls->current_values.get_brightness();
+    if (eff == "Temperature Color") {
+      Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
+      return Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
+    }
+    if (eff == "Humidity Color") {
+      Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
+      return Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
+    }
+    return get_cv_color(ls->current_values);
+  }
+
+  // Draws the hour hand on R2.  When sweep is enabled, the hand interpolates
+  // smoothly between adjacent marker LEDs using a sqrt blend.
+  void RingClock::draw_hour_hand(light::AddressableLight & it, Color hc, const esphome::ESPTime& now) {
+    if (this->should_sweep()) {
+      float precise_hour = (now.hour % 12) + (now.minute / 60.0f) + (now.second / 3600.0f);
+      float pos = precise_hour * 4.0f;
+      int idx1 = (int)floorf(pos) % R2_NUM_LEDS;
+      int idx2 = (idx1 + 1) % R2_NUM_LEDS;
+      float frac = pos - floorf(pos);
+      float i1 = sqrtf(1.0f - frac);
+      float i2 = sqrtf(frac);
+      auto bg1 = it[R1_NUM_LEDS + idx1].get();
+      it[R1_NUM_LEDS + idx1] = Color(
+        (uint8_t)(hc.r * i1 + bg1.r * (1.0f - i1)),
+        (uint8_t)(hc.g * i1 + bg1.g * (1.0f - i1)),
+        (uint8_t)(hc.b * i1 + bg1.b * (1.0f - i1)));
+      if (frac > 0.0f) {
+        auto bg2 = it[R1_NUM_LEDS + idx2].get();
+        it[R1_NUM_LEDS + idx2] = Color(
+          (uint8_t)(hc.r * i2 + bg2.r * (1.0f - i2)),
+          (uint8_t)(hc.g * i2 + bg2.g * (1.0f - i2)),
+          (uint8_t)(hc.b * i2 + bg2.b * (1.0f - i2)));
+      }
+    } else {
+      it[R1_NUM_LEDS + ((now.hour % 12) * 4)] = hc;
+    }
+  }
+
+  // --- Rendering Dispatch ---
 
   void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
-    // Dispatch to specific render function based on state
-    switch(_state) {
+    switch (_state) {
       case state::time:
+      case state::alarm:
         render_time(it, false);
         break;
       case state::time_fade:
@@ -209,9 +268,6 @@ namespace ring_clock {
         break;
       case state::time_tail:
         render_tail(it);
-        break;
-      case state::time_sweep:
-        render_time(it, false);
         break;
       case state::timer:
         render_timer(it);
@@ -247,115 +303,99 @@ namespace ring_clock {
         render_sensors_tick_individual(it, false);
         break;
     }
-    
-    // Overlay: Alarm Animation
+
+    // Overlay: Alarm animation (pulsing ring) — drawn on top of whatever state is active
     if (_alarm_active) {
-      this->render_alarm(it);
+      render_alarm(it);
     }
-    
-    // Overlay: Blank LEDs (hardware masking)
+
+    // Overlay: Blank LEDs (hardware masking for obstruction/wiring)
     if (!_blanked_leds.empty()) {
-      for (int led_index : _blanked_leds) {
-        if (led_index >= 0 && led_index < TOTAL_LEDS) {
-          it[led_index] = Color(0, 0, 0);
-        }
+      for (int idx : _blanked_leds) {
+        if (idx >= 0 && idx < TOTAL_LEDS)
+          it[idx] = Color(0, 0, 0);
       }
     }
 
-    // Calc Interference for Light Sensor
-    // We average LEDs 15 and 72 because they are physically physically closest to the light sensor
-    if (TOTAL_LEDS > 72) {
-      auto c15 = it[15].get(); // R1 (Inner) LED 15
-      auto c72 = it[72].get(); // R2 (Outer) LED 12 (60+12)
-      float b15 = (c15.r + c15.g + c15.b) / 3.0f;
-      float b72 = (c72.r + c72.g + c72.b) / 3.0f;
-      this->_interference_factor = (b15 + b72) / 255.0f;
+    // Interference estimate for the ambient light sensor.
+    // Uses the two LEDs physically closest to the sensor on the PCB.
+    {
+      auto c_r1 = it[SENSOR_ADJACENT_LED_R1].get();
+      auto c_r2 = it[R1_NUM_LEDS + SENSOR_ADJACENT_LED_R2].get();
+      float b_r1 = (c_r1.r + c_r1.g + c_r1.b) / 3.0f;
+      float b_r2 = (c_r2.r + c_r2.g + c_r2.b) / 3.0f;
+      this->_interference_factor = (b_r1 + b_r2) / (2.0f * 255.0f);
     }
   }
 
   void RingClock::draw_markers(light::AddressableLight & it) {
-    // Draws static markers on the Outer Ring (R2)
-
-    // Check if we are running a specialized sensor effect that replaces markers
     bool sensor_effect_active = false;
 
     if (this->notification_color != nullptr) {
       std::string effect = this->notification_color->get_effect_name();
-      
-      // If a sensor effect is active in the "Notification" layer, delegate to it
+
       if (effect.find("Sensors:") != std::string::npos) {
-          if (effect == "Sensors: Dual Bars") { this->render_sensors_bars(it); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Temperature Bar") { this->render_sensors_bar_individual(it, true); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Humidity Bar") { this->render_sensors_bar_individual(it, false); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Temperature Glow") { this->render_sensors_temp_glow(it); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Humidity Glow") { this->render_sensors_humid_glow(it); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Dual Ticks") { this->render_sensors_ticks(it); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Temperature Tick") { this->render_sensors_tick_individual(it, true); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Humidity Tick") { this->render_sensors_tick_individual(it, false); sensor_effect_active = true; } 
-          else if (effect == "Sensors: Dual Glow") { this->render_sensors_dual_glow(it); sensor_effect_active = true; }
+        if      (effect == "Sensors: Dual Bars")        { render_sensors_bars(it);               sensor_effect_active = true; }
+        else if (effect == "Sensors: Temperature Bar")  { render_sensors_bar_individual(it, true);  sensor_effect_active = true; }
+        else if (effect == "Sensors: Humidity Bar")     { render_sensors_bar_individual(it, false); sensor_effect_active = true; }
+        else if (effect == "Sensors: Temperature Glow") { render_sensors_temp_glow(it);          sensor_effect_active = true; }
+        else if (effect == "Sensors: Humidity Glow")    { render_sensors_humid_glow(it);         sensor_effect_active = true; }
+        else if (effect == "Sensors: Dual Ticks")       { render_sensors_ticks(it);              sensor_effect_active = true; }
+        else if (effect == "Sensors: Temperature Tick") { render_sensors_tick_individual(it, true);  sensor_effect_active = true; }
+        else if (effect == "Sensors: Humidity Tick")    { render_sensors_tick_individual(it, false); sensor_effect_active = true; }
+        else if (effect == "Sensors: Dual Glow")        { render_sensors_dual_glow(it);          sensor_effect_active = true; }
       }
     }
 
-    if (_state == state::time_sweep) sensor_effect_active = true;
-
-    // If no sensor effect overrides the background:
     if (!sensor_effect_active) {
-      // 1. Draw "Notification" Color Background (if enabled)
+      // Draw notification background color if enabled
       if (this->notification_color != nullptr && this->notification_color->current_values.get_state()) {
         auto cv = this->notification_color->current_values;
-        Color bg = get_cv_color(this->notification_color->current_values);
-        
-        // Minimum visibility hack for notifications if user requested specific non-zero color
-        if (cv.get_red() > 0 && bg.r < 10) bg.r = 10;
+        Color bg = get_cv_color(cv);
+        // Minimum visibility: ensure non-zero channels don't disappear at low brightness
+        if (cv.get_red()   > 0 && bg.r < 10) bg.r = 10;
         if (cv.get_green() > 0 && bg.g < 10) bg.g = 10;
-        if (cv.get_blue() > 0 && bg.b < 10) bg.b = 10;
+        if (cv.get_blue()  > 0 && bg.b < 10) bg.b = 10;
 
         for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-          // Skip marker positions if markers are enabled (on)
+          bool is_marker = ((i - R1_NUM_LEDS) % 4 == 0);
           if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
-              if ((i - R1_NUM_LEDS) % 4 != 0) it[i] = bg;
+            if (!is_marker) it[i] = bg;
           } else {
-              it[i] = bg;
+            it[i] = bg;
           }
         }
       }
     }
 
-    // 2. Draw Markers (visible when marker_color light is on)
+    // Draw hour markers on R2
     if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
       Color mc = _default_marker_color;
-      
-      if (this->marker_color != nullptr && this->marker_color->current_values.get_state()) {
-          // Use custom marker color if set (User override)
-          std::string eff = this->marker_color->get_effect_name(); 
-          float br = this->marker_color->current_values.get_brightness();
-          
-          if (eff == "Temperature Color") {
-              Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
-              mc = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-          } else if (eff == "Humidity Color") {
-              Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
-              mc = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-          } else {
-              mc = get_cv_color(this->marker_color->current_values);
-          }
+      std::string eff = this->marker_color->get_effect_name();
+      float br = this->marker_color->current_values.get_brightness();
+
+      if (eff == "Temperature Color") {
+        Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
+        mc = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
+      } else if (eff == "Humidity Color") {
+        Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
+        mc = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
+      } else {
+        mc = get_cv_color(this->marker_color->current_values);
       }
 
       for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
         if ((i - R1_NUM_LEDS) % 4 == 0) {
-          int marker_index = (i - R1_NUM_LEDS) / 4; // 0 to 11
+          int marker_index = (i - R1_NUM_LEDS) / 4;
           bool highlight = false;
-          
-          if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_ONLY) {
-            if (marker_index == 0) highlight = true;
-          } else if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_THREE_SIX_NINE) {
-            if (marker_index == 0 || marker_index == 3 || marker_index == 6 || marker_index == 9) highlight = true;
-          }
+          if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_ONLY)
+            highlight = (marker_index == 0);
+          else if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_THREE_SIX_NINE)
+            highlight = (marker_index == 0 || marker_index == 3 || marker_index == 6 || marker_index == 9);
 
           if (_marker_highlight_mode == MarkerHighlightMode::NONE) {
             it[i] = mc;
           } else {
-            // Apply simple linear contrast if a highlight mode (12 or 12/3/6/9) is active
             float contrast = highlight ? 1.0f : 0.35f;
             it[i] = Color((uint8_t)(mc.r * contrast), (uint8_t)(mc.g * contrast), (uint8_t)(mc.b * contrast));
           }
@@ -368,126 +408,41 @@ namespace ring_clock {
     clear_R1(it);
     clear_R2(it);
     draw_markers(it);
-    
-    // Check for special themed modes
-    std::string effect = "";
-    // Colour resolution: always read from individual light elements
-    // Rainbow effect overrides the colour with a slow-cycling HSV hue
+
     esphome::ESPTime now = this->_time->now();
 
-    Color hc_color = _default_hour_color;
-    Color mc_hand = _default_minute_color;
-    Color sc_color = _default_second_color;
+    Color hc = resolve_hand_color(hour_hand_color,   _default_hour_color,   now);
+    Color mc = resolve_hand_color(minute_hand_color,  _default_minute_color, now, true);
+    Color sc = resolve_hand_color(second_hand_color,  _default_second_color, now);
 
-    // --- Hour colour ---
-    std::string h_eff = "";
-    if (this->hour_hand_color != nullptr) h_eff = this->hour_hand_color->get_effect_name().str();
-    if (h_eff == "Rainbow") {
-        float cycle = ((now.hour % 12) * 3600 + now.minute * 60 + now.second) / 43200.0f;
-        float r, g, b; esphome::hsv_to_rgb(cycle * 360.0f, 1.0f, 1.0f, r, g, b);
-        float br = this->hour_hand_color->current_values.get_brightness();
-        hc_color = Color((uint8_t)(r*255*br), (uint8_t)(g*255*br), (uint8_t)(b*255*br));
-    } else if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
-        float br = this->hour_hand_color->current_values.get_brightness();
-        if (h_eff == "Temperature Color") { 
-            Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
-            hc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else if (h_eff == "Humidity Color") { 
-            Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
-            hc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else { hc_color = get_cv_color(this->hour_hand_color->current_values); }
+    // Override second Rainbow: use a drifting phase unrelated to clock position
+    // so it doesn't always appear red at 12 o'clock
+    if (second_hand_color != nullptr && second_hand_color->get_effect_name() == "Rainbow") {
+      float cycle = fmod(millis() / 47000.0f, 1.0f);
+      float r, g, b;
+      esphome::hsv_to_rgb(cycle * 360.0f, 1.0f, 1.0f, r, g, b);
+      float br = second_hand_color->current_values.get_brightness();
+      sc = Color((uint8_t)(r * 255.0f * br), (uint8_t)(g * 255.0f * br), (uint8_t)(b * 255.0f * br));
     }
 
-    // --- Minute colour ---
-    std::string m_eff = "";
-    if (this->minute_hand_color != nullptr) m_eff = this->minute_hand_color->get_effect_name().str();
-    if (m_eff == "Rainbow") {
-        float cycle = ((now.hour % 12) * 3600 + now.minute * 60 + now.second) / 43200.0f;
-        float r, g, b; esphome::hsv_to_rgb(fmod(cycle * 360.0f + 180.0f, 360.0f), 1.0f, 1.0f, r, g, b);
-        float br = this->minute_hand_color->current_values.get_brightness();
-        mc_hand = Color((uint8_t)(r*255*br), (uint8_t)(g*255*br), (uint8_t)(b*255*br));
-    } else if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
-        float br = this->minute_hand_color->current_values.get_brightness();
-        if (m_eff == "Temperature Color") { 
-            Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
-            mc_hand = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else if (m_eff == "Humidity Color") { 
-            Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
-            mc_hand = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else { mc_hand = get_cv_color(this->minute_hand_color->current_values); }
-    }
+    draw_hour_hand(it, hc, now);
 
-    // --- Second colour (Rainbow → hue tracks second position around the dial) ---
-    std::string s_eff = "";
-    if (this->second_hand_color != nullptr) s_eff = this->second_hand_color->get_effect_name().str();
-    if (s_eff == "Rainbow") {
-        // Drifting rainbow phase (approx 47 second cycle) to ensure it doesn't stay red at 12 o'clock
-        float cycle = fmod(millis() / 47000.0f, 1.0f);
-        float r, g, b; esphome::hsv_to_rgb(cycle * 360.0f, 1.0f, 1.0f, r, g, b);
-        float br = this->second_hand_color->current_values.get_brightness();
-        sc_color = Color((uint8_t)(r*255*br), (uint8_t)(g*255*br), (uint8_t)(b*255*br));
-    } else if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
-        float br = this->second_hand_color->current_values.get_brightness();
-        if (s_eff == "Temperature Color") { 
-            Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
-            sc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else if (s_eff == "Humidity Color") { 
-            Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
-            sc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else { sc_color = get_cv_color(this->second_hand_color->current_values); }
-    }
-
-    // 2. Draw Hour Hand (R2)
-    int hour = now.hour % 12;
-
-    if (this->should_sweep() || _state == state::time_sweep) {
-        float precise_hour = (now.hour % 12) + (now.minute / 60.0f) + (now.second / 3600.0f);
-        float pos_offset = precise_hour * 4.0f; // 0.0 to 48.0 
-        
-        int idx1 = (int)floorf(pos_offset);
-        int idx2 = (idx1 + 1) % R2_NUM_LEDS;
-        float frac = pos_offset - floorf(pos_offset);
-
-        // Mix parameters: use square root for a "boosted" mid-point feel that stays within 100% brightness
-        float i1 = sqrtf(1.0f - frac);
-        float i2 = sqrtf(frac);
-
-        // Mix the primary LED
-        auto bg1 = it[R1_NUM_LEDS + idx1].get();
-        it[R1_NUM_LEDS + idx1] = Color((uint8_t)(hc_color.r * i1 + bg1.r * (1.0f - i1)), 
-                                       (uint8_t)(hc_color.g * i1 + bg1.g * (1.0f - i1)), 
-                                       (uint8_t)(hc_color.b * i1 + bg1.b * (1.0f - i1)));
-        
-        // Mix the secondary (next) LED
-        if (frac > 0.0f) {
-            auto bg2 = it[R1_NUM_LEDS + idx2].get();
-            it[R1_NUM_LEDS + idx2] = Color((uint8_t)(hc_color.r * i2 + bg2.r * (1.0f - i2)), 
-                                           (uint8_t)(hc_color.g * i2 + bg2.g * (1.0f - i2)), 
-                                           (uint8_t)(hc_color.b * i2 + bg2.b * (1.0f - i2)));
-        }
-    } else {
-        it[R1_NUM_LEDS + (hour * 4)] = hc_color;
-    }    // 3. Draw Seconds Hand (R1) — visible when second_hand_color light is on
-    if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
+    if (second_hand_color != nullptr && second_hand_color->current_values.get_state()) {
       if (fade) {
         if (this->last_second != now.second) {
           this->last_second = now.second;
           this->last_second_timestamp = millis();
         }
-        float progress = (millis() - this->last_second_timestamp) / 1000.0f;
-        if (progress > 1.0f) progress = 1.0f;
-        draw_fade(it, now.second + progress, sc_color);
+        float progress = std::min((millis() - this->last_second_timestamp) / 1000.0f, 1.0f);
+        draw_fade(it, now.second + progress, sc);
       } else {
-        it[now.second] = sc_color;
+        it[now.second] = sc;
       }
     }
 
-    // 4. Draw Minute Hand (R1)
-    it[now.minute] = mc_hand;
+    it[now.minute] = mc;
   }
 
-  // Replaces render_rainbow: reads per-element Rainbow effects for colour and uses a 15-LED tail for seconds.
-  // Both "Clock (Tail)" and "Clock (Rainbow Tail)" dispatch here; Rainbow effects on hands drive the colour difference.
   void RingClock::render_tail(light::AddressableLight & it) {
     clear_R1(it);
     clear_R2(it);
@@ -495,125 +450,51 @@ namespace ring_clock {
 
     esphome::ESPTime now = this->_time->now();
 
-    Color hc_color = _default_hour_color;
-    Color mc_hand = _default_minute_color;
-    Color sc_color = _default_second_color;
+    Color hc = resolve_hand_color(hour_hand_color,  _default_hour_color,   now);
+    Color mc = resolve_hand_color(minute_hand_color, _default_minute_color, now, true);
 
-    // --- Hour colour ---
-    std::string h_eff = "";
-    if (this->hour_hand_color != nullptr) h_eff = this->hour_hand_color->get_effect_name().str();
-    if (h_eff == "Rainbow") {
-        float cycle = ((now.hour % 12) * 3600 + now.minute * 60 + now.second) / 43200.0f;
-        float r, g, b; esphome::hsv_to_rgb(cycle * 360.0f, 1.0f, 1.0f, r, g, b);
-        float br = this->hour_hand_color->current_values.get_brightness();
-        hc_color = Color((uint8_t)(r*255*br), (uint8_t)(g*255*br), (uint8_t)(b*255*br));
-    } else if (this->hour_hand_color != nullptr && this->hour_hand_color->current_values.get_state()) {
-        float br = this->hour_hand_color->current_values.get_brightness();
-        if (h_eff == "Temperature Color") { 
-            Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
-            hc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else if (h_eff == "Humidity Color") { 
-            Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
-            hc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else { hc_color = get_cv_color(this->hour_hand_color->current_values); }
-    }
+    draw_hour_hand(it, hc, now);
 
-    // --- Minute colour ---
-    std::string m_eff = "";
-    if (this->minute_hand_color != nullptr) m_eff = this->minute_hand_color->get_effect_name().str();
-    if (m_eff == "Rainbow") {
-        float cycle = ((now.hour % 12) * 3600 + now.minute * 60 + now.second) / 43200.0f;
-        float r, g, b; esphome::hsv_to_rgb(fmod(cycle * 360.0f + 180.0f, 360.0f), 1.0f, 1.0f, r, g, b);
-        float br = this->minute_hand_color->current_values.get_brightness();
-        mc_hand = Color((uint8_t)(r*255*br), (uint8_t)(g*255*br), (uint8_t)(b*255*br));
-    } else if (this->minute_hand_color != nullptr && this->minute_hand_color->current_values.get_state()) {
-        float br = this->minute_hand_color->current_values.get_brightness();
-        if (m_eff == "Temperature Color") { 
-            Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
-            mc_hand = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else if (m_eff == "Humidity Color") { 
-            Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
-            mc_hand = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-        } else { mc_hand = get_cv_color(this->minute_hand_color->current_values); }
-    }
-
-    // --- Hour Hand (R2) ---
-    int hour = now.hour % 12;
-    if (this->should_sweep()) {
-        float precise_hour = (now.hour % 12) + (now.minute / 60.0f) + (now.second / 3600.0f);
-        float pos_offset = precise_hour * 4.0f;
-        int idx1 = (int)floorf(pos_offset);
-        int idx2 = (idx1 + 1) % R2_NUM_LEDS;
-        float frac = pos_offset - floorf(pos_offset);
-        float i1 = sqrtf(1.0f - frac);
-        float i2 = sqrtf(frac);
-        auto bg1 = it[R1_NUM_LEDS + idx1].get();
-        it[R1_NUM_LEDS + idx1] = Color((uint8_t)(hc_color.r * i1 + bg1.r * (1.0f - i1)),
-                                       (uint8_t)(hc_color.g * i1 + bg1.g * (1.0f - i1)),
-                                       (uint8_t)(hc_color.b * i1 + bg1.b * (1.0f - i1)));
-        if (frac > 0.0f) {
-            auto bg2 = it[R1_NUM_LEDS + idx2].get();
-            it[R1_NUM_LEDS + idx2] = Color((uint8_t)(hc_color.r * i2 + bg2.r * (1.0f - i2)),
-                                           (uint8_t)(hc_color.g * i2 + bg2.g * (1.0f - i2)),
-                                           (uint8_t)(hc_color.b * i2 + bg2.b * (1.0f - i2)));
-        }
-    } else {
-        it[R1_NUM_LEDS + (hour * 4)] = hc_color;
-    }
-
-    // --- Seconds Tail (R1) — visible when second_hand_color light is on ---
-    if (this->second_hand_color != nullptr && this->second_hand_color->current_values.get_state()) {
-      // Compute smooth position
+    // Seconds tail
+    if (second_hand_color != nullptr && second_hand_color->current_values.get_state()) {
       if (this->last_second != now.second) {
         this->last_second = now.second;
         this->last_second_timestamp = millis();
       }
-      float progress = (millis() - this->last_second_timestamp) / 1000.0f;
-      if (progress > 1.0f) progress = 1.0f;
+      float progress = std::min((millis() - this->last_second_timestamp) / 1000.0f, 1.0f);
       float precise_pos = now.second + progress;
 
-      std::string s_eff = this->second_hand_color->get_effect_name().str();
+      std::string s_eff = second_hand_color->get_effect_name().str();
       if (s_eff == "Rainbow") {
-        // Drifting rainbow phase
         float cycle_offset = fmod(millis() / 47000.0f, 1.0f) * 360.0f;
-        float br = this->second_hand_color->current_values.get_brightness();
+        float br = second_hand_color->current_values.get_brightness();
         int tail_length = 15;
         for (int i = 0; i < 60; i++) {
           float dist = precise_pos - i;
           if (dist < 0) dist += 60.0f;
           if (dist >= 0 && dist < tail_length) {
-            float intensity = 1.0f - (dist / (float)tail_length);
-            intensity = intensity * intensity;
+            float intensity = (1.0f - (dist / (float)tail_length));
+            intensity *= intensity;
             float hue = fmod((i * (360.0f / 60.0f)) + cycle_offset, 360.0f);
-            float r_f, g_f, b_f;
-            esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r_f, g_f, b_f);
-            it[i] = Color((uint8_t)(r_f * 255.0f * intensity * br), (uint8_t)(g_f * 255.0f * intensity * br), (uint8_t)(b_f * 255.0f * intensity * br));
+            float r, g, b;
+            esphome::hsv_to_rgb(hue, 1.0f, 1.0f, r, g, b);
+            it[i] = Color(
+              (uint8_t)(r * 255.0f * intensity * br),
+              (uint8_t)(g * 255.0f * intensity * br),
+              (uint8_t)(b * 255.0f * intensity * br));
           }
         }
       } else {
-        // Solid-colour tail — resolve colour from light element
-        if (this->second_hand_color->current_values.get_state()) {
-          float br = this->second_hand_color->current_values.get_brightness();
-          std::string s_eff2 = s_eff;
-          if (s_eff2 == "Temperature Color") { 
-              Color c = get_temp_color(_temp_sensor ? _temp_sensor->state : 20.0f);
-              sc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-          } else if (s_eff2 == "Humidity Color") { 
-              Color c = get_humid_color(_humidity_sensor ? _humidity_sensor->state : 50.0f);
-              sc_color = Color((uint8_t)(c.r * br), (uint8_t)(c.g * br), (uint8_t)(c.b * br));
-          } else { sc_color = get_cv_color(this->second_hand_color->current_values); }
-        }
-        draw_tail(it, precise_pos, sc_color);
+        Color sc = resolve_hand_color(second_hand_color, _default_second_color, now);
+        draw_tail(it, precise_pos, sc);
       }
     }
 
-    // --- Minute Hand (R1) ---
-    it[now.minute] = mc_hand;
+    it[now.minute] = mc;
   }
 
   // --- Private Helpers ---
 
-  // 15-LED trailing seconds tail with quadratic falloff in a single solid colour.
   void RingClock::draw_tail(light::AddressableLight & it, float precise_pos, Color color) {
     int tail_length = 15;
     for (int i = 0; i < 60; i++) {
@@ -621,295 +502,317 @@ namespace ring_clock {
       if (dist < 0) dist += 60.0f;
       if (dist >= 0 && dist < tail_length) {
         float intensity = 1.0f - (dist / (float)tail_length);
-        intensity = intensity * intensity;
-        it[i] = Color((uint8_t)(color.r * intensity), (uint8_t)(color.g * intensity), (uint8_t)(color.b * intensity));
+        intensity *= intensity;
+        it[i] = Color(
+          (uint8_t)(color.r * intensity),
+          (uint8_t)(color.g * intensity),
+          (uint8_t)(color.b * intensity));
       }
     }
   }
 
-  // Smooth single-pixel fade centred on precise_pos (used for Clock (Fade) mode).
   void RingClock::draw_fade(light::AddressableLight & it, float precise_pos, Color color) {
     for (int i = 0; i < 60; i++) {
       float dist = fabsf(i - precise_pos);
       if (dist > 30.0f) dist = 60.0f - dist;
       if (dist < 1.5f) {
         float scale = 1.0f - (dist / 1.5f);
-        it[i] = Color((uint8_t)(color.r * scale), (uint8_t)(color.g * scale), (uint8_t)(color.b * scale));
+        it[i] = Color(
+          (uint8_t)(color.r * scale),
+          (uint8_t)(color.g * scale),
+          (uint8_t)(color.b * scale));
       }
     }
   }
 
-  // --- Utility: Colors from Values ---
+  // --- Sensor Color Lookups ---
 
   Color RingClock::get_temp_color(float t) {
     if (_temp_color_points.empty()) {
-        // Fallback to legacy hardcoded defaults
-        if (t <= -10.0f) return Color(26, 22, 73);
-        if (t <= 0.0f) {
-            float p = (t + 10.0f) / 10.0f;
-            return Color((uint8_t)(26 + p * (18-26)), (uint8_t)(22 + p * (94-22)), (uint8_t)(73 + p * (131-73)));
+      // Fallback hardcoded gradient
+      if (t <= -10.0f) return Color(26, 22, 73);
+      struct { float lo, hi; Color c0, c1; } segs[] = {
+        { -10, 0,  Color(26,22,73),    Color(18,94,131)  },
+        {   0, 10, Color(18,94,131),   Color(60,157,116) },
+        {  10, 20, Color(60,157,116),  Color(207,216,113)},
+        {  20, 30, Color(207,216,113), Color(223,158,60) },
+        {  30, 40, Color(223,158,60),  Color(193,59,44)  },
+        {  40, 50, Color(193,59,44),   Color(136,26,23)  },
+      };
+      for (auto& s : segs) {
+        if (t <= s.hi) {
+          float p = (t - s.lo) / (s.hi - s.lo);
+          return Color(
+            (uint8_t)(s.c0.r + p * (s.c1.r - s.c0.r)),
+            (uint8_t)(s.c0.g + p * (s.c1.g - s.c0.g)),
+            (uint8_t)(s.c0.b + p * (s.c1.b - s.c0.b)));
         }
-        if (t <= 10.0f) {
-            float p = t / 10.0f;
-            return Color((uint8_t)(18 + p * (60-18)), (uint8_t)(94 + p * (157-94)), (uint8_t)(131 + p * (116-131)));
-        }
-        if (t <= 20.0f) {
-            float p = (t - 10.0f) / 10.0f;
-            return Color((uint8_t)(60 + p * (207-60)), (uint8_t)(157 + p * (216-157)), (uint8_t)(116 + p * (113-116)));
-        }
-        if (t <= 30.0f) {
-            float p = (t - 20.0f) / 10.0f;
-            return Color((uint8_t)(207 + p * (223-207)), (uint8_t)(216 + p * (158-216)), (uint8_t)(113 + p * (60-113)));
-        }
-        if (t <= 40.0f) {
-            float p = (t - 30.0f) / 10.0f;
-            return Color((uint8_t)(223 + p * (193-223)), (uint8_t)(158 + p * (59-158)), (uint8_t)(60 + p * (44-60)));
-        }
-        if (t <= 50.0f) {
-            float p = (t - 40.0f) / 10.0f;
-            return Color((uint8_t)(193 + p * (136-193)), (uint8_t)(59 + p * (26-59)), (uint8_t)(44 + p * (23-44)));
-        }
-        return Color(136, 26, 23);
+      }
+      return Color(136, 26, 23);
     }
 
-    // Sort check (Points should be added in order, but we can handle it)
-    auto points = _temp_color_points;
-    std::sort(points.begin(), points.end(), [](const ColorPoint &a, const ColorPoint &b) { return a.value < b.value; });
-
-    if (t <= points.front().value) return points.front().color;
-    if (t >= points.back().value) return points.back().color;
-
-    for (size_t i = 0; i < points.size() - 1; i++) {
-        if (t >= points[i].value && t <= points[i+1].value) {
-            float p = (t - points[i].value) / (points[i+1].value - points[i].value);
-            return Color((uint8_t)(points[i].color.r + p * (points[i+1].color.r - points[i].color.r)),
-                         (uint8_t)(points[i].color.g + p * (points[i+1].color.g - points[i].color.g)),
-                         (uint8_t)(points[i].color.b + p * (points[i+1].color.b - points[i].color.b)));
-        }
+    // Points are pre-sorted in setup()
+    if (t <= _temp_color_points.front().value) return _temp_color_points.front().color;
+    if (t >= _temp_color_points.back().value)  return _temp_color_points.back().color;
+    for (size_t i = 0; i < _temp_color_points.size() - 1; i++) {
+      if (t >= _temp_color_points[i].value && t <= _temp_color_points[i+1].value) {
+        float p = (t - _temp_color_points[i].value) /
+                  (_temp_color_points[i+1].value - _temp_color_points[i].value);
+        return Color(
+          (uint8_t)(_temp_color_points[i].color.r + p * (_temp_color_points[i+1].color.r - _temp_color_points[i].color.r)),
+          (uint8_t)(_temp_color_points[i].color.g + p * (_temp_color_points[i+1].color.g - _temp_color_points[i].color.g)),
+          (uint8_t)(_temp_color_points[i].color.b + p * (_temp_color_points[i+1].color.b - _temp_color_points[i].color.b)));
+      }
     }
-    return Color(0,0,0);
+    return Color(0, 0, 0);
   }
 
   Color RingClock::get_humid_color(float h) {
     if (_humid_color_points.empty()) {
-        if (h <= 30.0f) {
-            float p = h / 30.0f;
-            return Color((uint8_t)(190 - p * 30), (uint8_t)(155 + p * 40), (uint8_t)(47 - p * 20));
-        } else if (h <= 70.0f) {
-            float p = (h - 30.0f) / 40.0f;
-            return Color((uint8_t)(160 - p * 100), (uint8_t)(195 + p * 20), (uint8_t)(27 + p * 100));
-        } else {
-            float p = (h - 70.0f) / 30.0f;
-            if (p > 1.0f) p = 1.0f;
-            return Color((uint8_t)(60 - p * 40), (uint8_t)(215 - p * 120), (uint8_t)(127 + p * 100));
+      struct { float lo, hi; Color c0, c1; } segs[] = {
+        {  0, 30, Color(190,155,47), Color(160,195,27) },
+        { 30, 70, Color(160,195,27), Color(60,215,127) },
+        { 70,100, Color(60,215,127), Color(20,95,227)  },
+      };
+      if (h <= 0)   return segs[0].c0;
+      if (h >= 100) return segs[2].c1;
+      for (auto& s : segs) {
+        if (h <= s.hi) {
+          float p = (h - s.lo) / (s.hi - s.lo);
+          return Color(
+            (uint8_t)(s.c0.r + p * (s.c1.r - s.c0.r)),
+            (uint8_t)(s.c0.g + p * (s.c1.g - s.c0.g)),
+            (uint8_t)(s.c0.b + p * (s.c1.b - s.c0.b)));
         }
+      }
+      return Color(20, 95, 227);
     }
 
-    auto points = _humid_color_points;
-    std::sort(points.begin(), points.end(), [](const ColorPoint &a, const ColorPoint &b) { return a.value < b.value; });
-
-    if (h <= points.front().value) return points.front().color;
-    if (h >= points.back().value) return points.back().color;
-
-    for (size_t i = 0; i < points.size() - 1; i++) {
-        if (h >= points[i].value && h <= points[i+1].value) {
-            float p = (h - points[i].value) / (points[i+1].value - points[i].value);
-            return Color((uint8_t)(points[i].color.r + p * (points[i+1].color.r - points[i].color.r)),
-                         (uint8_t)(points[i].color.g + p * (points[i+1].color.g - points[i].color.g)),
-                         (uint8_t)(points[i].color.b + p * (points[i+1].color.b - points[i].color.b)));
-        }
+    if (h <= _humid_color_points.front().value) return _humid_color_points.front().color;
+    if (h >= _humid_color_points.back().value)  return _humid_color_points.back().color;
+    for (size_t i = 0; i < _humid_color_points.size() - 1; i++) {
+      if (h >= _humid_color_points[i].value && h <= _humid_color_points[i+1].value) {
+        float p = (h - _humid_color_points[i].value) /
+                  (_humid_color_points[i+1].value - _humid_color_points[i].value);
+        return Color(
+          (uint8_t)(_humid_color_points[i].color.r + p * (_humid_color_points[i+1].color.r - _humid_color_points[i].color.r)),
+          (uint8_t)(_humid_color_points[i].color.g + p * (_humid_color_points[i+1].color.g - _humid_color_points[i].color.g)),
+          (uint8_t)(_humid_color_points[i].color.b + p * (_humid_color_points[i+1].color.b - _humid_color_points[i].color.b)));
+      }
     }
-    return Color(0,0,0);
+    return Color(0, 0, 0);
   }
 
-  void RingClock::render_sensors_bars(light::AddressableLight & it) {
-    float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
-    float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
+  // --- Sensor Renderers ---
 
+  void RingClock::render_sensors_bars(light::AddressableLight & it) {
+    float temp  = _temp_sensor      ? _temp_sensor->state      : 20.0f;
+    float humid = _humidity_sensor  ? _humidity_sensor->state  : 50.0f;
     Color nc = get_cv_color(this->notification_color->current_values);
 
-    // 1. Temperature Bar (Right Side of R2: Hours 0-5)
+    // Temperature bar — right side of R2 (hours 5 down to 0), 18 LEDs
     float t_p = (temp + 10.0f) / 60.0f;
-    int t_leds = (int)(t_p * 18.0f);
-    if (t_leds < 0) t_leds = 0; if (t_leds > 18) t_leds = 18;
-
+    int t_leds = (int)std::max(0.0f, std::min(18.0f, t_p * 18.0f));
     int count = 0;
     for (int h = 5; h >= 0; h--) {
-        for (int s = 3; s >= 1; s--) {
-            if (count < t_leds) {
-                float val = -10.0f + (count * 3.33f);
-                Color c = get_temp_color(val);
-                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
-            }
-            count++;
+      for (int s = 3; s >= 1; s--) {
+        if (count < t_leds) {
+          Color c = get_temp_color(-10.0f + (count * (60.0f / 18.0f)));
+          it[R1_NUM_LEDS + (h * 4) + s] = Color(
+            (uint8_t)(c.r * nc.r / 255.0f),
+            (uint8_t)(c.g * nc.g / 255.0f),
+            (uint8_t)(c.b * nc.b / 255.0f));
         }
+        count++;
+      }
     }
 
-    // 2. Humidity Bar (Left Side of R2: Hours 6-11)
+    // Humidity bar — left side of R2 (hours 6 up to 11), 18 LEDs
     float h_p = humid / 100.0f;
-    int h_leds = (int)(h_p * 18.0f);
-    if (h_leds < 0) h_leds = 0; if (h_leds > 18) h_leds = 18;
-
+    int h_leds = (int)std::max(0.0f, std::min(18.0f, h_p * 18.0f));
     count = 0;
     for (int h = 6; h <= 11; h++) {
-        for (int s = 1; s <= 3; s++) {
-            if (count < h_leds) {
-                float val = count * 5.55f;
-                Color c = get_humid_color(val);
-                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
-            }
-            count++;
+      for (int s = 1; s <= 3; s++) {
+        if (count < h_leds) {
+          Color c = get_humid_color(count * (100.0f / 18.0f));
+          it[R1_NUM_LEDS + (h * 4) + s] = Color(
+            (uint8_t)(c.r * nc.r / 255.0f),
+            (uint8_t)(c.g * nc.g / 255.0f),
+            (uint8_t)(c.b * nc.b / 255.0f));
         }
+        count++;
+      }
     }
   }
 
   void RingClock::render_sensors_temp_glow(light::AddressableLight & it) {
     float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
-    Color c = get_temp_color(temp);
+    Color c  = get_temp_color(temp);
     Color nc = get_cv_color(this->notification_color->current_values);
-    Color glow = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
+    Color glow = Color(
+      (uint8_t)(c.r * nc.r / 255.0f),
+      (uint8_t)(c.g * nc.g / 255.0f),
+      (uint8_t)(c.b * nc.b / 255.0f));
     for (int i = 0; i < 12; i++) {
-        it[R1_NUM_LEDS + (i * 4) + 1] = glow;
-        it[R1_NUM_LEDS + (i * 4) + 2] = glow;
-        it[R1_NUM_LEDS + (i * 4) + 3] = glow;
+      it[R1_NUM_LEDS + (i * 4) + 1] = glow;
+      it[R1_NUM_LEDS + (i * 4) + 2] = glow;
+      it[R1_NUM_LEDS + (i * 4) + 3] = glow;
     }
   }
 
   void RingClock::render_sensors_humid_glow(light::AddressableLight & it) {
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
-    Color c = get_humid_color(humid);
+    Color c  = get_humid_color(humid);
     Color nc = get_cv_color(this->notification_color->current_values);
-    Color glow = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
+    Color glow = Color(
+      (uint8_t)(c.r * nc.r / 255.0f),
+      (uint8_t)(c.g * nc.g / 255.0f),
+      (uint8_t)(c.b * nc.b / 255.0f));
     for (int i = 0; i < 12; i++) {
-        it[R1_NUM_LEDS + (i * 4) + 1] = glow;
-        it[R1_NUM_LEDS + (i * 4) + 2] = glow;
-        it[R1_NUM_LEDS + (i * 4) + 3] = glow;
+      it[R1_NUM_LEDS + (i * 4) + 1] = glow;
+      it[R1_NUM_LEDS + (i * 4) + 2] = glow;
+      it[R1_NUM_LEDS + (i * 4) + 3] = glow;
     }
   }
 
+  void RingClock::render_sensors_dual_glow(light::AddressableLight & it) {
+    float temp  = _temp_sensor     ? _temp_sensor->state     : 20.0f;
+    float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
+    Color nc = get_cv_color(this->notification_color->current_values);
+    Color tc = get_temp_color(temp);
+    Color hc = get_humid_color(humid);
+    Color t_glow = Color((uint8_t)(tc.r * nc.r / 255.0f), (uint8_t)(tc.g * nc.g / 255.0f), (uint8_t)(tc.b * nc.b / 255.0f));
+    Color h_glow = Color((uint8_t)(hc.r * nc.r / 255.0f), (uint8_t)(hc.g * nc.g / 255.0f), (uint8_t)(hc.b * nc.b / 255.0f));
+    for (int h = 0; h <= 5; h++)
+      for (int s = 1; s <= 3; s++) it[R1_NUM_LEDS + (h * 4) + s] = t_glow;
+    for (int h = 6; h <= 11; h++)
+      for (int s = 1; s <= 3; s++) it[R1_NUM_LEDS + (h * 4) + s] = h_glow;
+  }
+
   void RingClock::render_sensors_ticks(light::AddressableLight & it) {
-    float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
+    float temp  = _temp_sensor     ? _temp_sensor->state     : 20.0f;
     float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
     Color nc = get_cv_color(this->notification_color->current_values);
 
-    // 1. Temperature Tick (Right Side)
-    float t_p = (temp + 10.0f) / 60.0f;
-    if (t_p < 0) t_p = 0; if (t_p > 1.0f) t_p = 1.0f;
-    int t_led_idx = (int)(t_p * 17.99f);
-
+    // Temperature tick — right side, 18 positions
+    float t_p = std::max(0.0f, std::min(1.0f, (temp + 10.0f) / 60.0f));
+    int t_idx = (int)(t_p * 17.99f);
     int count = 0;
     for (int h = 5; h >= 0; h--) {
-        for (int s = 3; s >= 1; s--) {
-            if (count == t_led_idx) {
-                float val = -10.0f + (count * 3.33f);
-                Color c = get_temp_color(val);
-                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
-            }
-            count++;
+      for (int s = 3; s >= 1; s--) {
+        if (count == t_idx) {
+          Color c = get_temp_color(-10.0f + (count * (60.0f / 18.0f)));
+          it[R1_NUM_LEDS + (h * 4) + s] = Color(
+            (uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
         }
+        count++;
+      }
     }
 
-    // 2. Humidity Tick (Left Side)
-    float h_p = humid / 100.0f;
-    if (h_p < 0) h_p = 0; if (h_p > 1.0f) h_p = 1.0f;
-    int h_led_idx = (int)(h_p * 17.99f);
-
+    // Humidity tick — left side, 18 positions
+    float h_p = std::max(0.0f, std::min(1.0f, humid / 100.0f));
+    int h_idx = (int)(h_p * 17.99f);
     count = 0;
     for (int h = 6; h <= 11; h++) {
-        for (int s = 1; s <= 3; s++) {
-            if (count == h_led_idx) {
-                float val = count * 5.55f;
-                Color c = get_humid_color(val);
-                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
-            }
-            count++;
+      for (int s = 1; s <= 3; s++) {
+        if (count == h_idx) {
+          Color c = get_humid_color(count * (100.0f / 18.0f));
+          it[R1_NUM_LEDS + (h * 4) + s] = Color(
+            (uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
         }
+        count++;
+      }
     }
   }
 
   void RingClock::render_sensors_tick_individual(light::AddressableLight & it, bool is_temp) {
-    float val = is_temp ? (_temp_sensor ? _temp_sensor->state : 20.0f) : (_humidity_sensor ? _humidity_sensor->state : 50.0f);
-    float p = is_temp ? (val + 10.0f) / 60.0f : val / 100.0f;
-    if (p < 0) p = 0; if (p > 1.0f) p = 1.0;
+    float val = is_temp
+      ? (_temp_sensor     ? _temp_sensor->state     : 20.0f)
+      : (_humidity_sensor ? _humidity_sensor->state : 50.0f);
+    float p = std::max(0.0f, std::min(1.0f,
+      is_temp ? (val + 10.0f) / 60.0f : val / 100.0f));
     Color nc = get_cv_color(this->notification_color->current_values);
 
     int led_idx = (int)(p * 35.99f);
     int count = 0;
     for (int h = 0; h < 12; h++) {
-        for (int s = 1; s <= 3; s++) {
-            if (count == led_idx) {
-                Color c = is_temp ? get_temp_color(val) : get_humid_color(val);
-                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
-            }
-            count++;
+      for (int s = 1; s <= 3; s++) {
+        if (count == led_idx) {
+          Color c = is_temp ? get_temp_color(val) : get_humid_color(val);
+          it[R1_NUM_LEDS + (h * 4) + s] = Color(
+            (uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
         }
+        count++;
+      }
     }
   }
 
   void RingClock::render_sensors_bar_individual(light::AddressableLight & it, bool is_temp) {
-    float val = is_temp ? (_temp_sensor ? _temp_sensor->state : 20.0f) : (_humidity_sensor ? _humidity_sensor->state : 50.0f);
+    float val = is_temp
+      ? (_temp_sensor     ? _temp_sensor->state     : 20.0f)
+      : (_humidity_sensor ? _humidity_sensor->state : 50.0f);
     float p = is_temp ? (val + 10.0f) / 60.0f : val / 100.0f;
     Color nc = get_cv_color(this->notification_color->current_values);
 
-    int leds = (int)(p * 36.0f);
-    if (leds < 0) leds = 0; if (leds > 36) leds = 36;
+    int leds = (int)std::max(0.0f, std::min(36.0f, p * 36.0f));
     int count = 0;
     for (int h = 0; h < 12; h++) {
-        for (int s = 1; s <= 3; s++) {
-            if (count < leds) {
-                float current_val = is_temp ? (-10.0f + (count * (60.0f/36.0f))) : (count * (100.0f/36.0f));
-                Color c = is_temp ? get_temp_color(current_val) : get_humid_color(current_val);
-                it[R1_NUM_LEDS + (h * 4) + s] = Color((uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
-            }
-            count++;
+      for (int s = 1; s <= 3; s++) {
+        if (count < leds) {
+          float current_val = is_temp
+            ? (-10.0f + (count * (60.0f / 36.0f)))
+            : (count * (100.0f / 36.0f));
+          Color c = is_temp ? get_temp_color(current_val) : get_humid_color(current_val);
+          it[R1_NUM_LEDS + (h * 4) + s] = Color(
+            (uint8_t)(c.r * nc.r / 255.0f), (uint8_t)(c.g * nc.g / 255.0f), (uint8_t)(c.b * nc.b / 255.0f));
         }
-    }
-  }
-
-  void RingClock::render_sensors_dual_glow(light::AddressableLight & it) {
-    float temp = _temp_sensor ? _temp_sensor->state : 20.0f;
-    float humid = _humidity_sensor ? _humidity_sensor->state : 50.0f;
-    Color nc = get_cv_color(this->notification_color->current_values);
-
-    Color t_c = get_temp_color(temp);
-    Color h_c = get_humid_color(humid);
-    Color t_glow = Color((uint8_t)(t_c.r * nc.r / 255.0f), (uint8_t)(t_c.g * nc.g / 255.0f), (uint8_t)(t_c.b * nc.b / 255.0f));
-    Color h_glow = Color((uint8_t)(h_c.r * nc.r / 255.0f), (uint8_t)(h_c.g * nc.g / 255.0f), (uint8_t)(h_c.b * nc.b / 255.0f));
-
-    for (int h = 0; h <= 5; h++) {
-        for (int s = 1; s <= 3; s++) it[R1_NUM_LEDS + (h * 4) + s] = t_glow;
-    }
-    for (int h = 6; h <= 11; h++) {
-        for (int s = 1; s <= 3; s++) it[R1_NUM_LEDS + (h * 4) + s] = h_glow;
+        count++;
+      }
     }
   }
 
   void RingClock::render_timer(light::AddressableLight & it) {
-    clear_R1(it); clear_R2(it);
+    clear_R1(it);
+    clear_R2(it);
     draw_markers(it);
     if (!_timer_active) return;
 
     long remaining_ms = (long)_timer_target_ms - (long)millis();
     if (remaining_ms < 0) remaining_ms = 0;
     int total_seconds = remaining_ms / 1000;
-    int hours = total_seconds / 3600;
+    int hours   = total_seconds / 3600;
     int minutes = (total_seconds % 3600) / 60;
     int seconds = total_seconds % 60;
 
     if (total_seconds > 0 && total_seconds < 60) {
-      Color sc = (this->second_hand_color && this->second_hand_color->current_values.get_state()) ? get_cv_color(this->second_hand_color->current_values) : _default_second_color;
+      Color sc = (second_hand_color && second_hand_color->current_values.get_state())
+        ? get_cv_color(second_hand_color->current_values) : _default_second_color;
       for (int i = 0; i < seconds; i++) it[i] = sc;
     } else if (total_seconds > 0) {
-      Color hc = (this->hour_hand_color && this->hour_hand_color->current_values.get_state()) ? get_cv_color(this->hour_hand_color->current_values) : _default_hour_color;
-      for (int i = 0; i < 12; i++) if (i < hours) it[R1_NUM_LEDS + (i * 4)] = hc;
-      Color mc = (this->minute_hand_color && this->minute_hand_color->current_values.get_state()) ? get_cv_color(this->minute_hand_color->current_values) : _default_minute_color;
+      Color hc = (hour_hand_color && hour_hand_color->current_values.get_state())
+        ? get_cv_color(hour_hand_color->current_values) : _default_hour_color;
+      for (int i = 0; i < 12 && i < hours; i++) it[R1_NUM_LEDS + (i * 4)] = hc;
+
+      Color mc = (minute_hand_color && minute_hand_color->current_values.get_state())
+        ? get_cv_color(minute_hand_color->current_values) : _default_minute_color;
       for (int i = 0; i < minutes; i++) it[i] = mc;
-      it[seconds] = (this->second_hand_color && this->second_hand_color->current_values.get_state()) ? get_cv_color(this->second_hand_color->current_values) : _default_second_color;
+
+      Color sc = (second_hand_color && second_hand_color->current_values.get_state())
+        ? get_cv_color(second_hand_color->current_values) : _default_second_color;
+      it[seconds] = sc;
     }
-    
+
     if (total_seconds == 0 && _timer_active) {
-        if (_timer_finished_ms == 0) _timer_finished_ms = millis();
-        if (!_timer_finishing_dispatched) { this->on_timer_finished(); _timer_finishing_dispatched = true; }
+      if (_timer_finished_ms == 0) _timer_finished_ms = millis();
+
+      if (!_timer_finishing_dispatched) {
+        this->on_timer_finished();
+        _timer_finishing_dispatched = true;
+      }
+
+      // Pulse the notification ring for 10 seconds, then clean up
+      uint32_t elapsed_finish = millis() - _timer_finished_ms;
+      if (elapsed_finish < 10000) {
         float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
         Color nc = get_cv_color(this->notification_color->current_values);
         Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
@@ -917,16 +820,26 @@ namespace ring_clock {
           int base = R1_NUM_LEDS + (i * 4);
           it[base + 1] = pc; it[base + 2] = pc; it[base + 3] = pc;
         }
+      } else {
+        // Finished animation complete — reset timer state and return to clock
+        _timer_active = false;
+        _state = state::time;
+      }
     }
   }
 
   void RingClock::render_stopwatch(light::AddressableLight & it) {
-    clear_R1(it); clear_R2(it);
+    clear_R1(it);
+    clear_R2(it);
     draw_markers(it);
-    uint32_t elapsed_ms = _stopwatch_active ? (millis() - _stopwatch_start_ms) : _stopwatch_paused_ms;
-    if (elapsed_ms >= 12 * 3600 * 1000) elapsed_ms = 12 * 3600 * 1000 - 1;
+
+    uint32_t elapsed_ms = _stopwatch_active
+      ? (millis() - _stopwatch_start_ms)
+      : _stopwatch_paused_ms;
+    if (elapsed_ms >= (uint32_t)(12 * 3600 * 1000)) elapsed_ms = 12 * 3600 * 1000 - 1;
+
     int total_seconds = elapsed_ms / 1000;
-    int hours = total_seconds / 3600;
+    int hours   = total_seconds / 3600;
     int minutes = (total_seconds % 3600) / 60;
     int seconds = total_seconds % 60;
 
@@ -935,11 +848,16 @@ namespace ring_clock {
       _stopwatch_last_minute = minutes;
     }
 
-    Color hc = (this->hour_hand_color && this->hour_hand_color->current_values.get_state()) ? get_cv_color(this->hour_hand_color->current_values) : _default_hour_color;
-    for (int i = 0; i < 12; i++) if (i < hours) it[R1_NUM_LEDS + (i * 4)] = hc;
-    Color mc = (this->minute_hand_color && this->minute_hand_color->current_values.get_state()) ? get_cv_color(this->minute_hand_color->current_values) : _default_minute_color;
+    Color hc = (hour_hand_color   && hour_hand_color->current_values.get_state())
+      ? get_cv_color(hour_hand_color->current_values)   : _default_hour_color;
+    Color mc = (minute_hand_color && minute_hand_color->current_values.get_state())
+      ? get_cv_color(minute_hand_color->current_values) : _default_minute_color;
+    Color sc = (second_hand_color && second_hand_color->current_values.get_state())
+      ? get_cv_color(second_hand_color->current_values) : _default_second_color;
+
+    for (int i = 0; i < 12 && i < hours;   i++) it[R1_NUM_LEDS + (i * 4)] = hc;
     for (int i = 0; i < minutes; i++) it[i] = mc;
-    it[seconds] = (this->second_hand_color && this->second_hand_color->current_values.get_state()) ? get_cv_color(this->second_hand_color->current_values) : _default_second_color;
+    it[seconds] = sc;
   }
 
   void RingClock::render_alarm(light::AddressableLight & it) {
@@ -953,15 +871,15 @@ namespace ring_clock {
   }
 
   // --- Trigger Constructors ---
-  ReadyTrigger::ReadyTrigger(RingClock *parent) { parent->add_on_ready_callback([this]() { this->trigger(); }); }
-  TimerFinishedTrigger::TimerFinishedTrigger(RingClock *parent) { parent->add_on_timer_finished_callback([this]() { this->trigger(); }); }
-  StopwatchMinuteTrigger::StopwatchMinuteTrigger(RingClock *parent) { parent->add_on_stopwatch_minute_callback([this]() { this->trigger(); }); }
-  AlarmTriggeredTrigger::AlarmTriggeredTrigger(RingClock *parent) { parent->add_on_alarm_triggered_callback([this]() { this->trigger(); }); }
-  TimerStartedTrigger::TimerStartedTrigger(RingClock *parent) { parent->add_on_timer_started_callback([this]() { this->trigger(); }); }
-  TimerStoppedTrigger::TimerStoppedTrigger(RingClock *parent) { parent->add_on_timer_stopped_callback([this]() { this->trigger(); }); }
-  StopwatchStartedTrigger::StopwatchStartedTrigger(RingClock *parent) { parent->add_on_stopwatch_started_callback([this]() { this->trigger(); }); }
-  StopwatchPausedTrigger::StopwatchPausedTrigger(RingClock *parent) { parent->add_on_stopwatch_paused_callback([this]() { this->trigger(); }); }
-  StopwatchResetTrigger::StopwatchResetTrigger(RingClock *parent) { parent->add_on_stopwatch_reset_callback([this]() { this->trigger(); }); }
+  ReadyTrigger::ReadyTrigger(RingClock *parent)               { parent->add_on_ready_callback([this]()              { this->trigger(); }); }
+  TimerFinishedTrigger::TimerFinishedTrigger(RingClock *p)    { p->add_on_timer_finished_callback([this]()          { this->trigger(); }); }
+  StopwatchMinuteTrigger::StopwatchMinuteTrigger(RingClock *p){ p->add_on_stopwatch_minute_callback([this]()        { this->trigger(); }); }
+  AlarmTriggeredTrigger::AlarmTriggeredTrigger(RingClock *p)  { p->add_on_alarm_triggered_callback([this]()         { this->trigger(); }); }
+  TimerStartedTrigger::TimerStartedTrigger(RingClock *p)      { p->add_on_timer_started_callback([this]()           { this->trigger(); }); }
+  TimerStoppedTrigger::TimerStoppedTrigger(RingClock *p)      { p->add_on_timer_stopped_callback([this]()           { this->trigger(); }); }
+  StopwatchStartedTrigger::StopwatchStartedTrigger(RingClock *p){ p->add_on_stopwatch_started_callback([this]()     { this->trigger(); }); }
+  StopwatchPausedTrigger::StopwatchPausedTrigger(RingClock *p){ p->add_on_stopwatch_paused_callback([this]()        { this->trigger(); }); }
+  StopwatchResetTrigger::StopwatchResetTrigger(RingClock *p)  { p->add_on_stopwatch_reset_callback([this]()         { this->trigger(); }); }
 
 } // namespace ring_clock
 } // namespace esphome

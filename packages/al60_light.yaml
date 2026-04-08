@@ -19,19 +19,19 @@ esphome:
                   // Hour: Orange (255, 145, 0)
                   auto h = id(hour_hand_color).turn_on();
                   h.set_effect((uint32_t)0);
-                  h.set_red(255/255.0f); h.set_green(145/255.0f); h.set_blue(0/255.0f); h.set_color_brightness(1.0f); h.perform();
+                  h.set_red(255/255.0f); h.set_green(145/255.0f); h.set_blue(0.0f); h.set_brightness(1.0f); h.set_color_brightness(1.0f); h.perform();
                   // Minute: Cyan (0, 255, 255)
                   auto m = id(minute_hand_color).turn_on();
                   m.set_effect((uint32_t)0);
-                  m.set_red(0/255.0f); m.set_green(255/255.0f); m.set_blue(255/255.0f); m.set_color_brightness(1.0f); m.perform();
+                  m.set_red(0.0f); m.set_green(1.0f); m.set_blue(1.0f); m.set_brightness(1.0f); m.set_color_brightness(1.0f); h.perform();
                   // Second: White (200, 200, 200)
                   auto s = id(second_hand_color).turn_on();
                   s.set_effect((uint32_t)0);
-                  s.set_red(200/255.0f); s.set_green(200/255.0f); s.set_blue(200/255.0f); s.set_color_brightness(200/255.0f); s.perform();
+                  s.set_red(1.0f); s.set_green(1.0f); s.set_blue(1.0f); s.set_brightness(200/255.0f); s.set_color_brightness(1.0f); s.perform();
                   // Markers: Dim White (50, 50, 50)
                   auto mk = id(marker_color).turn_on();
                   mk.set_effect((uint32_t)0);
-                  mk.set_red(50/255.0f); mk.set_green(50/255.0f); mk.set_blue(50/255.0f); mk.set_color_brightness(50/255.0f); mk.perform();
+                  mk.set_red(1.0f); mk.set_green(1.0f); mk.set_blue(1.0f); mk.set_brightness(50/255.0f); mk.set_color_brightness(1.0f); mk.perform();
               - globals.set:
                   id: colours_initialized
                   value: 'true'
@@ -239,10 +239,10 @@ light:
                   clear.perform();
                 }
                 auto call = ls->turn_on();
-                float r_f = r / 255.0f; float g_f = g / 255.0f; float b_f = b / 255.0f;
-                float max_val = std::max(r_f, std::max(g_f, b_f));
-                call.set_red(r_f); call.set_green(g_f); call.set_blue(b_f);
-                call.set_color_brightness(max_val);
+                call.set_red(r / 255.0f); 
+                call.set_green(g / 255.0f); 
+                call.set_blue(b / 255.0f);
+                call.set_color_brightness(1.0f);
                 call.set_brightness(br);
                 call.set_transition_length(500);
                 call.perform();
@@ -254,23 +254,23 @@ light:
               if (effect == "Clock" || effect == "Clock (Fade)" || effect == "Clock (Tail)") {
                 set_hand(id(hour_hand_color), 255, 145, 0);
                 set_hand(id(minute_hand_color), 0, 255, 255);
-                set_hand(id(second_hand_color), 200, 200, 200);
-                set_hand(id(marker_color), 50, 50, 50);
+                set_hand(id(second_hand_color), 255, 255, 255, 200/255.0f);
+                set_hand(id(marker_color), 255, 255, 255, 50/255.0f);
               } else if (effect == "Clock (Rainbow Tail)") {
                 set_rainbow(id(hour_hand_color));
                 set_rainbow(id(minute_hand_color));
                 set_rainbow(id(second_hand_color));
-                set_hand(id(marker_color), 50, 50, 50);
+                set_hand(id(marker_color), 255, 255, 255, 50/255.0f);
               } else if (effect == "Clock (RGB)") {
                 set_hand(id(hour_hand_color), 255, 0, 0);
                 set_hand(id(minute_hand_color), 0, 255, 0);
                 set_hand(id(second_hand_color), 0, 0, 255);
-                set_hand(id(marker_color), 50, 50, 50);
+                set_hand(id(marker_color), 255, 255, 255, 50/255.0f);
               } else if (effect == "Clock (Mono)") {
-                set_hand(id(hour_hand_color), 255, 255, 255);
-                set_hand(id(minute_hand_color), 100, 100, 100);
-                set_hand(id(second_hand_color), 40, 40, 40);
-                set_hand(id(marker_color), 10, 10, 10);
+                set_hand(id(hour_hand_color), 255, 255, 255, 1.0f);
+                set_hand(id(minute_hand_color), 255, 255, 255, 100/255.0f);
+                set_hand(id(second_hand_color), 255, 255, 255, 40/255.0f);
+                set_hand(id(marker_color), 255, 255, 255, 10/255.0f);
               }
             }
           }
@@ -342,6 +342,7 @@ light:
     red: output_hour_red
     green: output_hour_green
     blue: output_hour_blue
+    gamma_correct: 1.0
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 1
@@ -364,6 +365,7 @@ light:
     red: output_minute_red
     green: output_minute_green
     blue: output_minute_blue
+    gamma_correct: 1.0
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 2
@@ -386,6 +388,7 @@ light:
     red: output_second_red
     green: output_second_green
     blue: output_second_blue
+    gamma_correct: 1.0
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 3
@@ -409,6 +412,7 @@ light:
     red: output_marker_red
     green: output_marker_green
     blue: output_marker_blue
+    gamma_correct: 1.0
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 4
@@ -447,6 +451,7 @@ light:
     red: output_notification_red
     green: output_notification_green
     blue: output_notification_blue
+    gamma_correct: 1.0
     web_server:
       sorting_group_id: sorting_clock_led
       sorting_weight: 5

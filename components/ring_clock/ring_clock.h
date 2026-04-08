@@ -20,6 +20,15 @@
 #define R1_NUM_LEDS 60
 #define R2_NUM_LEDS 48
 
+// Indices of LEDs physically adjacent to the light sensor on the PCB.
+// Used to estimate LED interference when reading ambient brightness.
+// Update these if the PCB layout changes.
+#define SENSOR_ADJACENT_LED_R1 15  // Inner ring LED nearest the sensor
+#define SENSOR_ADJACENT_LED_R2 12  // Outer ring LED nearest the sensor (R2-relative index)
+
+// Maximum timer duration: 12 h 59 m 59 s expressed in seconds
+#define TIMER_MAX_SECONDS 46799
+
 namespace esphome {
 namespace ring_clock {
 
@@ -39,11 +48,12 @@ namespace ring_clock {
     time,               // Standard clock display
     time_fade,          // Clock with smooth fading seconds
     time_tail,          // Clock with 15-LED trailing seconds (colours from individual lights)
-    time_sweep,         // Clock with sweeping hour hand between markers
+    // Note: hour-sweep is driven by the hour_sweep_switch via should_sweep() inside
+    // render_time / render_tail — it is not a separate FSM state.
     timer,              // Countdown timer visualization
     stopwatch,          // Stopwatch visualization
-    alarm,              // Alarm active state
-    
+    alarm,              // Alarm active state (rendered as an overlay when _alarm_active is set)
+
     // Sensor visualizations
     sensors_bars,       // Dual bars: Temp (Right), Humid (Left)
     sensors_temp_glow,  // Full ring glow based on temperature color
@@ -80,7 +90,7 @@ namespace ring_clock {
       // Main entry point called by the Light Lambda in YAML
       void addressable_lights_lambdacall(light::AddressableLight & it);
       
-      // -- State Management ---
+      // --- State Management ---
       state get_state();
       void set_state(state state);
 
@@ -102,11 +112,11 @@ namespace ring_clock {
       void set_notification_color_state(light::LightState* state);
       void set_marker_highlight_mode(MarkerHighlightMode mode) { this->_marker_highlight_mode = mode; }
       
-      // API to define LEDs that should be turned off
+      // API to define LEDs that should be turned off (hardware masking)
       void set_blank_leds(std::vector<int> leds);
       
       // Returns a calculated interference factor for the light sensor
-      // Based on the brightness of LEDs near the sensor
+      // based on the brightness of LEDs physically near the sensor
       float get_interference_factor();
 
       // --- Timer Logic ---
@@ -116,7 +126,6 @@ namespace ring_clock {
       void on_timer_stopped();
       void on_timer_finished();
       
-      // Timer Callbacks
       void add_on_timer_started_callback(std::function<void()> callback);
       void add_on_timer_stopped_callback(std::function<void()> callback);
       void add_on_timer_finished_callback(std::function<void()> callback);
@@ -129,13 +138,12 @@ namespace ring_clock {
       void on_stopwatch_started();
       void on_stopwatch_paused();
       void on_stopwatch_reset();
-      void on_stopwatch_minute(); // Triggered every full minute
+      void on_stopwatch_minute();
       
-      // Stopwatch Callbacks
       void add_on_stopwatch_started_callback(std::function<void()> callback);
       void add_on_stopwatch_paused_callback(std::function<void()> callback);
       void add_on_stopwatch_reset_callback(std::function<void()> callback);
-      void add_on_stopwatch_minute_callback(std::function<void()> callback); // Used for minute chime
+      void add_on_stopwatch_minute_callback(std::function<void()> callback);
 
       // --- Alarm Logic ---
       void start_alarm();
@@ -153,20 +161,17 @@ namespace ring_clock {
       void add_humidity_color_point(float value, Color color) { _humid_color_points.push_back({value, color}); }
 
     protected:
-      // Internal state variables
       state _state{state::time};
       bool _has_time{false};
       float _interference_factor{0.0f};
       std::vector<int> _blanked_leds;
 
-      // Sensors to external components
       time::RealTimeClock *_time;
       switch_::Switch* _hour_sweep_switch{nullptr};
       switch_::Switch* _sound_enabled_switch{nullptr};
       sensor::Sensor* _temp_sensor{nullptr};
       sensor::Sensor* _humidity_sensor{nullptr};
       
-      // Pointers to color sources
       light::LightState *_clock_lights{nullptr};
       light::LightState* hour_hand_color{nullptr};
       light::LightState* minute_hand_color{nullptr};
@@ -174,7 +179,6 @@ namespace ring_clock {
       light::LightState* marker_color{nullptr};
       light::LightState* notification_color{nullptr};
 
-      // Default colors (local copies)
       Color _default_hour_color = DEFAULT_COLOR_HOUR;
       Color _default_minute_color = DEFAULT_COLOR_MINUTE;
       Color _default_second_color = DEFAULT_COLOR_SECOND;
@@ -182,19 +186,30 @@ namespace ring_clock {
       Color _default_marker_color = DEFAULT_COLOR_MARKERS;
       MarkerHighlightMode _marker_highlight_mode{NONE};
       
+      // Color gradient points — sorted once in setup() so per-frame lookups are cheap
       std::vector<ColorPoint> _temp_color_points;
       std::vector<ColorPoint> _humid_color_points;
 
-      // Time tracking for smooth animations
       int last_second{-1};
       uint32_t last_second_timestamp{0};
 
-      // --- Logic Helpers ---
-      // Clear Ring 1 (Inner) or Ring 2 (Outer)
+      // --- Helpers ---
       void clear_R1(light::AddressableLight & it);
       void clear_R2(light::AddressableLight & it);
-      
-      // Specific Renderers
+
+      // Resolves the display color for one clock hand from its LightState.
+      // Handles Rainbow / Temperature Color / Humidity Color effects; falls back
+      // to default_color when the light is off or has no recognised effect.
+      // Set is_minute_complement=true to shift Rainbow hue by 180° (minute hand).
+      Color resolve_hand_color(light::LightState* ls, Color default_color,
+                               const esphome::ESPTime& now,
+                               bool is_minute_complement = false);
+
+      // Draws the hour hand on R2 as a single marker LED or smoothly swept
+      // between adjacent LEDs when the hour-sweep switch is on.
+      void draw_hour_hand(light::AddressableLight & it, Color color,
+                          const esphome::ESPTime& now);
+
       void draw_markers(light::AddressableLight & it);
       void render_time(light::AddressableLight & it, bool fade);
       void render_tail(light::AddressableLight & it);
@@ -202,26 +217,21 @@ namespace ring_clock {
       void render_stopwatch(light::AddressableLight & it);
       void render_alarm(light::AddressableLight & it);
       
-      // Sensor Visualizers
       void render_sensors_bars(light::AddressableLight & it);
       void render_sensors_ticks(light::AddressableLight & it);
       void render_sensors_temp_glow(light::AddressableLight & it);
       void render_sensors_humid_glow(light::AddressableLight & it);
       void render_sensors_dual_glow(light::AddressableLight & it);
       void render_sensors_bar_individual(light::AddressableLight & it, bool is_temp);
-      void render_sensors_tick_individual(light::AddressableLight & it, bool temperature);
+      void render_sensors_tick_individual(light::AddressableLight & it, bool is_temp);
 
       bool should_sweep();
 
     private:  
-      // Colors based on values
       Color get_temp_color(float t);
       Color get_humid_color(float h);
 
-      // Seconds rendering helpers
-      // draw_tail: 15-LED trailing tail in a solid colour (quadratic falloff)
       void draw_tail(light::AddressableLight & it, float precise_pos, Color color);
-      // draw_fade: smooth single-pixel fade centred on precise second position
       void draw_fade(light::AddressableLight & it, float precise_pos, Color color);
 
       // --- Timer State ---
@@ -255,7 +265,6 @@ namespace ring_clock {
   };
 
   // --- Triggers ---
-  // These connect C++ events to YAML Automation
   class ReadyTrigger : public Trigger<> { public: explicit ReadyTrigger(RingClock *parent); };
   class TimerFinishedTrigger : public Trigger<> { public: explicit TimerFinishedTrigger(RingClock *parent); };
   class StopwatchMinuteTrigger : public Trigger<> { public: explicit StopwatchMinuteTrigger(RingClock *parent); };

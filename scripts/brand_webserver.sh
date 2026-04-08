@@ -13,6 +13,18 @@ BG_BASE="#101828"
 BG_CARD="rgba(106, 114, 130, 0.1)"
 STATIC_OUT="$SCRIPT_DIR/../static"
 
+# Fix #15: detect OS so sed is called correctly on both macOS (BSD) and Linux/CI (GNU).
+# BSD sed requires an argument to -i (use "" for no backup); GNU sed does not.
+if sed --version 2>/dev/null | grep -q 'GNU'; then
+  SED_I=(sed -i)
+else
+  SED_I=(sed -i "")
+fi
+
+# Wrapper: SEDI <args> — use for single file edits.
+# Note: For 'find -exec', use "${SED_I[@]}" directly as find cannot call shell functions.
+SEDI() { "${SED_I[@]}" "$@"; }
+
 # Clean up temp dir on script exit (success or failure)
 trap 'echo "Cleaning up temp directory..."; rm -rf "$TEMP_DIR"' EXIT
 
@@ -40,41 +52,41 @@ fi
 echo "Redefining colors and fonts in component source..."
 
 # Replace hardcoded fonts
-find src -type f \( -name "*.ts" -o -name "*.css" \) -exec sed -i '' "s/ui-monospace, system-ui, \"Helvetica\", \"Arial Narrow\", \"Roboto\", \"Oxygen\", \"Ubuntu\", sans-serif/'Inter', sans-serif/g" {} +
+find src -type f \( -name "*.ts" -o -name "*.css" \) -exec \
+  "${SED_I[@]}" "s/ui-monospace, system-ui, \"Helvetica\", \"Arial Narrow\", \"Roboto\", \"Oxygen\", \"Ubuntu\", sans-serif/'Inter', sans-serif/g" {} +
 
 # Exo 2 and brand orange on h1
-sed -i '' "s/h1 {/h1 { font-family: 'Exo 2', sans-serif !important; color: $BRAND_COLOR; /g" src/css/app.ts
+SEDI "s/h1 {/h1 { font-family: 'Exo 2', sans-serif !important; color: $BRAND_COLOR; /g" src/css/app.ts
 
 # Brand orange on header icon color
-sed -i '' "s/color: rgba(127, 127, 127, 0.5);/color: $BRAND_COLOR;/g" src/css/app.ts
+SEDI "s/color: rgba(127, 127, 127, 0.5);/color: $BRAND_COLOR;/g" src/css/app.ts
 
-# Tab container: glass card bg + blur (Shadow DOM — must modify source directly, injected CSS cannot pierce it)
-# Note: .tab-container and .tab-header are inside Lit component shadow roots
-# border-radius is intentionally not overridden — the default keeps the top-left corner square
-sed -i '' "s/\.tab-container {/\.tab-container { background: $BG_CARD !important; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important; backdrop-filter: blur(8px) !important; /g" src/css/tab.ts
+# Tab container: glass card bg + blur (Shadow DOM — must modify source directly)
+SEDI "s/\.tab-container {/\.tab-container { background: $BG_CARD !important; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important; backdrop-filter: blur(8px) !important; /g" src/css/tab.ts
 
-# Tab header: Exo 2, white, with blur (also inside Shadow DOM)
-sed -i '' "s/\.tab-header {/\.tab-header { font-family: 'Exo 2', sans-serif !important; color: #ffffff !important; backdrop-filter: blur(8px) !important; /g" src/css/tab.ts
+# Tab header: Exo 2, white, with blur (inside Shadow DOM)
+SEDI "s/\.tab-header {/\.tab-header { font-family: 'Exo 2', sans-serif !important; color: #ffffff !important; backdrop-filter: blur(8px) !important; /g" src/css/tab.ts
 
-# Entity rows: padding and spacing between rows (inside Shadow DOM of esp-entity-table — must be done at source level)
-sed -i '' "s/\.entity-row {/\.entity-row { padding: 0.5rem 0.75rem !important; margin: 4px 0 !important; /g" src/css/esp-entity-table.ts
+# Entity rows: padding and spacing between rows (inside Shadow DOM)
+SEDI "s/\.entity-row {/\.entity-row { margin: 4px 0 !important; /g" src/css/esp-entity-table.ts
 
-# FIX: Force charts above glass card backgrounds so they remain visible
-sed -i '' "s/z-index: -100;/z-index: 10; pointer-events: none;/g" src/esp-entity-chart.ts
+# FIX: Force charts above glass card backgrounds
+SEDI "s/z-index: -100;/z-index: 10; pointer-events: none;/g" src/esp-entity-chart.ts
 
-# FIX: Increase chart opacity for better readability on dark backgrounds
-sed -i '' 's/this\.style\.opacity = "0\.5";/this.style.opacity = "0.8";/g' src/esp-entity-chart.ts
-sed -i '' 's/this\.style\.opacity = "0\.1";/this.style.opacity = "0.5";/g' src/esp-entity-chart.ts
+# FIX: Increase chart opacity for readability on dark backgrounds
+SEDI 's/this\.style\.opacity = "0\.5";/this.style.opacity = "0.8";/g' src/esp-entity-chart.ts
+SEDI 's/this\.style\.opacity = "0\.1";/this.style.opacity = "0.5";/g' src/esp-entity-chart.ts
 
-# Make app component backgrounds transparent so the page background shows through
-sed -i '' 's/background-color: var(--c-bg);/background-color: transparent;/g' src/css/app.ts
+# Make app component backgrounds transparent
+SEDI 's/background-color: var(--c-bg);/background-color: transparent;/g' src/css/app.ts
 
-# 4. Deep Clean: Replace all hardcoded blue/teal brand colors in source files
+# 4. Deep Clean: Replace all hardcoded blue/teal brand colors
 echo "Replacing hardcoded blue colors in source files..."
-find src -type f \( -name "*.ts" -o -name "*.css" \) -exec sed -i '' "s/#03a9f4/$BRAND_COLOR/g" {} +
-find src -type f \( -name "*.ts" -o -name "*.css" \) -exec sed -i '' "s/rgb(3, 169, 244)/rgb(255, 145, 0)/g" {} +
-find src -type f \( -name "*.ts" -o -name "*.css" \) -exec sed -i '' "s/#44739e/$BRAND_COLOR/g" {} +
-find src -type f \( -name "*.ts" -o -name "*.css" \) -exec sed -i '' "s/#26a69a/$BRAND_COLOR/g" {} +
+find src -type f \( -name "*.ts" -o -name "*.css" \) -exec "${SED_I[@]}" \
+  -e "s/#03a9f4/$BRAND_COLOR/g" \
+  -e "s/rgb(3, 169, 244)/rgb(255, 145, 0)/g" \
+  -e "s/#44739e/$BRAND_COLOR/g" \
+  -e "s/#26a69a/$BRAND_COLOR/g" {} +
 
 # 5. Inject global CSS and Font Link into main.ts
 echo "Injecting NIX labs fonts and global styles into main.ts..."
@@ -212,7 +224,7 @@ h1, header h1, .dashboard-title {
   color: #ffffff !important;
 }
 
-/* Brand orange on primary action buttons only (not all icon buttons) */
+/* Brand orange on primary action buttons only */
 ha-button, .call-service-button, button.primary {
   color: $BRAND_COLOR !important;
   font-weight: 500 !important;
@@ -239,7 +251,6 @@ header iconify-icon, header #logo {
 ::-webkit-scrollbar-thumb:hover { background: #FF9100; }
 "
 
-# Prepend the brand injector to main.ts — runs before Lit rendering begins
 mv src/main.ts src/main.ts.bak
 cat <<EOF > src/main.ts
 // NIX labs branding injection
@@ -273,7 +284,6 @@ if [ -f "../../_static/v3/www.js" ]; then
     cp "../../_static/v3/www.js" "$STATIC_OUT/www.js"
     echo "Successfully updated static/www.js"
 else
-    # Fallback: scan for Vite dist output
     JS_FILE=$(find dist -name "index-*.js" 2>/dev/null | head -n 1)
     if [ -n "$JS_FILE" ]; then
         cp "$JS_FILE" "$STATIC_OUT/www.js"
