@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Keep this active to force the runtime for any secondary dependencies
+      # Force the runner to use Node 24 for all steps/actions
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
@@ -32,8 +32,12 @@ jobs:
       - name: Extract Version from YAML
         id: get_version
         run: |
-          VERSION=$(grep 'version:' al60_factory.yaml | awk '{print $2}' | tr -d '"')
-          echo "firmware_version=$VERSION" >> $GITHUB_OUTPUT
+          # Use head -n 1 to ensure we only grab the actual version substitution, 
+          # not any lines containing 'v${version}' further down the file.
+          RAW_VER=$(grep 'version:' al60_factory.yaml | head -n 1 | awk '{print $2}' | tr -d '"')
+          # Echoing the shell variable directly into GITHUB_OUTPUT prevents the 
+          # runner from parsing it as a GitHub context variable.
+          echo "firmware_version=$RAW_VER" >> "$GITHUB_OUTPUT"
 
       - name: Compile ESPHome Binary
         run: |
@@ -54,7 +58,7 @@ jobs:
           cp $BUILD_PATH/firmware.bin public/firmware/al60_${V_NUM}_ota.bin
 
           # 2. Bake the version into al60.yaml for the end-user import
-          # We use single quotes for the search pattern so GitHub doesn't try to parse ${version}
+          # Using single quotes for the search pattern hides ${version} from the GitHub runner
           cp al60.yaml public/al60.yaml
           sed -i 's/v\${version}/v'"$V_NUM"'/g' public/al60.yaml
 
@@ -115,7 +119,7 @@ jobs:
           path: ./public
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v6 # Bumped to v6
+        uses: actions/upload-artifact@v6
         with:
           name: al60-firmware-${{ steps.get_version.outputs.firmware_version }}
           path: public/firmware/
@@ -132,4 +136,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5 # v5 supports Node 24
+        uses: actions/deploy-pages@v5
