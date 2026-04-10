@@ -53,7 +53,12 @@ jobs:
           cp $BUILD_PATH/ota_data_initial.bin public/firmware/ota_data_initial.bin
           cp $BUILD_PATH/firmware.bin public/firmware/al60_${V_NUM}_ota.bin
 
-          # 2. Create Merged Factory Binary (The stability fix)
+          # 2. Bake the version into al60.yaml for the end-user import
+          # We use single quotes for the search pattern so GitHub doesn't try to parse ${version}
+          cp al60.yaml public/al60.yaml
+          sed -i 's/v\${version}/v'"$V_NUM"'/g' public/al60.yaml
+
+          # 3. Create Merged Factory Binary
           esptool.py --chip esp32c3 merge_bin \
             -o public/firmware/al60_${V_NUM}_factory.bin \
             --flash_mode dio \
@@ -63,10 +68,10 @@ jobs:
             0xd000 public/firmware/ota_data_initial.bin \
             0x10000 public/firmware/al60_${V_NUM}_ota.bin
 
-          # 3. Calculate MD5
+          # 4. Calculate MD5
           MD5_OTA=$(md5sum public/firmware/al60_${V_NUM}_ota.bin | awk '{ print $1 }')
 
-          # 4. Create Manifest
+          # 5. Create Manifest
           cat <<EOF > public/firmware/manifest.json
           {
             "name": "NIX labs AL60",
