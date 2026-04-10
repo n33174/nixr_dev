@@ -43,9 +43,6 @@ globals:
     initial_value: "false"
 
 esphome:
-  project:
-    name: "NIXlabs.AL60"
-    version: "${version}"
   name_add_mac_suffix: false
   platformio_options:
     board_build.flash_mode: dio

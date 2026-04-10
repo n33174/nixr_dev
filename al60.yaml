@@ -1,45 +1,29 @@
-esphome:
-  name: "${name}"
-  friendly_name: "${friendly_name}"
-
 substitutions:
   # Unique name for the device in Home Assistant and network
   name: "al60"
   # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
-  # Firmware version (Must match GitHub version tag)
-  version: "0.9.8"
   # Fallback Time Zone in case auto-detection fails
   # Should be POSIX Timezone String
   # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
   time_zone: "AEST-10"
 
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
 packages:
-  core:
-    url: https://github.com/n33174/nixr_dev
-    file: packages/al60_core.yaml
-    ref: v${version}
-  time:
-    url: https://github.com/n33174/nixr_dev
-    file: packages/al60_time.yaml
-    ref: v${version}
-  sensors:
-    url: https://github.com/n33174/nixr_dev
-    file: packages/al60_sensors.yaml
-    ref: v${version}
-  inputs:
-    url: https://github.com/n33174/nixr_dev
-    file: packages/al60_inputs.yaml
-    ref: v${version}
-  light:
-    url: https://github.com/n33174/nixr_dev
-    file: packages/al60_light.yaml
-    ref: v${version}
+  core: github://n33174/nixr_dev/packages/al60_core.yaml@main
+  time: github://n33174/nixr_dev/packages/al60_time.yaml@main
+  sensors: github://n33174/nixr_dev/packages/al60_sensors.yaml@main
+  inputs: github://github.com/n33174/nixr_dev/packages/al60_inputs.yaml@main
+  light: github://github.com/n33174/nixr_dev/packages/al60_light.yaml@main
 
 external_components:
-  # The custom component driving the clock faces
-  - source:
-      type: git
-      url: https://github.com/n33174/nixr_dev
-      ref: v${version}
+  # The custom component driving the clock
+  - source: github://n33174/nixr_dev@main
     components: [ring_clock]
