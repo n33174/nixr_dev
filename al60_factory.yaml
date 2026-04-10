@@ -1,3 +1,7 @@
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+
 substitutions:
   name: "al60"
   friendly_name: "NIX labs AL60 Clock"

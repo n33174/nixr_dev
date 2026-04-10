@@ -1,3 +1,7 @@
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+
 substitutions:
   # Unique name for the device in Home Assistant and network
   name: "al60"
@@ -8,7 +12,7 @@ substitutions:
   # Fallback Time Zone in case auto-detection fails
   # Should be POSIX Timezone String
   # Find yours here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
-  time_zone: "AEST-10" 
+  time_zone: "AEST-10"
 
 packages:
   core:
@@ -38,4 +42,4 @@ external_components:
       type: git
       url: https://github.com/n33174/nixr_dev
       ref: v${version}
-    components: [ ring_clock ]
+    components: [ring_clock]
