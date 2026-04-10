@@ -7,7 +7,7 @@ substitutions:
   name: "al60"
   # Friendly name displayed in UIs
   friendly_name: "NIX labs AL60 Clock"
-  # Firmware version
+  # Firmware version (Must match GitHub version tag)
   version: "0.9.8"
   # Fallback Time Zone in case auto-detection fails
   # Should be POSIX Timezone String
