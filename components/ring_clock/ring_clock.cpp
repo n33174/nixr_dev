@@ -1,5 +1,14 @@
 #include "ring_clock.h"
 
+// lwIP SNTP daemon control — allows truly stopping NTP syncs in manual mode.
+// on_time_sync is notification-only; lwIP has already applied settimeofday()
+// before the callback fires, so the only reliable gate is sntp_stop().
+#ifdef USE_ESP32
+#include "esp_sntp.h"
+#elif defined(USE_ESP8266)
+#include "sntp/sntp.h"
+#endif
+
 namespace esphome {
 namespace ring_clock {
 
@@ -178,6 +187,145 @@ namespace ring_clock {
   void RingClock::set_clock_addressable_lights(light::LightState *it){ this->_clock_lights = it; }
   void RingClock::set_blank_leds(std::vector<int> leds) { this->_blanked_leds = leds; }
   float RingClock::get_interference_factor() { return this->_interference_factor; }
+
+  // --- Time Management ---
+
+  // Proleptic Gregorian calendar fields -> Unix UTC epoch.
+  // Pure arithmetic, no mktime(), no TZ environment side-effects.
+  time_t RingClock::fields_to_epoch(int year, int month, int day,
+                                    int hour, int minute, int second) {
+    int y = year, m = month;
+    if (m <= 2) { y--; m += 12; }
+    long days = 365L * y + y / 4 - y / 100 + y / 400
+              + (153 * (m - 3) + 2) / 5 + day - 719469;
+    return (time_t)(days * 86400L + (long)hour * 3600L + (long)minute * 60L + second);
+  }
+
+  void RingClock::set_sntp_enabled(bool enabled) {
+    _sntp_enabled = enabled;
+    if (!_network_ready) {
+      // TCP/IP stack not up yet — just record intent; set_network_ready()
+      // will apply the actual daemon state once WiFi connects.
+      ESP_LOGI(TAG, "SNTP %s (pending — network not ready).",
+               enabled ? "enabled" : "disabled (manual mode)");
+      return;
+    }
+    if (enabled) {
+      if (!esp_sntp_enabled()) {
+        esp_sntp_init();
+      }
+      ESP_LOGI(TAG, "SNTP daemon started (auto mode).");
+    } else {
+      if (esp_sntp_enabled()) {
+        esp_sntp_stop();
+      }
+      ESP_LOGI(TAG, "SNTP daemon stopped (manual mode).");
+    }
+  }
+
+  void RingClock::set_network_ready() {
+    _network_ready = true;
+    if (!_sntp_enabled) {
+      // Apply pending manual-mode stop
+      if (esp_sntp_enabled()) {
+        esp_sntp_stop();
+      }
+      ESP_LOGI(TAG, "Network ready: SNTP daemon stopped (manual mode).");
+    } else {
+      // Always restart the daemon when WiFi comes up.
+      // ESPHome calls esp_sntp_init() at setup() time before WiFi is
+      // available, so no actual NTP request fires. Restarting here
+      // guarantees an immediate sync on every WiFi connect (including
+      // first boot after factory reset).
+      if (esp_sntp_enabled()) {
+        esp_sntp_stop();
+      }
+      esp_sntp_init();
+      ESP_LOGI(TAG, "Network ready: SNTP daemon restarted — syncing now.");
+    }
+  }
+
+
+  bool RingClock::get_sntp_enabled() const { return _sntp_enabled; }
+
+  void RingClock::apply_sntp_sync(time_t utc_epoch) {
+    if (!_sntp_enabled) {
+      ESP_LOGI(TAG, "SNTP sync arrived but ignored (manual mode active).");
+      return;
+    }
+    struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
+    settimeofday(&tv, NULL);
+    ESP_LOGW(TAG, "SNTP sync applied — UTC epoch: %ld", (long)utc_epoch);
+  }
+
+  void RingClock::set_manual_time(int year, int month, int day,
+                                   int hour, int minute, int second) {
+    // Derive the active timezone offset from the live system clock:
+    //   _time->now()           gives *local* broken-down time
+    //   _time->timestamp_now() gives UTC epoch
+    // Treating the local fields as if they were UTC and subtracting the real
+    // UTC epoch yields the offset in seconds, correct for DST.
+    time_t utc_now = _time->timestamp_now();
+    auto now = _time->now();
+    time_t local_as_utc = fields_to_epoch(
+        now.year, now.month, now.day_of_month,
+        now.hour, now.minute, now.second);
+    int32_t tz_offset = (int32_t)(local_as_utc - utc_now);
+
+    // Convert the user-entered local datetime to UTC and apply
+    time_t entered_utc = fields_to_epoch(year, month, day, hour, minute, second);
+    time_t utc_epoch   = entered_utc - tz_offset;
+
+    struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
+    settimeofday(&tv, NULL);
+
+    // Switch to manual mode — block future automatic SNTP overwrites
+    set_sntp_enabled(false);
+    ESP_LOGI(TAG, "Manual time set — UTC epoch: %ld (tz_offset: %ds)",
+             (long)utc_epoch, tz_offset);
+  }
+
+  void RingClock::increment_hour() {
+    time_t utc_now = _time->timestamp_now();
+    auto now = _time->now();
+    time_t local_as_utc = fields_to_epoch(
+        now.year, now.month, now.day_of_month,
+        now.hour, now.minute, now.second);
+    int32_t tz_offset = (int32_t)(local_as_utc - utc_now);
+
+    // Increment hour with wrapping (0-23)
+    now.hour = (now.hour + 1) % 24;
+    now.second = 0;
+
+    time_t entered_utc = fields_to_epoch(now.year, now.month, now.day_of_month, now.hour, now.minute, now.second);
+    time_t utc_epoch   = entered_utc - tz_offset;
+
+    struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
+    settimeofday(&tv, NULL);
+    set_sntp_enabled(false);
+    ESP_LOGI(TAG, "Hour incremented (isolated, wrapped).");
+  }
+
+  void RingClock::increment_minute() {
+    time_t utc_now = _time->timestamp_now();
+    auto now = _time->now();
+    time_t local_as_utc = fields_to_epoch(
+        now.year, now.month, now.day_of_month,
+        now.hour, now.minute, now.second);
+    int32_t tz_offset = (int32_t)(local_as_utc - utc_now);
+
+    // Increment minute with wrapping (0-59)
+    now.minute = (now.minute + 1) % 60;
+    now.second = 0;
+
+    time_t entered_utc = fields_to_epoch(now.year, now.month, now.day_of_month, now.hour, now.minute, now.second);
+    time_t utc_epoch   = entered_utc - tz_offset;
+
+    struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
+    settimeofday(&tv, NULL);
+    set_sntp_enabled(false);
+    ESP_LOGI(TAG, "Minute incremented (isolated, wrapped).");
+  }
 
   bool RingClock::should_sweep() {
     return this->_hour_sweep_switch != nullptr && this->_hour_sweep_switch->state;

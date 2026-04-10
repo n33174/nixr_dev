@@ -172,6 +172,7 @@ binary_sensor:
     filters:
       - delayed_on_off: 50ms
     on_press:
+      - lambda: 'id(RingClock)->set_sntp_enabled(false);'
       - switch.turn_off: sntp_switch
     on_multi_click:
       # Single click: Increment Hour
@@ -184,13 +185,7 @@ binary_sensor:
                 - lambda: 'return !id(minute_button)->state;'
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
-                - lambda: |-
-                    // Direct epoch arithmetic: +3600s = +1 hour, zero seconds
-                    time_t epoch = id(sntp_time)->timestamp_now();
-                    epoch += 3600;
-                    epoch -= (epoch % 60);
-                    struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-                    settimeofday(&tv, NULL);
+                - lambda: 'id(RingClock)->increment_hour();'
                 - pcf8563.write_time: rtc_time
                 - logger.log: "Hour incremented"
       # Long press (Hold 1s): Start continuous increment
@@ -224,6 +219,7 @@ binary_sensor:
     filters:
       - delayed_on_off: 50ms
     on_press:
+      - lambda: 'id(RingClock)->set_sntp_enabled(false);'
       - switch.turn_off: sntp_switch
     on_multi_click:
       # Single click: Increment Minute
@@ -236,13 +232,7 @@ binary_sensor:
                 - lambda: 'return !id(hour_button)->state;'
               then:
                 - rtttl.play: 'short:d=4,o=5,b=100:16e6'
-                - lambda: |-
-                    // Direct epoch arithmetic: +60s = +1 minute, zero seconds
-                    time_t epoch = id(sntp_time)->timestamp_now();
-                    epoch += 60;
-                    epoch -= (epoch % 60);
-                    struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-                    settimeofday(&tv, NULL);
+                - lambda: 'id(RingClock)->increment_minute();'
                 - pcf8563.write_time: rtc_time
                 - logger.log: "Minute incremented"
       # Long press (1s): Start continuous increment
@@ -296,23 +286,13 @@ interval:
           condition:
             - lambda: 'return id(minute_button_long_press);'
           then:
-            - lambda: |-
-                time_t epoch = id(sntp_time)->timestamp_now();
-                epoch += 60;
-                epoch -= (epoch % 60);
-                struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-                settimeofday(&tv, NULL);
+            - lambda: 'id(RingClock)->increment_minute();'
             - pcf8563.write_time: rtc_time
       - if:
           condition:
             - lambda: 'return id(hour_button_long_press);'
           then:
-            - lambda: |-
-                time_t epoch = id(sntp_time)->timestamp_now();
-                epoch += 3600;
-                epoch -= (epoch % 60);
-                struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-                settimeofday(&tv, NULL);
+            - lambda: 'id(RingClock)->increment_hour();'
             - pcf8563.write_time: rtc_time
 
 button:

@@ -2,7 +2,14 @@ substitutions:
   name: "al60"
   friendly_name: "NIX labs AL60 Clock"
   version: "0.9.8"
-  time_zone: "AEST-10" 
+  time_zone: "AEST-10"
+
+# Bluetooth Provisioning
+esp32_improv:
+  authorizer: none
+
+# Serial Provisioning
+improv_serial:
 
 packages:
   # Using local paths for the GitHub Action Build
@@ -29,4 +36,4 @@ external_components:
   - source:
       type: local
       path: components
-    components: [ ring_clock ]
+    components: [ring_clock]

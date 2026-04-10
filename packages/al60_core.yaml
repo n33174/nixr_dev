@@ -10,10 +10,10 @@ globals:
   - id: timezone_configured
     type: bool
     restore_value: true
-    initial_value: 'false'
+    initial_value: "false"
   - id: boot_complete
     type: bool
-    initial_value: 'false'
+    initial_value: "false"
   - id: detected_iana
     type: std::string
   - id: detected_offset
@@ -21,26 +21,26 @@ globals:
   - id: wifi_configured
     type: bool
     restore_value: true
-    initial_value: 'false'
+    initial_value: "false"
   - id: minute_button_long_press
     type: bool
-    initial_value: 'false'
+    initial_value: "false"
   - id: hour_button_long_press
     type: bool
-    initial_value: 'false'
+    initial_value: "false"
   - id: timer_h
     type: int
-    initial_value: '0'
+    initial_value: "0"
   - id: timer_m
     type: int
-    initial_value: '0'
+    initial_value: "0"
   - id: timer_s
     type: int
-    initial_value: '0'
+    initial_value: "0"
   - id: colours_initialized
     type: bool
     restore_value: true
-    initial_value: 'false'
+    initial_value: "false"
 
 esphome:
   project:
@@ -51,7 +51,7 @@ esphome:
   name_add_mac_suffix: false
   platformio_options:
     board_build.flash_mode: dio
-    
+
 esp32:
   board: esp32-c3-devkitm-1
   variant: ESP32C3
@@ -62,7 +62,6 @@ esp32:
 logger:
   level: INFO
   logs:
-
     # Suppress noisy sensor value updates
     sensor: WARN
     binary_sensor: WARN
@@ -88,8 +87,8 @@ api:
 # Over-The-Air Updates
 ota:
   - platform: http_request # Allow pulling updates from the internet
-  - platform: web_server   # Allow uploading via web UI
-  - platform: esphome      # Allow updating via ESPHome dashboard
+  - platform: web_server # Allow uploading via web UI
+  - platform: esphome # Allow updating via ESPHome dashboard
 
 # Required for http_request OTA platform and timezone discovery
 http_request:
@@ -105,13 +104,6 @@ update:
       sorting_group_id: sorting_system
       sorting_weight: 1
 
-# Bluetooth Provisioning
-esp32_improv:
-  authorizer: none
-
-# Serial Provisioning
-improv_serial:
-
 wifi:
   # Enable Wi-Fi power saving mode for maximum stability
   power_save_mode: light
@@ -125,12 +117,12 @@ wifi:
   on_connect:
     - if:
         condition:
-          lambda: 'return !id(wifi_configured);'
+          lambda: "return !id(wifi_configured);"
         then:
           - switch.turn_on: sntp_switch
           - globals.set:
               id: wifi_configured
-              value: 'true'
+              value: "true"
           - logger.log: "First Wi-Fi connection detected! Enabling SNTP sync."
 
 # Captive Portal for fallback wifi configuration
@@ -144,7 +136,7 @@ web_server:
 
   # Custom NIX labs branded JavaScript (Theme built-in)
   js_url: https://n33174.github.io/nixr_dev/static/www.js
-  
+
   # Organize the web entities into logical groups
   sorting_groups:
     - id: sorting_time

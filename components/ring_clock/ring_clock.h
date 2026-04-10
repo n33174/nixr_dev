@@ -125,6 +125,30 @@ namespace ring_clock {
       void on_timer_started();
       void on_timer_stopped();
       void on_timer_finished();
+
+      // --- Time Management API ---
+      // Apply SNTP UTC epoch - gated by _sntp_enabled.
+      // Call this from sntp on_time_sync instead of settimeofday directly.
+      void apply_sntp_sync(time_t utc_epoch);
+
+      // Set time from user-entered local datetime fields.
+      // Internally derives the current timezone offset from _time and applies
+      // the correct UTC epoch. Also disables sntp sync (manual mode).
+      void set_manual_time(int year, int month, int day,
+                           int hour, int minute, int second);
+
+      // Increment hour (+3600 s) or minute (+60 s) and zero the seconds.
+      void increment_hour();
+      void increment_minute();
+
+      // Control whether incoming SNTP syncs are applied to the system clock.
+      // Safe to call at any time, including before network is available.
+      void set_sntp_enabled(bool enabled);
+      bool get_sntp_enabled() const;
+
+      // Call from wifi: on_connect once the TCP/IP stack is running.
+      // Applies any pending sntp_stop() that couldn't run at boot time.
+      void set_network_ready();
       
       void add_on_timer_started_callback(std::function<void()> callback);
       void add_on_timer_stopped_callback(std::function<void()> callback);
@@ -227,7 +251,12 @@ namespace ring_clock {
 
       bool should_sweep();
 
-    private:  
+    private:
+      // Gregorian calendar fields -> Unix UTC epoch.
+      // Pure arithmetic: no libc TZ side-effects.
+      static time_t fields_to_epoch(int year, int month, int day,
+                                    int hour, int minute, int second);
+
       Color get_temp_color(float t);
       Color get_humid_color(float h);
 
@@ -240,6 +269,10 @@ namespace ring_clock {
       uint32_t _timer_duration_ms{0};
       uint32_t _timer_finished_ms{0};
       bool _timer_finishing_dispatched{false};
+
+      // --- SNTP Sync Gate ---
+      bool _sntp_enabled{true};
+      bool _network_ready{false};  // true once TCP/IP stack is up (WiFi connected)
       
       // --- Stopwatch State ---
       bool _stopwatch_active{false};

@@ -1,19 +1,15 @@
 esphome:
   on_boot:
     # Priority 500: Read time from hardware RTC to seed the system clock.
-    # Priority 500 is after DATA (600) so PCF8563 is guaranteed to be set up.
-    # pcf8563.read_time calls synchronize_epoch_() internally, which calls
-    # settimeofday() — this seeds the system clock so time is valid immediately.
-    # No timezone needed here since the RTC stores UTC and synchronize_epoch_
-    # expects a UTC epoch.
+    # pcf8563.read_time calls synchronize_epoch_() internally (settimeofday)
+    # so the system clock is valid immediately after this runs.
     - priority: 500
       then:
         - pcf8563.read_time: rtc_time
         - lambda: |-
             if (!id(sntp_time)->now().is_valid()) {
               // RTC had no valid time (brand new or dead battery).
-              // Seed with a sensible default so the clock displays something
-              // and buttons can be used to set the correct time.
+              // Seed with a sensible default so buttons can be used to set the time.
               // 1767225600 = 2026-01-01 00:00:00 UTC
               struct timeval tv = { .tv_sec = 1767225600, .tv_usec = 0 };
               settimeofday(&tv, NULL);
@@ -22,9 +18,8 @@ esphome:
               ESP_LOGI("main", "Boot: Hardware RTC time restored.");
             }
 
-    # Priority 200: Apply the restored timezone to sntp_time.
-    # The text component 'time_zone' restores its value at ~250,
-    # so by priority 200 it is available.
+    # Priority 200: Apply the restored timezone.
+    # text components restore their value at ~250, so by 200 it is available.
     - priority: 200
       then:
         - lambda: |-
@@ -33,63 +28,79 @@ esphome:
               id(sntp_time)->set_timezone(tz);
               ESP_LOGI("main", "Boot: Applied restored timezone: %s", tz.c_str());
             }
-        # If user had SNTP disabled before reboot, keep it disabled.
-        # restore_mode restores the switch state but does NOT fire on_turn_off,
-        # so we must manually suspend the SNTP component here.
+        # If SNTP was disabled before reboot, restore that state.
+        # restore_mode restores the switch but does NOT fire on_turn_off,
+        # so we must manually disable the sync gate here.
         - if:
             condition:
               - switch.is_off: sntp_switch
             then:
-              - component.suspend: sntp_time
+              - lambda: 'id(RingClock)->set_sntp_enabled(false);'
               - logger.log:
                   level: WARN
-                  format: "Boot: SNTP suspended (Manual Mode was active before reboot)."
+                  format: "Boot: SNTP sync disabled (Manual Mode was active before reboot)."
 
-    # Priority 100: Network-dependent tasks (SNTP sync, update check, auto-detect TZ)
+    # Priority 100: Network-dependent tasks (update check, auto-detect TZ, first SNTP sync)
     - priority: 100
       then:
         - wait_until:
             condition:
               wifi.connected:
+        - update.check: firmware_update
+        # Trigger an immediate SNTP sync on the first WiFi connection after boot.
+        # (wifi on_connect handles subsequent connections.)
         - if:
             condition:
-              - switch.is_on: sntp_switch
+              lambda: 'return id(RingClock)->get_sntp_enabled();'
             then:
               - lambda: 'id(sntp_time)->update();'
-        - update.check: firmware_update
+              - logger.log:
+                  level: WARN
+                  format: "Boot: WiFi connected — triggering immediate SNTP sync."
         - if:
             condition:
               lambda: |-
-                return !id(timezone_configured); 
+                return !id(timezone_configured);
             then:
               - button.press: detect_timezone
               - globals.set:
                   id: timezone_configured
-                  value: 'true'
+                  value: "true"
 
-    # Priority 50: Mark boot complete. This enables the custom_time on_value
-    # handler, which is suppressed during boot to prevent the restored value
-    # from overwriting the RTC time and disabling SNTP.
+    # Priority 50: Mark boot complete.
+    # Enables the custom_time on_value handler (suppressed during boot to
+    # prevent the restored value from overwriting the RTC time).
     - priority: 50
       then:
         - globals.set:
             id: boot_complete
-            value: 'true'
+            value: "true"
         - logger.log:
             level: WARN
             format: "Boot sequence complete."
 
+wifi:
+  # on_connect fires every time WiFi (re)connects.
+  # set_network_ready() marks the TCP/IP stack as available and restarts the
+  # SNTP daemon (if enabled) to force an immediate sync. Also applies any
+  # pending sntp_stop() that was deferred from boot time.
+  on_connect:
+    then:
+      - lambda: 'id(RingClock)->set_network_ready();'
+      - logger.log:
+          level: WARN
+          format: "WiFi connected — network ready signalled to ring_clock."
+
 time:
   # Hardware Real Time Clock (PCF8563)
-  # read_time()/write_time() always use UTC internally regardless of this setting.
-  # We match sntp_time's timezone to avoid overwriting the global TZ in ESPHome 2026.3+
+  # read_time()/write_time() always use UTC internally.
   - platform: pcf8563
     address: 0x51
     update_interval: never
     id: rtc_time
     timezone: ${time_zone}
     on_time:
-      # Alarm logic: Check every minute if alarm should fire
+      # Alarm logic: check every minute if alarm should fire
       - seconds: 0
         minutes: /1
         then:
@@ -104,32 +115,34 @@ time:
               }
 
   # Internet Time Sync (SNTP)
-  # Explicit timezone ensures correct local time from the start
+  # on_time_sync fires whenever lwIP delivers a new time; we gate
+  # application through the ring_clock component so manual mode is respected.
   - platform: sntp
     id: sntp_time
     timezone: ${time_zone}
     on_time_sync:
       then:
+        - lambda: 'id(RingClock)->apply_sntp_sync(id(sntp_time)->timestamp_now());'
         - if:
             condition:
-              - switch.is_on: sntp_switch
+              lambda: 'return id(RingClock)->get_sntp_enabled();'
             then:
+              - pcf8563.write_time: rtc_time
               - logger.log:
                   level: WARN
                   format: "SNTP Synchronized — writing to hardware RTC."
-              - pcf8563.write_time: rtc_time
             else:
               - logger.log:
                   level: INFO
-                  format: "SNTP Sync ignored (Manual Mode active)."
+                  format: "SNTP Sync arrived but ignored (Manual Mode active)."
 
 interval:
-  # Periodic RTC sync: keep hardware clock accurate
+  # Periodic RTC sync: keep hardware clock accurate during normal SNTP operation
   - interval: 15min
     then:
       - if:
           condition:
-            lambda: 'return id(sntp_time)->now().is_valid();'
+            lambda: 'return id(RingClock)->get_sntp_enabled() && id(sntp_time)->now().is_valid();'
           then:
             - pcf8563.write_time: rtc_time
             - logger.log:
@@ -137,7 +150,8 @@ interval:
                 format: "Periodic RTC sync: System time written to hardware RTC."
 
 datetime:
-  # Manual time setting via Web UI
+  # Manual time setting via Web UI.
+  # The ring_clock component handles timezone conversion and switches to manual mode.
   - platform: template
     name: "Custom Time"
     id: custom_time
@@ -152,45 +166,18 @@ datetime:
       then:
         - if:
             condition:
-              lambda: 'return id(boot_complete);'
+              lambda: "return id(boot_complete);"
             then:
-              - switch.turn_off: sntp_switch
               - lambda: |-
-                  // Convert date/time fields to an epoch (treating fields as UTC).
-                  // Uses a standard calendar formula — no ESPTime recalc dependency.
-                  auto fields_to_epoch = [](int year, int month, int day,
-                                            int hour, int minute, int second) -> time_t {
-                    int y = year, m = month;
-                    if (m <= 2) { y--; m += 12; }
-                    long days = 365L*y + y/4 - y/100 + y/400
-                              + (153*(m - 3) + 2)/5 + day - 719469;
-                    return days * 86400L + hour * 3600L + minute * 60L + second;
-                  };
-
-                  // Derive timezone offset from current known-good state:
-                  // sntp_time->now() gives local fields, timestamp_now() gives UTC epoch.
-                  time_t utc_now = id(sntp_time)->timestamp_now();
-                  auto now = id(sntp_time)->now();
-                  time_t local_now_as_utc = fields_to_epoch(
-                      now.year, now.month, now.day_of_month,
-                      now.hour, now.minute, now.second);
-                  int32_t tz_offset = (int32_t)(local_now_as_utc - utc_now);
-
-                  // Convert the user-entered local time to UTC epoch
-                  time_t entered_as_utc = fields_to_epoch(
+                  id(RingClock)->set_manual_time(
                       x.year, x.month, x.day_of_month,
                       x.hour, x.minute, x.second);
-                  time_t utc_epoch = entered_as_utc - tz_offset;
-
-                  struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
-                  settimeofday(&tv, NULL);
-                  ESP_LOGI("main", "Custom time set — UTC epoch: %ld (tz_offset: %ds)",
-                           (long)utc_epoch, tz_offset);
               - pcf8563.write_time: rtc_time
+              - switch.turn_off: sntp_switch
               - logger.log:
                   level: WARN
                   format: "Manual time applied and saved to RTC."
-  
+
   # Alarm time setting
   - platform: template
     name: "Alarm Time"
@@ -215,7 +202,7 @@ switch:
       sorting_weight: 2
     on_turn_on:
       then:
-        - component.resume: sntp_time
+        - lambda: 'id(RingClock)->set_sntp_enabled(true);'
         - lambda: 'id(sntp_time)->update();'
         - if:
             condition:
@@ -227,10 +214,10 @@ switch:
             format: "SNTP Sync enabled. Restart the clock to force a time sync."
     on_turn_off:
       then:
-        - component.suspend: sntp_time
+        - lambda: 'id(RingClock)->set_sntp_enabled(false);'
         - logger.log:
             level: WARN
-            format: "SNTP Sync suspended"
+            format: "SNTP Sync disabled (Manual Mode)"
 
   # Alarm Controls
   - platform: template
@@ -241,7 +228,7 @@ switch:
     web_server:
       sorting_group_id: sorting_alarm
       sorting_weight: 1
-  
+
   # Run alarm once then disable
   - platform: template
     name: "Alarm Once"
@@ -251,7 +238,7 @@ switch:
     web_server:
       sorting_group_id: sorting_alarm
       sorting_weight: 2
-  
+
   # Toggle alarm sounds
   - platform: template
     name: "Alarm Sounds"
@@ -261,7 +248,7 @@ switch:
     web_server:
       sorting_group_id: sorting_alarm
       sorting_weight: 3
-    
+
 text:
   # POSIX Timezone String
   # Controls how UTC epoch is converted to local display time
@@ -327,10 +314,10 @@ button:
         - logger.log: "Stage 2: Looking up POSIX rule for city..."
         - http_request.get:
             url: !lambda |-
-               std::string iana = id(detected_iana);
-               size_t pos = iana.find('/');
-               std::string continent = (pos != std::string::npos) ? iana.substr(0, pos) : "Etc";
-               return "https://n33174.github.io/nixr_dev/static/" + continent + ".json";
+              std::string iana = id(detected_iana);
+              size_t pos = iana.find('/');
+              std::string continent = (pos != std::string::npos) ? iana.substr(0, pos) : "Etc";
+              return "https://n33174.github.io/nixr_dev/static/" + continent + ".json";
             request_headers:
               User-Agent: "ESPHome/AL60"
             capture_response: true
