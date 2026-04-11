@@ -37,23 +37,23 @@ sensor:
             // Get ambient (corrected) and raw (internal) temperature
             float t_amb = id(temp_sensor)->state;
             float t_raw = t_amb - id(temp_offset)->state;
-            
+
             if (std::isnan(t_amb) || std::isnan(x)) return std::max(0.0f, std::min(100.0f, x + id(humidity_offset)->state));
-            
+
             // Saturation Vapor Pressure formula (Magnus-Tetens)
             auto esat = [](float t) {
               return 6.112f * expf((17.67f * t) / (t + 243.5f));
             };
-            
+
             // Correct RH based on the ratio of saturation vapor pressures
             float rh_corr = x * (esat(t_raw) / esat(t_amb));
-            
+
             // Apply the manual trim offset on top of the physics-based correction
             return std::max(0.0f, std::min(100.0f, rh_corr + id(humidity_offset)->state));
       web_server:
         sorting_group_id: sorting_sensors
         sorting_weight: 2
-        
+
   # Light Sensor (ADC)
   - platform: adc
     pin: GPIO4
@@ -72,7 +72,10 @@ sensor:
       - calibrate_linear:
           - 0.0 -> 0.0
           - 3.0 -> 100.0
-          - 3.3 -> 100.0
+      # Cap values above 3.0V at 100% (ADC can read slightly higher than calibrated max)
+      - clamp:
+          min_value: 0.0
+          max_value: 100.0
       # Reject sudden blips (hands passing over, reflections, etc)
       - median:
           window_size: 7
@@ -119,4 +122,3 @@ rtttl:
   output: buzzer
   id: buzzer_rtttl
   gain: 90%
-
