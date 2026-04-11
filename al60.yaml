@@ -22,6 +22,8 @@ packages:
   sensors: github://n33174/nixr_dev/packages/al60_sensors.yaml@main
   inputs: github://github.com/n33174/nixr_dev/packages/al60_inputs.yaml@main
   light: github://github.com/n33174/nixr_dev/packages/al60_light.yaml@main
+  # Optional: Enable full LD2410 UART radar integration (moving/still target sensors)
+  # radar: github://n33174/nixr_dev/packages/al60_radar.yaml@main
 
 external_components:
   # The custom component driving the clock

@@ -1,0 +1,48 @@
+# AL60 Radar Package — Optional LD2410 mmWave Integration
+#
+# By default the AL60 uses a simple GPIO pin from the LD2410 for presence
+# detection. This package upgrades to full UART-based LD2410 integration,
+# exposing moving target, still target, and occupancy sensors.
+#
+# To enable, add this package to your config:
+#
+#   packages:
+#     radar: github://n33174/nixr_dev/packages/al60_radar.yaml@main
+#
+# NOTE: The gpio-based "Presence" sensor in al60_sensors.yaml is always
+# available as the base presence input used by the brightness/motion modes.
+# This package adds the richer LD2410 data on top.
+
+# UART used for LD2410 communication
+uart:
+  id: uart_bus
+  baud_rate: 256000
+  tx_pin: GPIO0
+  rx_pin: GPIO1
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+  id: radar
+
+binary_sensor:
+  # LD2410 Presence Sensors (UART — richer data than GPIO alone)
+  - platform: ld2410
+    has_target:
+      id: radar_occupancy
+      name: Occupancy
+      web_server:
+        sorting_group_id: sorting_sensors
+        sorting_weight: 5
+    has_moving_target:
+      id: radar_moving
+      name: Moving Target
+      web_server:
+        sorting_group_id: sorting_sensors
+        sorting_weight: 3
+    has_still_target:
+      id: radar_still
+      name: Still Target
+      web_server:
+        sorting_group_id: sorting_sensors
+        sorting_weight: 4

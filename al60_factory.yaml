@@ -18,6 +18,8 @@ packages:
   sensors: !include packages/al60_sensors.yaml
   inputs: !include packages/al60_inputs.yaml
   light: !include packages/al60_light.yaml
+  # Optional: Enable full LD2410 UART radar integration (moving/still target sensors)
+  # radar: !include packages/al60_radar.yaml
 
 dashboard_import:
   package_import_url: github://n33174/nixr_dev/al60.yaml@main

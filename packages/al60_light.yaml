@@ -13,7 +13,7 @@ esphome:
       then:
         - if:
             condition:
-              lambda: 'return !id(colours_initialized);'
+              lambda: "return !id(colours_initialized);"
             then:
               - lambda: |-
                   // Hour: Orange (255, 145, 0)
@@ -34,7 +34,7 @@ esphome:
                   mk.set_red(1.0f); mk.set_green(1.0f); mk.set_blue(1.0f); mk.set_brightness(50/255.0f); mk.set_color_brightness(1.0f); mk.perform();
               - globals.set:
                   id: colours_initialized
-                  value: 'true'
+                  value: "true"
 
 number:
   # Brightness slider for Active/Presence detected state
@@ -51,7 +51,7 @@ number:
     web_server:
       sorting_group_id: sorting_clock
       sorting_weight: 5
-      
+
   # Brightness slider for Inactive/No presence state
   - platform: template
     id: low_percentage
@@ -86,7 +86,7 @@ ring_clock:
   sound_enabled_switch: timer_sounds
   temperature_sensor: temp_sensor
   humidity_sensor: humidity_sensor
-  
+
   # Sensor Color Ranges
   temperature_colors:
     - { value: -10.0, color: [26, 22, 73] }
@@ -101,7 +101,7 @@ ring_clock:
     - { value: 30.0, color: [160, 195, 27] }
     - { value: 70.0, color: [60, 215, 127] }
     - { value: 100.0, color: [20, 95, 227] }
-  
+
   # Event Handlers (Logic)
   on_ready:
     then:
@@ -110,7 +110,7 @@ ring_clock:
           auto call = id(ring_light)->turn_on();
           call.set_effect(id(last_clock_effect));
           call.perform();
-          
+
           // Initialise marker highlight from restored effect
           std::string m_effect = id(marker_color)->get_effect_name();
           if (m_effect == "Highlight 12 Marker") {
@@ -159,18 +159,23 @@ script:
     mode: restart # Restart if called again quickly
     then:
       - lambda: |-
+          // Do not override the light state if it has been turned off.
+          // This allows Home Assistant automations (e.g. night schedules) to
+          // turn the light off and have it stay off until explicitly turned back on.
+          if (!id(ring_light)->remote_values.is_on()) return;
+
           std::string mode = id(light_control_mode).current_option();
-          
+
           static std::string last_mode = "";
           bool mode_changed = (mode != last_mode);
           last_mode = mode;
-          
+
           float min_a = id(ambient_min_threshold)->state;
           float max_a = id(ambient_max_threshold)->state;
           float curr_a = id(brightness_sensor)->state;
           float min_b = id(low_percentage)->state;
           float max_b = id(standard_percentage)->state;
-          
+
           // Pre-calculate ambient response
           float clamped_a = std::max(min_a, std::min(max_a, curr_a));
           float range_a = max_a - min_a;
@@ -178,7 +183,7 @@ script:
           float ambient_target = min_b + ratio * (max_b - min_b);
 
           float target_pct = max_b;
-          
+
           if (mode == "Ambient Brightness") {
             target_pct = ambient_target;
           } else if (mode == "Motion Detection") {
@@ -187,24 +192,25 @@ script:
             // Motion detected: follow ambient. No motion: low percentage.
             target_pct = id(radar_presence)->state ? ambient_target : min_b;
           } else {
-            // Manual/Off Mode: Just use standard percentage but only when switching to it 
-            if (!mode_changed) {
-                return; // Do not constantly override the user's manual brightness changes
-            }
-            target_pct = max_b;
+            // Manual mode: disengage component brightness management so the
+            // HA slider controls ring_light.brightness directly without interference.
+            if (!mode_changed) return;
+            id(RingClock)->set_target_brightness(-1.0f);
+            return;
           }
-          
-          // Apply brightness with smooth 1s transition
-          auto call = id(ring_light)->turn_on();
-          call.set_brightness(target_pct / 100.0f);
-          call.set_transition_length(1000); 
-          call.perform();
+
+          // Hand brightness management over to the component, which steps
+          // smoothly at BRIGHTNESS_SPEED (0.5 units/s) toward the new target.
+          // No ring_light.turn_on() here — the component calls it from loop()
+          // only when the value actually changes, bounded to BRIGHTNESS_STEP_MS.
+          id(RingClock)->set_target_brightness(target_pct / 100.0f);
 
 light:
   # Main LED Rings Configuration (WS2812)
   - id: ring_light
     name: "Ring Light Mode"
     platform: esp32_rmt_led_strip
+    max_refresh_rate: 25ms
     rgb_order: GRB
     chipset: ws2812
     pin: GPIO10
@@ -220,6 +226,18 @@ light:
       - lambda: |-
           if (id(ring_light)->remote_values.is_on()) {
             std::string effect = id(ring_light)->get_effect_name();
+
+            // When turned on with no active effect, restore the last clock effect.
+            // This handles the case where the user toggles the light off then on
+            // via the web UI or Home Assistant — ESPHome turns it on with "None"
+            // by default. The subsequent on_state call will have a real effect name.
+            if (effect == "None") {
+              auto call = id(ring_light)->turn_on();
+              call.set_effect(id(last_clock_effect));
+              call.perform();
+              return;
+            }
+
             static std::string last_effect = "";
             bool effect_changed = (effect != last_effect);
             last_effect = effect;
@@ -244,7 +262,9 @@ light:
                 call.set_blue(b / 255.0f);
                 call.set_color_brightness(1.0f);
                 call.set_brightness(br);
-                call.set_transition_length(500);
+                call.set_transition_length(0); // No transition: hand lights are virtual; transitions
+                                               // drive template output write_actions every loop tick,
+                                               // cascading into ~46 extra RMT writes per brightness event.
                 call.perform();
               };
               auto set_rainbow = [](light::LightState* ls) {
@@ -275,45 +295,47 @@ light:
             }
           }
     effects:
-      # Standard Steps
+      # Standard steps — 200ms so brightness transitions are visible at 5fps.
+      # The dirty-bit cache in addressable_lights_lambdacall means only 1 actual
+      # RMT write/second during normal static display (remaining 4 calls hit the cache).
       - addressable_lambda:
           name: Clock
-          update_interval: 50ms
+          update_interval: 200ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
             id(RingClock)->addressable_lights_lambdacall(it);
-      # Smooth Fading Steps
+      # Smooth Fading Steps (25fps — visually identical to 30fps for a second-hand sweep)
       - addressable_lambda:
           name: "Clock (Fade)"
-          update_interval: 33ms
+          update_interval: 40ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_fade);
             id(RingClock)->addressable_lights_lambdacall(it);
-      # 15-LED Trailing Seconds (colours from individual hand lights)
+      # 15-LED Trailing Seconds (25fps)
       - addressable_lambda:
           name: "Clock (Tail)"
-          update_interval: 33ms
+          update_interval: 40ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_tail);
             id(RingClock)->addressable_lights_lambdacall(it);
-      # 15-LED Trailing Seconds with Rainbow colours on all hands
+      # 15-LED Trailing Seconds with Rainbow colours on all hands (25fps)
       - addressable_lambda:
           name: "Clock (Rainbow Tail)"
-          update_interval: 33ms
+          update_interval: 40ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time_tail);
             id(RingClock)->addressable_lights_lambdacall(it);
       # RGB Theme (hand colours set by mode button)
       - addressable_lambda:
           name: "Clock (RGB)"
-          update_interval: 50ms
+          update_interval: 200ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
             id(RingClock)->addressable_lights_lambdacall(it);
       # Monochromatic Theme (hand colours set by mode button)
       - addressable_lambda:
           name: "Clock (Mono)"
-          update_interval: 50ms
+          update_interval: 200ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
             id(RingClock)->addressable_lights_lambdacall(it);
@@ -331,14 +353,14 @@ light:
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::stopwatch);
             id(RingClock)->addressable_lights_lambdacall(it);
-            
+
   # Customisation Keys: Hands
   # These are dummy lights that allow the user to pick colors in the UI
   - platform: rgb
     id: hour_hand_color
     name: "Hour Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 500ms
+    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
     red: output_hour_red
     green: output_hour_green
     blue: output_hour_blue
@@ -356,12 +378,12 @@ light:
       - automation:
           name: "Humidity Color"
           sequence: []
-      
+
   - platform: rgb
     id: minute_hand_color
     name: "Minute Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 500ms
+    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
     red: output_minute_red
     green: output_minute_green
     blue: output_minute_blue
@@ -379,12 +401,12 @@ light:
       - automation:
           name: "Humidity Color"
           sequence: []
-      
+
   - platform: rgb
     id: second_hand_color
     name: "Second Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 500ms
+    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
     red: output_second_red
     green: output_second_green
     blue: output_second_blue
@@ -408,7 +430,7 @@ light:
     id: marker_color
     name: "Markers"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 500ms
+    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
     red: output_marker_red
     green: output_marker_green
     blue: output_marker_blue
@@ -441,13 +463,13 @@ light:
           name: "Highlight 12, 3, 6, 9 Markers"
           sequence: []
       - random:
-      
+
   # Customisation Keys: Notification/Background
   - platform: rgb
     id: notification_color
     name: "Notification"
     restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 500ms
+    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
     red: output_notification_red
     green: output_notification_green
     blue: output_notification_blue

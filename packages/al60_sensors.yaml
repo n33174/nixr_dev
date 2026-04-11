@@ -9,18 +9,6 @@ i2c:
   scl: GPIO5
   sda: GPIO6
   scan: true
-  
-# UART used for Radar Sensor (LD2410) communication
-uart:
-  id: uart_bus
-  baud_rate: 256000
-  tx_pin: GPIO0
-  rx_pin: GPIO1
-  parity: NONE
-  stop_bits: 1
-
-ld2410:
-  id: radar
 
 sensor:
   # AHT20 Temperature & Humidity Sensor
@@ -77,7 +65,7 @@ sensor:
       sorting_group_id: sorting_sensors
       sorting_weight: 7
     attenuation: 12db
-    update_interval: 2s
+    update_interval: 5s
     unit_of_measurement: "%"
     filters:
       # Map raw voltage into a percentage
@@ -98,28 +86,10 @@ sensor:
         - script.execute: update_ring_light
 
 binary_sensor:
-  # MMwave Radar Presence Detection (LD2410)
-  - platform: ld2410
-    has_target:
-      id: radar_occupancy
-      name: Occupancy
-      web_server:
-        sorting_group_id: sorting_sensors
-        sorting_weight: 5
-    has_moving_target:
-      id: radar_moving
-      name: Moving Target
-      web_server:
-        sorting_group_id: sorting_sensors
-        sorting_weight: 3
-    has_still_target:
-      id: radar_still
-      name: Still Target
-      web_server:
-        sorting_group_id: sorting_sensors
-        sorting_weight: 4
-        
-  # LD2410 Presence input
+  # LD2410 GPIO Presence Input
+  # Simple high/low output from the LD2410 OUT pin — always available.
+  # For full UART-based LD2410 integration (moving/still target sensors),
+  # add the al60_radar.yaml package to your config.
   - platform: gpio
     id: radar_presence
     pin: GPIO3

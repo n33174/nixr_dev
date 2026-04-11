@@ -16,7 +16,8 @@ namespace ring_clock {
 
   // --- Helpers ---
 
-  static Color get_cv_color(const light::LightColorValues& cv) {
+  // IRAM_ATTR: keep in on-chip SRAM so an RMT DMA refill cycle cannot stall this path.
+  static IRAM_ATTR Color get_cv_color(const light::LightColorValues& cv) {
       // Use standard as_rgb to capture all compounded brightness factors.
       // Gamma correction is disabled on the source lights to keep these values linear.
       float r, g, b;
@@ -51,6 +52,34 @@ namespace ring_clock {
       // Auto-dismiss visual alarm after 10 seconds
       if (millis() - _alarm_triggered_ms > 10000) {
         _alarm_active = false;
+      }
+    }
+
+    // --- Smooth brightness stepping ---
+    // Advances _brightness_current toward _brightness_target at BRIGHTNESS_SPEED
+    // units/second. Rate-limited to BRIGHTNESS_STEP_MS so on_state callbacks
+    // are bounded. The actual visual update happens when the effect lambda next
+    // fires (driven by its update_interval) and sees brightness_changing == true.
+    if (_brightness_target >= 0.0f && _brightness_current >= 0.0f
+        && _clock_lights != nullptr) {
+      float diff = _brightness_target - _brightness_current;
+      if (fabsf(diff) > 0.002f) {
+        uint32_t now_ms = millis();
+        uint32_t elapsed_ms = now_ms - _brightness_step_ms;
+        if (elapsed_ms >= BRIGHTNESS_STEP_MS) {
+          float step = BRIGHTNESS_SPEED * (elapsed_ms / 1000.0f);
+          float delta = std::min(step, fabsf(diff));
+          _brightness_current += (diff > 0.0f ? 1.0f : -1.0f) * delta;
+          _brightness_current = std::max(0.0f, std::min(1.0f, _brightness_current));
+          _brightness_step_ms = now_ms;
+          // Push updated brightness to the light state.
+          // transition_length=0 avoids ESPHome's transition system entirely;
+          // current_values is updated immediately for the next effect render.
+          auto call = _clock_lights->turn_on();
+          call.set_brightness(_brightness_current);
+          call.set_transition_length(0);
+          call.perform();
+        }
       }
     }
   }
@@ -245,6 +274,27 @@ namespace ring_clock {
     }
   }
 
+  void RingClock::set_target_brightness(float target) {
+    _brightness_target = target;
+    if (target < 0.0f) {
+      // Manual mode: disengage stepper. Leave _brightness_current as-is so
+      // the ring stays at whatever level it was; the HA slider now controls it.
+      return;
+    }
+    if (_brightness_current < 0.0f && _clock_lights != nullptr) {
+      // First initialisation — sync from whatever ESPHome has and snap immediately.
+      _brightness_current = _clock_lights->current_values.get_brightness();
+      if (_brightness_current <= 0.0f) _brightness_current = target;
+      _brightness_step_ms = millis();
+      // Apply the snapped value instantly (no step needed at boot).
+      auto call = _clock_lights->turn_on();
+      call.set_brightness(_brightness_current);
+      call.set_transition_length(0);
+      call.perform();
+    }
+    // If target has changed and we were already running:
+    // loop() will start stepping toward the new target automatically.
+  }
 
   bool RingClock::get_sntp_enabled() const { return _sntp_enabled; }
 
@@ -405,17 +455,56 @@ namespace ring_clock {
 
   // --- Rendering Dispatch ---
 
-  void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
+  // IRAM_ATTR: entire render dispatch kept in on-chip SRAM to avoid Flash bus
+  // latency during the RMT DMA refill window.
+  IRAM_ATTR void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
+    // --- Dirty-bit cache: skip RMT write if nothing has changed ---
+    // Dynamic effects are always rendered; everything else only re-renders when
+    // the displayed h/m/s or the FSM mode actually changes.
+    const bool rain_h = hour_hand_color   && hour_hand_color->get_effect_name()   == "Rainbow";
+    const bool rain_m = minute_hand_color && minute_hand_color->get_effect_name() == "Rainbow";
+    const bool rain_s = second_hand_color && second_hand_color->get_effect_name() == "Rainbow";
+    // True when _brightness_current is actively moving toward _brightness_target.
+    // Bypasses the dirty-bit cache so re-renders happen at the effect's update_interval.
+    const bool brightness_changing = (_brightness_target >= 0.0f)
+                                  && (_brightness_current >= 0.0f)
+                                  && (fabsf(_brightness_current - _brightness_target) > 0.002f);
+    const bool is_dynamic =
+        (_state == state::stopwatch)                          // sub-second elapsed counter
+     || (_state == state::timer && _timer_active)             // countdown + pulse animation
+     || (_alarm_active)                                       // sinf(millis()) pulse overlay
+     || (rain_h || rain_m || rain_s)                          // HSV cycle changes every frame
+     || (_state == state::time_fade)                          // millis()-driven fade progress
+     || (_state == state::time_tail)                          // moving 15-LED tail
+     || brightness_changing;                                  // smooth brightness transition
+
+    // Fetch time once here; pass it into sub-renderers to avoid a second RTC read.
+    esphome::ESPTime now = this->_time->now();
+
+    if (!is_dynamic
+        && now.second == _cache_s
+        && now.minute == _cache_m
+        && now.hour   == _cache_h
+        && _state     == _cache_mode) {
+      return;  // Nothing changed — skip RMT write entirely (~98% of frames)
+    }
+
+    // Update cache with the values we are about to render.
+    _cache_s    = now.second;
+    _cache_m    = now.minute;
+    _cache_h    = now.hour;
+    _cache_mode = _state;
+
     switch (_state) {
       case state::time:
       case state::alarm:
-        render_time(it, false);
+        render_time(it, false, now);
         break;
       case state::time_fade:
-        render_time(it, true);
+        render_time(it, true, now);
         break;
       case state::time_tail:
-        render_tail(it);
+        render_tail(it, now);
         break;
       case state::timer:
         render_timer(it);
@@ -532,33 +621,30 @@ namespace ring_clock {
         mc = get_cv_color(this->marker_color->current_values);
       }
 
-      for (int i = R1_NUM_LEDS; i < TOTAL_LEDS; i++) {
-        if ((i - R1_NUM_LEDS) % 4 == 0) {
-          int marker_index = (i - R1_NUM_LEDS) / 4;
-          bool highlight = false;
-          if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_ONLY)
-            highlight = (marker_index == 0);
-          else if (_marker_highlight_mode == MarkerHighlightMode::TWELVE_THREE_SIX_NINE)
-            highlight = (marker_index == 0 || marker_index == 3 || marker_index == 6 || marker_index == 9);
-
-          if (_marker_highlight_mode == MarkerHighlightMode::NONE) {
-            it[i] = mc;
-          } else {
-            float contrast = highlight ? 1.0f : 0.35f;
-            it[i] = Color((uint8_t)(mc.r * contrast), (uint8_t)(mc.g * contrast), (uint8_t)(mc.b * contrast));
-          }
+      // Iterate only the 12 marker positions directly (stride 4) rather than
+      // all 48 R2 LEDs with a per-iteration modulo check.
+      for (int m = 0; m < 12; m++) {
+        int i = R1_NUM_LEDS + (m * 4);
+        if (_marker_highlight_mode == MarkerHighlightMode::NONE) {
+          it[i] = mc;
+        } else {
+          bool highlight = (_marker_highlight_mode == MarkerHighlightMode::TWELVE_ONLY)
+              ? (m == 0)
+              : (m == 0 || m == 3 || m == 6 || m == 9);
+          float contrast = highlight ? 1.0f : 0.35f;
+          it[i] = Color((uint8_t)(mc.r * contrast), (uint8_t)(mc.g * contrast), (uint8_t)(mc.b * contrast));
         }
       }
     }
   }
 
-  void RingClock::render_time(light::AddressableLight & it, bool fade) {
+  // IRAM_ATTR: keep render functions in SRAM for consistent ISR timing.
+  IRAM_ATTR void RingClock::render_time(light::AddressableLight & it, bool fade, const esphome::ESPTime & now) {
     clear_R1(it);
     clear_R2(it);
     draw_markers(it);
 
-    esphome::ESPTime now = this->_time->now();
-
+    // `now` is pre-fetched by the caller — no second RTC read needed.
     Color hc = resolve_hand_color(hour_hand_color,   _default_hour_color,   now);
     Color mc = resolve_hand_color(minute_hand_color,  _default_minute_color, now, true);
     Color sc = resolve_hand_color(second_hand_color,  _default_second_color, now);
@@ -591,13 +677,12 @@ namespace ring_clock {
     it[now.minute] = mc;
   }
 
-  void RingClock::render_tail(light::AddressableLight & it) {
+  IRAM_ATTR void RingClock::render_tail(light::AddressableLight & it, const esphome::ESPTime & now) {
     clear_R1(it);
     clear_R2(it);
     draw_markers(it);
 
-    esphome::ESPTime now = this->_time->now();
-
+    // `now` is pre-fetched by the caller — no second RTC read needed.
     Color hc = resolve_hand_color(hour_hand_color,  _default_hour_color,   now);
     Color mc = resolve_hand_color(minute_hand_color, _default_minute_color, now, true);
 
@@ -659,7 +744,7 @@ namespace ring_clock {
     }
   }
 
-  void RingClock::draw_fade(light::AddressableLight & it, float precise_pos, Color color) {
+  void RingClock::draw_fade(light::AddressableLight &it, float precise_pos, Color color) {
     for (int i = 0; i < 60; i++) {
       float dist = fabsf(i - precise_pos);
       if (dist > 30.0f) dist = 60.0f - dist;

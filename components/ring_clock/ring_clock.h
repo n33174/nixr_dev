@@ -119,6 +119,19 @@ namespace ring_clock {
       // based on the brightness of LEDs physically near the sensor
       float get_interference_factor();
 
+      // --- Component-managed Smooth Brightness ---
+      // Call this instead of ring_light.turn_on().set_brightness() to avoid
+      // triggering ESPHome's transition system, which bypasses our dirty-bit
+      // cache and causes uncontrolled RMT write bursts.
+      //
+      // target : 0.0–1.0  — step smoothly toward this brightness.
+      //         -1.0       — disengage (manual mode: HA slider controls brightness).
+      //
+      // Brightness advances at BRIGHTNESS_SPEED units/second in loop().
+      // The brightness_changing flag feeds is_dynamic so the dirty-bit cache is
+      // bypassed during the transition and re-renders happen at the effect rate.
+      void set_target_brightness(float target);
+
       // --- Timer Logic ---
       void start_timer(int hours, int minutes, int seconds);
       void stop_timer();
@@ -235,8 +248,8 @@ namespace ring_clock {
                           const esphome::ESPTime& now);
 
       void draw_markers(light::AddressableLight & it);
-      void render_time(light::AddressableLight & it, bool fade);
-      void render_tail(light::AddressableLight & it);
+      void render_time(light::AddressableLight & it, bool fade, const esphome::ESPTime & now);
+      void render_tail(light::AddressableLight & it, const esphome::ESPTime & now);
       void render_timer(light::AddressableLight & it);
       void render_stopwatch(light::AddressableLight & it);
       void render_alarm(light::AddressableLight & it);
@@ -284,6 +297,22 @@ namespace ring_clock {
       bool _alarm_active{false};
       uint32_t _alarm_triggered_ms{0};
       bool _alarm_dispatched{false};
+
+      // --- Render Cache (dirty-bit) ---
+      // Tracks the last-rendered state so identical frames skip the RMT write.
+      int _cache_h{-1};
+      int _cache_m{-1};
+      int _cache_s{-1};
+      state _cache_mode{state::time};
+
+      // --- Component-managed Smooth Brightness ---
+      // Stepped in loop() toward _brightness_target at BRIGHTNESS_SPEED.
+      // -1.0 means "not yet initialised" or "manual mode — hands off".
+      static constexpr float BRIGHTNESS_SPEED{0.5f};  // units/second; 50%→75% ≈ 1 second
+      static constexpr uint32_t BRIGHTNESS_STEP_MS{25}; // min ms between loop() steps (≤ 40 fps)
+      float _brightness_target{-1.0f};
+      float _brightness_current{-1.0f};
+      uint32_t _brightness_step_ms{0};
 
       // --- Callback Managers ---
       CallbackManager<void()> _on_ready_callback_;
