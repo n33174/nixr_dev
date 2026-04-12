@@ -3,6 +3,8 @@ substitutions:
   # These can be adjusted via the web UI or Home Assistant
   temp_offset_default: "-8"
   humidity_offset_default: "0.0"
+  # Default radar cool-off period in seconds
+  occupancy_cooloff_default: "60"
 
 # I2C Bus Config (Used by RTC and Environmental Sensor)
 i2c:
@@ -89,21 +91,21 @@ sensor:
         - script.execute: update_ring_light
 
 binary_sensor:
-  # LD2410 GPIO Presence Input
+  # LD2410 GPIO Occupancy Input
   # Simple high/low output from the LD2410 OUT pin — always available.
   # For full UART-based LD2410 integration (moving/still target sensors),
   # add the al60_radar.yaml package to your config.
   - platform: gpio
-    id: radar_presence
+    id: radar_occupancy
     pin: GPIO3
-    name: "Presence"
+    name: "Occupancy"
     web_server:
       sorting_group_id: sorting_sensors
       sorting_weight: 6
-    device_class: presence
+    device_class: occupancy
     icon: mdi:target-account
     filters:
-      - delayed_off: 60s
+      - delayed_off: !lambda "return id(occupancy_cooloff).state * 1000;"
     on_press:
       - script.execute: update_ring_light
     on_release:

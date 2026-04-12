@@ -1,0 +1,471 @@
+substitutions:
+  api_url: "https://nix-sku.nixlabs.com.au/api/register-mac"
+  product_sku: "al60"
+  version: "0.0.2"
+
+esphome:
+  name: nixr-calibrate
+  friendly_name: NIXR-Calibrate
+  project:
+    name: "NIXlabs.AL60"
+    version: "${version}"
+  on_boot:
+    priority: -10
+    then:
+      - script.execute: register_mac_script
+      - script.execute: disable_ld2410_bluetooth
+      - script.execute: run_calibration_checks
+      - light.turn_on:
+          id: ring_light
+          brightness: 100%
+          red: 100%
+          green: 100%
+          blue: 100%
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  - platform: http_request
+
+update:
+  - platform: http_request
+    id: firmware_update
+    name: Firmware Update
+    source: https://n33174.github.io/nixr_dev/firmware/manifest.json
+
+wifi:
+  ssid: esp
+  password: wxYHRuiPw3RC8T!S
+
+web_server:
+  version: 3
+
+http_request:
+  useragent: esphome/nix-factory
+  timeout: 10s
+
+script:
+  # ── LD2410 Bluetooth disable ────────────────────────────────────────────────
+  # The LD2410 ships with Bluetooth enabled by default. This script turns it
+  # off after the sensor has had time to complete its UART initialisation.
+  #
+  # NOTE: Engineering mode is NOT required to toggle the Bluetooth switch.
+  # Engineering mode only enables per-gate energy reporting and uses extra
+  # resources; it should not be left on in production.
+  - id: disable_ld2410_bluetooth
+    then:
+      - delay: 5s # Allow LD2410 UART handshake to complete
+      - switch.turn_off: ld2410_bluetooth
+      - logger.log:
+          level: INFO
+          format: "[CALIB] LD2410 Bluetooth disabled successfully."
+
+  # ── Factory calibration checks ───────────────────────────────────────────────
+  # Runs once on boot to verify every subsystem is alive and logs the results
+  # so a technician can quickly scan the serial output for PASS/FAIL.
+  - id: run_calibration_checks
+    then:
+      # 1. Short startup beep – confirms the buzzer/amplifier circuit is working
+      - rtttl.play: "boot:d=16,o=5,b=200:c6"
+      - logger.log:
+          level: INFO
+          format: "[CALIB] Startup beep played – buzzer OK."
+
+      # 2. Wait for the first sensor readings to be available
+      - delay: 12s
+
+      # 3. Log AHT20 temperature & humidity readings
+      - if:
+          condition:
+            lambda: "return !isnan(id(temp_sensor).state);"
+          then:
+            - logger.log:
+                level: INFO
+                format: "[CALIB] AHT20 OK – Temp: %.1f°C  Humidity: %.1f%%"
+                args: ["id(temp_sensor).state", "id(humidity_sensor).state"]
+          else:
+            - logger.log:
+                level: ERROR
+                format: "[CALIB] FAIL – AHT20 sensor returned NaN. Check I2C wiring."
+
+      # 4. Log ADC light sensor reading
+      - if:
+          condition:
+            lambda: "return !isnan(id(brightness_sensor).state);"
+          then:
+            - logger.log:
+                level: INFO
+                format: "[CALIB] ADC light sensor OK – Brightness: %.0f%%"
+                args: ["id(brightness_sensor).state"]
+          else:
+            - logger.log:
+                level: ERROR
+                format: "[CALIB] FAIL – ADC light sensor returned NaN. Check GPIO4."
+
+      # 5. Log WiFi signal strength
+      - logger.log:
+          level: INFO
+          format: "[CALIB] WiFi OK – RSSI: %.0f dBm"
+          args: ["id(wifi_signal_sensor).state"]
+
+      # 6. Play PASS tone – all automated checks completed
+      - rtttl.play: "pass:d=8,o=5,b=180:c6,e6,g6"
+      - logger.log:
+          level: WARN
+          format: "[CALIB] ===== AUTOMATED CHECKS COMPLETE – verify readings above ====="
+
+  - id: register_mac_script
+    then:
+      # 1. Wait until we have a stable network connection
+      - wait_until:
+          condition:
+            wifi.connected:
+
+      # 2. POST the MAC address and SKU to your Astro API
+      - http_request.post:
+          url: ${api_url}
+          json:
+            sku: ${product_sku}
+            mac: !lambda "return esphome::get_mac_address_pretty();"
+          request_headers:
+            Origin: https://nix-sku.nixlabs.com.au
+            Content-Type: application/json
+            X-NIX-API-KEY: "nix_mac_reg_secret_2026"
+
+          # 3. Handle the response and log the result
+          on_response:
+            then:
+              - logger.log:
+                  format: "Successfully registered MAC: %s"
+                  args: ["esphome::get_mac_address_pretty().c_str()"]
+          on_error:
+            then:
+              - logger.log:
+                  level: ERROR
+                  format: "Failed to register MAC. Check API URL: %s"
+                  args: ['"${api_url}"']
+
+i2c:
+  scl: GPIO5
+  sda: GPIO6
+  scan: true
+
+uart:
+  id: uart_bus
+  baud_rate: 256000
+  tx_pin: GPIO0
+  rx_pin: GPIO1
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+  id: my_ld2410
+
+binary_sensor:
+  #Mode Button
+  - platform: gpio
+    id: mode_button
+    pin:
+      number: GPIO2
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Mode Button"
+    filters:
+      - delayed_on_off: 50ms
+    on_multi_click:
+      # Single Click: Next Clock Effect
+      - timing:
+          - ON for 50ms to 500ms
+          - OFF for at least 600ms
+        then:
+          - light.turn_on:
+              id: ring_light
+              brightness: 100%
+              red: 100%
+              green: 0%
+              blue: 0%
+          - rtttl.play: "short:d=4,o=5,b=100:16c6"
+      # Firmware Update
+      - timing:
+          - ON for at least 5s
+        then:
+          - rtttl.play: "off:d=16,o=6,b=120:g,e,c"
+          - light.turn_off:
+              id: ring_light
+          - logger.log: "Initiating firmware update process..."
+          - update.check: firmware_update
+          - delay: 3s # Allow time for manifest fetch and parsing
+          - if:
+              condition:
+                update.is_available: firmware_update
+              then:
+                - rtttl.play: "click:d=16,o=6,b=120:c"
+                - logger.log: "New version found! Starting Over-The-Air (OTA) update..."
+                - update.perform: firmware_update
+              else:
+                - logger.log: "No update available. Your clock is currently up to date."
+  # Hour Button (Physical)
+  - platform: gpio
+    id: hour_button
+    pin:
+      number: GPIO8
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Hour Button"
+    filters:
+      - delayed_on_off: 50ms
+    on_multi_click:
+      # Single click: Increment Hour
+      - timing:
+          - ON for 50ms to 800ms
+          - OFF for at least 100ms
+        then:
+          - light.turn_on:
+              id: ring_light
+              brightness: 100%
+              red: 0%
+              green: 100%
+              blue: 0%
+          - rtttl.play: "short:d=4,o=5,b=100:16e6"
+  # Minute Button (Physical)
+  - platform: gpio
+    id: minute_button
+    pin:
+      number: GPIO9
+      inverted: True
+      mode: INPUT_PULLUP
+    name: "Minute Button"
+    filters:
+      - delayed_on_off: 50ms
+    on_multi_click:
+      # Single click: Increment Minute
+      - timing:
+          - ON for 50ms to 800ms
+          - OFF for at least 100ms
+        then:
+          - light.turn_on:
+              id: ring_light
+              brightness: 100%
+              red: 0%
+              green: 0%
+              blue: 100%
+          - rtttl.play: "short:d=4,o=5,b=100:16g6"
+
+  - platform: ld2410
+    has_target:
+      name: Occupancy
+    has_moving_target:
+      name: Moving Target
+    has_still_target:
+      name: Still Target
+    out_pin_presence_status:
+      name: Out pin Occupancy status
+  - platform: gpio
+    pin: GPIO03
+    name: GPIO Out pin Occupancy
+    device_class: occupancy
+
+sensor:
+  # AHT20 Temperature & Humidity Sensor
+  - platform: aht10
+    id: aht_sensor
+    variant: AHT20
+    address: 0x38
+    update_interval: 10s
+    temperature:
+      id: temp_sensor
+      name: "Temperature"
+    humidity:
+      id: humidity_sensor
+      name: "Humidity"
+
+  # Light Sensor (ADC)
+  - platform: adc
+    pin: GPIO4
+    name: "Brightness"
+    id: brightness_sensor
+    accuracy_decimals: 0
+    attenuation: 12db
+    update_interval: 10s
+    unit_of_measurement: "%"
+    filters:
+      # Map raw voltage (0-3V) into a percentage
+      - calibrate_linear:
+          - 0.0 -> 0.0
+          - 3.0 -> 100.0
+
+  - platform: ld2410
+    light:
+      name: Light
+    moving_distance:
+      name: Moving Distance
+      filters:
+        - throttle_with_priority: 10s
+    still_distance:
+      name: Still Distance
+      filters:
+        - throttle_with_priority: 10s
+    moving_energy:
+      name: Move Energy
+      filters:
+        - throttle_with_priority: 10s
+    still_energy:
+      name: Still Energy
+      filters:
+        - throttle_with_priority: 10s
+    detection_distance:
+      name: Detection Distance
+      filters:
+        - throttle_with_priority: 10s
+
+  - platform: wifi_signal
+    name: "WiFi Signal Sensor"
+    id: wifi_signal_sensor
+    update_interval: 10s
+
+switch:
+  - platform: ld2410
+    engineering_mode:
+      name: Engineering mode
+    bluetooth:
+      id: ld2410_bluetooth
+      name: Control bluetooth
+
+number:
+  - platform: ld2410
+    timeout:
+      name: Timeout
+    light_threshold:
+      name: Light threshold
+    max_move_distance_gate:
+      name: Max move distance gate
+    max_still_distance_gate:
+      name: Max still distance gate
+    g0:
+      move_threshold:
+        name: G0 move threshold
+      still_threshold:
+        name: G0 still threshold
+    g1:
+      move_threshold:
+        name: G1 move threshold
+      still_threshold:
+        name: G1 still threshold
+    g2:
+      move_threshold:
+        name: G2 move threshold
+      still_threshold:
+        name: G2 still threshold
+    g3:
+      move_threshold:
+        name: G3 move threshold
+      still_threshold:
+        name: G3 still threshold
+    g4:
+      move_threshold:
+        name: G4 move threshold
+      still_threshold:
+        name: G4 still threshold
+    g5:
+      move_threshold:
+        name: G5 move threshold
+      still_threshold:
+        name: G5 still threshold
+    g6:
+      move_threshold:
+        name: G6 move threshold
+      still_threshold:
+        name: G6 still threshold
+    g7:
+      move_threshold:
+        name: G7 move threshold
+      still_threshold:
+        name: G7 still threshold
+    g8:
+      move_threshold:
+        name: G8 move threshold
+      still_threshold:
+        name: G8 still threshold
+
+button:
+  - platform: ld2410
+    factory_reset:
+      name: Factory reset
+    restart:
+      name: Restart
+    query_params:
+      name: Query params
+
+text_sensor:
+  - platform: ld2410
+    version:
+      name: Firmware version
+    mac_address:
+      name: MAC address
+
+select:
+  - platform: ld2410
+    distance_resolution:
+      name: Distance resolution
+    baud_rate:
+      name: Baud rate
+    light_function:
+      name: Light function
+    out_pin_level:
+      name: Out pin level
+
+output:
+  - platform: ledc
+    pin: GPIO7
+    id: buzzer
+
+rtttl:
+  output: buzzer
+  id: buzzer_rtttl
+  gain: 90%
+
+time:
+  # Hardware Real Time Clock (PCF8563)
+  # Acts as the primary time source when offline
+  - platform: pcf8563
+    address: 0x51
+    update_interval: never # Only update manually or on SNTP sync
+    id: rtc_time
+    timezone: UTC0
+
+  - platform: sntp
+    id: sntp_time
+    timezone: UTC0
+    on_time_sync:
+      then:
+        - logger.log:
+            level: WARN
+            format: "[CALIB] SNTP synced. Writing to RTC..."
+        - pcf8563.write_time:
+            id: rtc_time
+        - logger.log:
+            level: WARN
+            format: "[CALIB] RTC (PCF8563) updated successfully – time source OK."
+
+light:
+  # Main LED Rings Configuration (WS2812)
+  - id: ring_light
+    name: "Ring Light Mode"
+    platform: esp32_rmt_led_strip
+    rgb_order: GRB
+    chipset: ws2812
+    pin: GPIO10
+    num_leds: 108
+    gamma_correct: 2.2
+    # WARNING: High brightness draws significant current.
+    # Increasing these values above 75% will exceed the devices electrical current limits and may cause overheating and physical damage
+    color_correct: [75%, 75%, 75%]

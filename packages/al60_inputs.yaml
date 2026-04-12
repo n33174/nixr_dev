@@ -4,7 +4,7 @@ switch:
     name: "Hour Hand Sweep"
     id: hour_sweep
     optimistic: True
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_mode: RESTORE_DEFAULT_ON
     web_server:
       sorting_group_id: sorting_clock
       sorting_weight: 4
@@ -25,11 +25,11 @@ select:
     optimistic: True
     restore_value: true
     options:
-      - "Ambient Brightness"
       - "Motion Detection"
+      - "Ambient Brightness"
       - "Motion Ambient Brightness"
       - "Manual/Off"
-    initial_option: "Ambient Brightness"
+    initial_option: "Motion Detection"
     web_server:
       sorting_group_id: sorting_clock
       sorting_weight: 4
@@ -41,7 +41,7 @@ binary_sensor:
   # Mode Button (Physical)
   # - Single Click: Cycle Clock Effects
   # - Double Click: Cycle Sensor Effects
-  # - Long Press: Toggle Presence Detection
+  # - Long Press: Cycle Light Control Mode
   - platform: gpio
     id: mode_button
     pin:
@@ -88,7 +88,7 @@ binary_sensor:
                 call.set_effect("Clock");
                 call.perform();
               }
-          - rtttl.play: 'click:d=16,o=6,b=120:c'
+          - rtttl.play: "click:d=16,o=6,b=120:c"
       # Double Click: Cycle Sensory Effects on Notification Layer
       - timing:
           - ON for 50ms to 500ms
@@ -97,50 +97,48 @@ binary_sensor:
           - OFF for at least 50ms
         then:
           - lambda: |-
-              bool is_on = id(notification_color).remote_values.is_on();
+              // State-driven: position in the cycle is read directly from
+              // component state — no counter needed, fully resilient to external
+              // changes via web UI or Home Assistant.
+              bool notif_on = id(notification_color).remote_values.is_on();
               std::string effect = id(notification_color).get_effect_name();
-              
-              if (!is_on || effect == "None") {
+
+              auto sensor_effect = [](const char* name, int idx) {
                 auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Dual Bars");
+                call.set_effect(name);
                 call.perform();
+                id(last_sensor_effect) = idx;
+              };
+
+              if (!notif_on) {
+                // No sensor effect active → enter sensor mode.
+                // Always disable hour sweep: sensor visuals share the LED ring.
+                id(hour_sweep).turn_off().perform();
+                sensor_effect("Sensors: Dual Bars", 1);
               } else if (effect == "Sensors: Dual Bars") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Temperature Bar");
-                call.perform();
+                sensor_effect("Sensors: Temperature Bar", 2);
               } else if (effect == "Sensors: Temperature Bar") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Humidity Bar");
-                call.perform();
+                sensor_effect("Sensors: Humidity Bar", 3);
               } else if (effect == "Sensors: Humidity Bar") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Dual Ticks");
-                call.perform();
+                sensor_effect("Sensors: Dual Ticks", 4);
               } else if (effect == "Sensors: Dual Ticks") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Temperature Tick");
-                call.perform();
+                sensor_effect("Sensors: Temperature Tick", 5);
               } else if (effect == "Sensors: Temperature Tick") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Humidity Tick");
-                call.perform();
+                sensor_effect("Sensors: Humidity Tick", 6);
               } else if (effect == "Sensors: Humidity Tick") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Dual Glow");
-                call.perform();
+                sensor_effect("Sensors: Dual Glow", 7);
               } else if (effect == "Sensors: Dual Glow") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Temperature Glow");
-                call.perform();
+                sensor_effect("Sensors: Temperature Glow", 8);
               } else if (effect == "Sensors: Temperature Glow") {
-                auto call = id(notification_color).turn_on();
-                call.set_effect("Sensors: Humidity Glow");
-                call.perform();
+                sensor_effect("Sensors: Humidity Glow", 9);
               } else {
-                // Includes "Sensors: Humidity Glow" and any other stray states
+                // End of cycle (Humidity Glow or any non-sensor effect) →
+                // exit sensor mode, restore hour sweep, clear persisted effect.
                 id(notification_color).turn_off().perform();
+                id(hour_sweep).turn_on().perform();
+                id(last_sensor_effect) = 0;
               }
-          - rtttl.play: 'double:d=16,o=6,b=120:c,g'
+          - rtttl.play: "double:d=16,o=6,b=120:c,g"
       # Long Press: Cycle Light Control Mode
       - timing:
           - ON for at least 1s
@@ -148,9 +146,9 @@ binary_sensor:
           - select.next: light_control_mode
           - lambda: |-
               std::string mode = id(light_control_mode).current_option();
-              if (mode == "Ambient Brightness") {
+              if (mode == "Motion Detection") {
                 id(buzzer_rtttl)->play("on1:d=16,o=6,b=120:c,e,g,p,c");
-              } else if (mode == "Motion Detection") {
+              } else if (mode == "Ambient Brightness") {
                 id(buzzer_rtttl)->play("on2:d=16,o=6,b=120:c,e,g,p,c,p,c");
               } else if (mode == "Motion Ambient Brightness") {
                 id(buzzer_rtttl)->play("on3:d=16,o=6,b=120:c,e,g,p,c,p,c,p,c");
@@ -172,7 +170,7 @@ binary_sensor:
     filters:
       - delayed_on_off: 50ms
     on_press:
-      - lambda: 'id(RingClock)->set_sntp_enabled(false);'
+      - lambda: "id(RingClock)->set_sntp_enabled(false);"
       - switch.turn_off: sntp_switch
     on_multi_click:
       # Single click: Increment Hour
@@ -182,10 +180,10 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(minute_button)->state;'
+                - lambda: "return !id(minute_button)->state;"
               then:
-                - rtttl.play: 'short:d=4,o=5,b=100:16e6'
-                - lambda: 'id(RingClock)->increment_hour();'
+                - rtttl.play: "short:d=4,o=5,b=100:16e6"
+                - lambda: "id(RingClock)->increment_hour();"
                 - pcf8563.write_time: rtc_time
                 - logger.log: "Hour incremented"
       # Long press (Hold 1s): Start continuous increment
@@ -194,7 +192,7 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(minute_button)->state;'
+                - lambda: "return !id(minute_button)->state;"
               then:
                 - lambda: |-
                     id(hour_button_long_press) = true;
@@ -204,7 +202,7 @@ binary_sensor:
         then:
           - lambda: |-
               id(hour_button_long_press) = false;
-            
+
   # Minute Button (Physical)
   # - Single Click: Increment Minute (if hour button not held)
   # - Long Press (1s): Start continuous increment (if hour button not held)
@@ -219,7 +217,7 @@ binary_sensor:
     filters:
       - delayed_on_off: 50ms
     on_press:
-      - lambda: 'id(RingClock)->set_sntp_enabled(false);'
+      - lambda: "id(RingClock)->set_sntp_enabled(false);"
       - switch.turn_off: sntp_switch
     on_multi_click:
       # Single click: Increment Minute
@@ -229,10 +227,10 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(hour_button)->state;'
+                - lambda: "return !id(hour_button)->state;"
               then:
-                - rtttl.play: 'short:d=4,o=5,b=100:16e6'
-                - lambda: 'id(RingClock)->increment_minute();'
+                - rtttl.play: "short:d=4,o=5,b=100:16e6"
+                - lambda: "id(RingClock)->increment_minute();"
                 - pcf8563.write_time: rtc_time
                 - logger.log: "Minute incremented"
       # Long press (1s): Start continuous increment
@@ -241,7 +239,7 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: 'return !id(hour_button)->state;'
+                - lambda: "return !id(hour_button)->state;"
               then:
                 - lambda: |-
                     id(minute_button_long_press) = true;
@@ -267,14 +265,14 @@ binary_sensor:
           - ON for 2s to 10s
         then:
           - switch.turn_on: sntp_switch
-          - rtttl.play: 'reboot:d=16,o=6,b=120:c7,g6,e6,c6'
+          - rtttl.play: "reboot:d=16,o=6,b=120:c7,g6,e6,c6"
           - delay: 500ms
           - button.press: restart_esp
       # Hold both 10s+: Factory Reset
       - timing:
           - ON for at least 10s
         then:
-          - rtttl.play: 'reset:d=1,o=6,b=120:c'
+          - rtttl.play: "reset:d=1,o=6,b=120:c"
           - delay: 500ms
           - button.press: delete_all_config
 
@@ -284,15 +282,15 @@ interval:
     then:
       - if:
           condition:
-            - lambda: 'return id(minute_button_long_press);'
+            - lambda: "return id(minute_button_long_press);"
           then:
-            - lambda: 'id(RingClock)->increment_minute();'
+            - lambda: "id(RingClock)->increment_minute();"
             - pcf8563.write_time: rtc_time
       - if:
           condition:
-            - lambda: 'return id(hour_button_long_press);'
+            - lambda: "return id(hour_button_long_press);"
           then:
-            - lambda: 'id(RingClock)->increment_hour();'
+            - lambda: "id(RingClock)->increment_hour();"
             - pcf8563.write_time: rtc_time
 
 button:
@@ -336,10 +334,9 @@ button:
     web_server:
       sorting_group_id: sorting_alarm
       sorting_weight: 5
-    on_press: 
+    on_press:
       then:
         - rtttl.play: notification:d=16,o=6,b=160:c,e,g,c7
-
 
   # Timer Controls
   - platform: template
@@ -364,7 +361,7 @@ button:
       sorting_weight: 6
     on_press:
       then:
-        - lambda: 'id(RingClock)->stop_timer();'
+        - lambda: "id(RingClock)->stop_timer();"
         - light.turn_on:
             id: ring_light
             effect: Clock
@@ -378,7 +375,7 @@ button:
       sorting_weight: 1
     on_press:
       then:
-        - lambda: 'id(RingClock)->start_stopwatch();'
+        - lambda: "id(RingClock)->start_stopwatch();"
         - light.turn_on:
             id: ring_light
             effect: Stopwatch
@@ -391,7 +388,7 @@ button:
       sorting_weight: 2
     on_press:
       then:
-        - lambda: 'id(RingClock)->pause_stopwatch();'
+        - lambda: "id(RingClock)->pause_stopwatch();"
 
   - platform: template
     name: "Stop Stopwatch"
@@ -401,7 +398,7 @@ button:
       sorting_weight: 3
     on_press:
       then:
-        - lambda: 'id(RingClock)->stop_stopwatch();'
+        - lambda: "id(RingClock)->stop_stopwatch();"
         - light.turn_on:
             id: ring_light
             effect: Clock
@@ -421,13 +418,13 @@ text:
         - lambda: |-
             std::string s = x;
             if (s.empty()) return;
-            
+
             // Clean input: remove everything except digits and colons
             std::string clean;
             for (char c : s) {
                 if (isdigit(c) || c == ':') clean += c;
             }
-            
+
             std::vector<int> parts;
             std::string current;
             for (char c : clean) {
@@ -439,7 +436,7 @@ text:
                 }
             }
             if (!current.empty()) parts.push_back(std::stoi(current));
-            
+
             int h = 0, m = 0, sec = 0;
             if (parts.size() == 1) {
                 sec = parts[0];
@@ -451,20 +448,20 @@ text:
                 m = parts[1];
                 sec = parts[2];
             }
-            
+
             // Normalize (e.g. 90s -> 1m30s)
             int total_seconds = h * 3600 + m * 60 + sec;
             if (total_seconds < 0) total_seconds = 0;
             if (total_seconds > 46799) total_seconds = 46799; // Cap at 12:59:59
-            
+
             id(timer_h) = total_seconds / 3600;
             id(timer_m) = (total_seconds % 3600) / 60;
             id(timer_s) = total_seconds % 60;
-            
+
             char buf[10];
             sprintf(buf, "%02d:%02d:%02d", id(timer_h), id(timer_m), id(timer_s));
             std::string formatted = buf;
-            
+
             if (formatted != s) {
                auto call = id(timer_duration).make_call();
                call.set_value(formatted);
@@ -534,7 +531,6 @@ number:
     unit_of_measurement: "%"
     step: 1
     mode: box
-    icon: mdi:water-percent-alert
     initial_value: ${humidity_offset_default}
     optimistic: true
     restore_value: true
@@ -547,3 +543,19 @@ number:
     on_value:
       then:
         - component.update: aht_sensor
+
+  - platform: template
+    name: "Occupancy Cool-off"
+    id: occupancy_cooloff
+    unit_of_measurement: "s"
+    step: 1
+    mode: box
+    initial_value: ${occupancy_cooloff_default}
+    optimistic: true
+    restore_value: true
+    min_value: 0
+    max_value: 600
+    disabled_by_default: True
+    web_server:
+      sorting_group_id: sorting_sensors
+      sorting_weight: 11

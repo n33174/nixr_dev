@@ -1047,7 +1047,12 @@ namespace ring_clock {
       uint32_t elapsed_finish = millis() - _timer_finished_ms;
       if (elapsed_finish < 10000) {
         float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
-        Color nc = get_cv_color(this->notification_color->current_values);
+        // Use notification_color if on; fall back to white so the pulse
+        // is always visible in default clock mode (notification is off).
+        Color nc = (this->notification_color != nullptr
+                    && this->notification_color->current_values.get_state())
+          ? get_cv_color(this->notification_color->current_values)
+          : Color(255, 255, 255);
         Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
         for (int i = 0; i < 12; i++) {
           int base = R1_NUM_LEDS + (i * 4);
@@ -1095,7 +1100,12 @@ namespace ring_clock {
 
   void RingClock::render_alarm(light::AddressableLight & it) {
     float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
-    Color nc = get_cv_color(this->notification_color->current_values);
+    // Use notification_color if on; fall back to white so the alarm
+    // pulse is always visible in default clock mode (notification is off).
+    Color nc = (this->notification_color != nullptr
+                && this->notification_color->current_values.get_state())
+      ? get_cv_color(this->notification_color->current_values)
+      : Color(255, 255, 255);
     Color pc = Color((uint8_t)(nc.r * pulse), (uint8_t)(nc.g * pulse), (uint8_t)(nc.b * pulse));
     for (int i = 0; i < 12; i++) {
       int base = R1_NUM_LEDS + (i * 4);

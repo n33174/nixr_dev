@@ -8,6 +8,30 @@ esphome:
             auto call = id(ring_light)->turn_on();
             call.set_effect(id(last_clock_effect));
             call.perform();
+    # Restore the last active sensor notification effect (if any)
+    # notification_color uses RESTORE_DEFAULT_OFF so its effect is lost on reboot;
+    # last_sensor_effect (NVS-persisted int) acts as the source of truth.
+    - priority: 290
+      then:
+        - lambda: |-
+            static const char* effects[] = {
+              nullptr,                      // 0 = none
+              "Sensors: Dual Bars",         // 1
+              "Sensors: Temperature Bar",   // 2
+              "Sensors: Humidity Bar",      // 3
+              "Sensors: Dual Ticks",        // 4
+              "Sensors: Temperature Tick",  // 5
+              "Sensors: Humidity Tick",     // 6
+              "Sensors: Dual Glow",         // 7
+              "Sensors: Temperature Glow",  // 8
+              "Sensors: Humidity Glow",     // 9
+            };
+            int idx = id(last_sensor_effect);
+            if (idx >= 1 && idx <= 9) {
+              auto call = id(notification_color)->turn_on();
+              call.set_effect(effects[idx]);
+              call.perform();
+            }
     # First-boot: initialise hand colours to defaults if not previously set
     - priority: 250
       then:
@@ -37,7 +61,7 @@ esphome:
                   value: "true"
 
 number:
-  # Brightness slider for Active/Presence detected state
+  # Brightness slider for Active/Occupancy detected state
   - platform: template
     id: standard_percentage
     name: "Standard Brightness Percentage"
@@ -52,7 +76,7 @@ number:
       sorting_group_id: sorting_clock
       sorting_weight: 5
 
-  # Brightness slider for Inactive/No presence state
+  # Brightness slider for Inactive/No Occupancy state
   - platform: template
     id: low_percentage
     name: "Low or Off Brightness Percentage"
@@ -187,10 +211,10 @@ script:
           if (mode == "Ambient Brightness") {
             target_pct = ambient_target;
           } else if (mode == "Motion Detection") {
-            target_pct = id(radar_presence)->state ? max_b : min_b;
+            target_pct = id(radar_occupancy)->state ? max_b : min_b;
           } else if (mode == "Motion Ambient Brightness") {
             // Motion detected: follow ambient. No motion: low percentage.
-            target_pct = id(radar_presence)->state ? ambient_target : min_b;
+            target_pct = id(radar_occupancy)->state ? ambient_target : min_b;
           } else {
             // Manual mode: disengage component brightness management so the
             // HA slider controls ring_light.brightness directly without interference.
@@ -360,7 +384,7 @@ light:
     id: hour_hand_color
     name: "Hour Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
     red: output_hour_red
     green: output_hour_green
     blue: output_hour_blue
@@ -383,7 +407,7 @@ light:
     id: minute_hand_color
     name: "Minute Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
     red: output_minute_red
     green: output_minute_green
     blue: output_minute_blue
@@ -406,7 +430,7 @@ light:
     id: second_hand_color
     name: "Second Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
     red: output_second_red
     green: output_second_green
     blue: output_second_blue
@@ -430,7 +454,7 @@ light:
     id: marker_color
     name: "Markers"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
     red: output_marker_red
     green: output_marker_green
     blue: output_marker_blue
@@ -469,7 +493,7 @@ light:
     id: notification_color
     name: "Notification"
     restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 0ms  # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
     red: output_notification_red
     green: output_notification_green
     blue: output_notification_blue

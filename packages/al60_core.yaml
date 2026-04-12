@@ -41,6 +41,10 @@ globals:
     type: bool
     restore_value: true
     initial_value: "false"
+  - id: last_sensor_effect
+    type: int
+    restore_value: true
+    initial_value: "0"
 
 esphome:
   name_add_mac_suffix: false
