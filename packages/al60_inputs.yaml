@@ -251,7 +251,8 @@ binary_sensor:
               id(minute_button_long_press) = false;
 
   # Maintenance Mode (Chord: Hour + Minute)
-  # - Hold Both for 3s: Re-enable SNTP & Reboot
+  # - Hold Both for 2s: Warning Sound
+  # - Release between 2-10s: SNTP On + Reboot
   # - Hold Both for 10s: Factory Reset
   - platform: template
     id: maintenance_mode
@@ -259,22 +260,38 @@ binary_sensor:
     internal: true
     lambda: |-
       return id(hour_button)->state && id(minute_button)->state;
-    on_multi_click:
-      # Hold both 2-10s: SNTP On + Reboot
-      - timing:
-          - ON for 2s to 10s
-        then:
-          - switch.turn_on: sntp_switch
-          - rtttl.play: "reboot:d=16,o=6,b=120:c7,g6,e6,c6"
-          - delay: 500ms
-          - button.press: restart_esp
-      # Hold both 10s+: Factory Reset
-      - timing:
-          - ON for at least 10s
-        then:
-          - rtttl.play: "reset:d=1,o=6,b=120:c"
-          - delay: 500ms
-          - button.press: delete_all_config
+    on_release:
+      # If we've held long enough to restart, but NOT long enough to reset
+      - if:
+          condition:
+            and:
+              - binary_sensor.is_on: restart_threshold
+              - binary_sensor.is_off: reset_threshold
+          then:
+            - switch.turn_on: sntp_switch
+            - rtttl.play: "reboot:d=16,o=6,b=120:c7,g6,e6,c6"
+            - delay: 500ms
+            - button.press: restart_esp
+
+  # Fires at the 2-second mark automatically
+  - platform: template
+    id: restart_threshold
+    internal: true
+    lambda: "return id(maintenance_mode)->state;"
+    filters: [delayed_on: 2s]
+    on_press:
+      - rtttl.play: "reboot:d=16,o=6,b=120:c7,g6,e6,c6"
+
+  # Fires at the 10-second mark automatically
+  - platform: template
+    id: reset_threshold
+    internal: true
+    lambda: "return id(maintenance_mode)->state;"
+    filters: [delayed_on: 10s]
+    on_press:
+      - rtttl.play: "reset:d=1,o=6,b=120:c"
+      - delay: 500ms
+      - button.press: delete_all_config
 
 interval:
   # Polling loop for handling button "hold to increment" logic
