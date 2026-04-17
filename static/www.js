@@ -69,7 +69,7 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('https://n33174.github.io/nixr_dev/static/bg.webp');
+  background-image: url('https://assets.nixlabs.com.au/al60/static/bg.webp');
   background-size: cover;
   background-position: center;
   filter: blur(2px);

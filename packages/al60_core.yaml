@@ -109,7 +109,7 @@ update:
   - platform: http_request
     id: firmware_update
     name: Firmware Update
-    source: https://n33174.github.io/nixr_dev/firmware/manifest.json
+    source: https://assets.nixlabs.com.au/al60/firmware/manifest.json
     web_server:
       sorting_group_id: sorting_system
       sorting_weight: 1
@@ -157,7 +157,7 @@ web_server:
   version: 3
 
   # Custom NIX labs branded JavaScript (Theme built-in)
-  js_url: https://n33174.github.io/nixr_dev/static/www.js
+  js_url: https://assets.nixlabs.com.au/al60/static/www.js
 
   # Organize the web entities into logical groups
   sorting_groups:

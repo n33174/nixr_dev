@@ -88,9 +88,9 @@ jobs:
                   { "path": "al60_${V_NUM}_factory.bin", "offset": 0 }
                 ],
                 "ota": {
-                  "path": "https://n33174.github.io/nixr_dev/firmware/al60_${V_NUM}_ota.bin",
+                  "path": "https://assets.nixlabs.com.au/al60/firmware/al60_${V_NUM}_ota.bin",
                   "md5": "$MD5_OTA",
-                  "release_url": "https://github.com/n33174/nixr_dev/releases/tag/v${V_NUM}",
+                  "release_url": "https://github.com/n33174/al60/releases/tag/v${V_NUM}",
                   "summary": "Firmware update for NIX labs AL60 v${V_NUM}"
                 }
               }

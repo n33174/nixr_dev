@@ -40,7 +40,7 @@ update:
   - platform: http_request
     id: firmware_update
     name: Firmware Update
-    source: https://n33174.github.io/nixr_dev/firmware/manifest.json
+    source: https://assets.nixlabs.com.au/al60/firmware/manifest.json
 
 wifi:
   ssid: esp

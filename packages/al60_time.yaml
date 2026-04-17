@@ -35,7 +35,7 @@ esphome:
             condition:
               - switch.is_off: sntp_switch
             then:
-              - lambda: 'id(RingClock)->set_sntp_enabled(false);'
+              - lambda: "id(RingClock)->set_sntp_enabled(false);"
               - logger.log:
                   level: WARN
                   format: "Boot: SNTP sync disabled (Manual Mode was active before reboot)."
@@ -51,9 +51,9 @@ esphome:
         # (wifi on_connect handles subsequent connections.)
         - if:
             condition:
-              lambda: 'return id(RingClock)->get_sntp_enabled();'
+              lambda: "return id(RingClock)->get_sntp_enabled();"
             then:
-              - lambda: 'id(sntp_time)->update();'
+              - lambda: "id(sntp_time)->update();"
               - logger.log:
                   level: WARN
                   format: "Boot: WiFi connected — triggering immediate SNTP sync."
@@ -86,7 +86,7 @@ wifi:
   # pending sntp_stop() that was deferred from boot time.
   on_connect:
     then:
-      - lambda: 'id(RingClock)->set_network_ready();'
+      - lambda: "id(RingClock)->set_network_ready();"
       - logger.log:
           level: WARN
           format: "WiFi connected — network ready signalled to ring_clock."
@@ -122,10 +122,10 @@ time:
     timezone: ${time_zone}
     on_time_sync:
       then:
-        - lambda: 'id(RingClock)->apply_sntp_sync(id(sntp_time)->timestamp_now());'
+        - lambda: "id(RingClock)->apply_sntp_sync(id(sntp_time)->timestamp_now());"
         - if:
             condition:
-              lambda: 'return id(RingClock)->get_sntp_enabled();'
+              lambda: "return id(RingClock)->get_sntp_enabled();"
             then:
               - pcf8563.write_time: rtc_time
               - logger.log:
@@ -142,7 +142,7 @@ interval:
     then:
       - if:
           condition:
-            lambda: 'return id(RingClock)->get_sntp_enabled() && id(sntp_time)->now().is_valid();'
+            lambda: "return id(RingClock)->get_sntp_enabled() && id(sntp_time)->now().is_valid();"
           then:
             - pcf8563.write_time: rtc_time
             - logger.log:
@@ -202,11 +202,11 @@ switch:
       sorting_weight: 2
     on_turn_on:
       then:
-        - lambda: 'id(RingClock)->set_sntp_enabled(true);'
-        - lambda: 'id(sntp_time)->update();'
+        - lambda: "id(RingClock)->set_sntp_enabled(true);"
+        - lambda: "id(sntp_time)->update();"
         - if:
             condition:
-              lambda: 'return id(sntp_time)->now().is_valid();'
+              lambda: "return id(sntp_time)->now().is_valid();"
             then:
               - pcf8563.write_time: rtc_time
         - logger.log:
@@ -214,7 +214,7 @@ switch:
             format: "SNTP Sync enabled. Restart the clock to force a time sync."
     on_turn_off:
       then:
-        - lambda: 'id(RingClock)->set_sntp_enabled(false);'
+        - lambda: "id(RingClock)->set_sntp_enabled(false);"
         - logger.log:
             level: WARN
             format: "SNTP Sync disabled (Manual Mode)"
@@ -317,7 +317,7 @@ button:
               std::string iana = id(detected_iana);
               size_t pos = iana.find('/');
               std::string continent = (pos != std::string::npos) ? iana.substr(0, pos) : "Etc";
-              return "https://n33174.github.io/nixr_dev/static/" + continent + ".json";
+              return "https://assets.nixlabs.com.au/al60/static/" + continent + ".json";
             request_headers:
               User-Agent: "ESPHome/AL60"
             capture_response: true
