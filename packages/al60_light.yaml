@@ -41,19 +41,19 @@ esphome:
             then:
               - lambda: |-
                   // Hour: Orange (255, 145, 0)
-                  auto h = id(hour_hand_color).turn_on();
+                  auto h = id(hour_hand_color)->turn_on();
                   h.set_effect((uint32_t)0);
                   h.set_red(255/255.0f); h.set_green(145/255.0f); h.set_blue(0.0f); h.set_brightness(1.0f); h.set_color_brightness(1.0f); h.perform();
                   // Minute: Cyan (0, 255, 255)
-                  auto m = id(minute_hand_color).turn_on();
+                  auto m = id(minute_hand_color)->turn_on();
                   m.set_effect((uint32_t)0);
                   m.set_red(0.0f); m.set_green(1.0f); m.set_blue(1.0f); m.set_brightness(1.0f); m.set_color_brightness(1.0f); h.perform();
                   // Second: White (200, 200, 200)
-                  auto s = id(second_hand_color).turn_on();
+                  auto s = id(second_hand_color)->turn_on();
                   s.set_effect((uint32_t)0);
                   s.set_red(1.0f); s.set_green(1.0f); s.set_blue(1.0f); s.set_brightness(200/255.0f); s.set_color_brightness(1.0f); s.perform();
                   // Markers: Dim White (50, 50, 50)
-                  auto mk = id(marker_color).turn_on();
+                  auto mk = id(marker_color)->turn_on();
                   mk.set_effect((uint32_t)0);
                   mk.set_red(1.0f); mk.set_green(1.0f); mk.set_blue(1.0f); mk.set_brightness(50/255.0f); mk.set_color_brightness(1.0f); mk.perform();
               - globals.set:
@@ -188,7 +188,7 @@ script:
           // turn the light off and have it stay off until explicitly turned back on.
           if (!id(ring_light)->remote_values.is_on()) return;
 
-          std::string mode = id(light_control_mode).current_option();
+          std::string mode = id(light_control_mode)->current_option();
 
           static std::string last_mode = "";
           bool mode_changed = (mode != last_mode);
