@@ -18,10 +18,6 @@ globals:
     type: std::string
   - id: detected_offset
     type: std::string
-  - id: wifi_configured
-    type: bool
-    restore_value: true
-    initial_value: "false"
   - id: minute_button_long_press
     type: bool
     initial_value: "false"
@@ -125,27 +121,6 @@ wifi:
   ap:
     ssid: "${friendly_name}"
     password: "12345678"
-
-  # Re-enable SNTP sync on first Wi-Fi connection
-  on_connect:
-    - lambda: |-
-        // Log IP at WARN level — the default WiFi IP log is DEBUG-only and filtered out.
-        auto ip = esphome::network::get_ip_addresses();
-        if (!ip.empty()) {
-          ESP_LOGW("wifi", "Connected — IP: %s  Web UI: http://%s",
-                   ip[0].str().c_str(), ip[0].str().c_str());
-        }
-    - if:
-        condition:
-          lambda: "return !id(wifi_configured);"
-        then:
-          # Re-enable SNTP on first WiFi connection, even if manual time was
-          # previously set. The user can turn it off again after sync completes.
-          - switch.turn_on: sntp_switch
-          - globals.set:
-              id: wifi_configured
-              value: "true"
-          - logger.log: "First Wi-Fi connection detected — SNTP sync enabled."
 
 # Captive Portal for fallback wifi configuration
 captive_portal:
