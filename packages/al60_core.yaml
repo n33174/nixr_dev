@@ -1,4 +1,7 @@
-# Variable to used by the system
+# AL60 Core Package
+# Defines system globals, ESPHome settings, and performance tuning for the ESP32-C3.
+
+# Variables used by the system
 globals:
   - id: last_clock_effect
     type: std::string
@@ -53,15 +56,11 @@ esp32:
   framework:
     type: esp-idf
     sdkconfig_options:
-      # CRITICAL: RMT ISR in IRAM — prevents Flash cache miss during WS2812 frame transmission.
-      # Without this, a Flash read stall inside the ISR can gap the bitstream and cause green flashes.
+      # Performance tuning for smooth LED animations on ESP32-C3.
+      # These settings ensure the LED data transmission is not interrupted by WiFi tasks.
       CONFIG_RMT_ISR_IRAM_SAFE: "y"
-      # Keep the WiFi interrupt handler and RX path in IRAM.
-      # This cuts max WiFi ISR duration from ~100µs to ~5µs — below the 50µs WS2812 reset threshold.
       CONFIG_ESP_WIFI_IRAM_OPT: "y"
       CONFIG_ESP_WIFI_RX_IRAM_OPT: "y"
-      # The RMT driver uses FreeRTOS ring buffers internally during TX.
-      # Placing their ISR functions in IRAM prevents a secondary Flash-stall path.
       CONFIG_RINGBUF_PLACE_ISR_FUNCTIONS_IN_IRAM: "y"
 
 # Logging Configuration
@@ -111,10 +110,7 @@ update:
       sorting_weight: 1
 
 wifi:
-  # Power save disabled: modem sleep causes the radio to miss incoming TCP SYN packets,
-  # making the web interface unreachable from a browser (while HA's persistent API connection
-  # continues to work fine). The other IRAM + dirty-bit + ring buffer mitigations already
-  # address green-flash at the source — power save was the smallest contributor.
+  # Disable WiFi power save to ensure the web interface remains highly responsive.
   power_save_mode: none
 
   # Fallback Access Point

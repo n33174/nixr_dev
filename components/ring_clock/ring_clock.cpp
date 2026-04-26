@@ -49,17 +49,13 @@ namespace ring_clock {
         this->on_alarm_triggered();
         _alarm_dispatched = true;
       }
-      // Auto-dismiss visual alarm after 10 seconds
-      if (millis() - _alarm_triggered_ms > 10000) {
+      // Auto-dismiss visual alarm after configured duration
+      if (millis() - _alarm_triggered_ms > ALARM_VISUAL_DURATION_MS) {
         _alarm_active = false;
       }
     }
 
     // --- Smooth brightness stepping ---
-    // Advances _brightness_current toward _brightness_target at BRIGHTNESS_SPEED
-    // units/second. Rate-limited to BRIGHTNESS_STEP_MS so on_state callbacks
-    // are bounded. The actual visual update happens when the effect lambda next
-    // fires (driven by its update_interval) and sees brightness_changing == true.
     if (_brightness_target >= 0.0f && _brightness_current >= 0.0f
         && _clock_lights != nullptr) {
       float diff = _brightness_target - _brightness_current;
@@ -310,11 +306,7 @@ namespace ring_clock {
 
   void RingClock::set_manual_time(int year, int month, int day,
                                    int hour, int minute, int second) {
-    // Derive the active timezone offset from the live system clock:
-    //   _time->now()           gives *local* broken-down time
-    //   _time->timestamp_now() gives UTC epoch
-    // Treating the local fields as if they were UTC and subtracting the real
-    // UTC epoch yields the offset in seconds, correct for DST.
+    // Derive the active timezone offset.
     time_t utc_now = _time->timestamp_now();
     auto now = _time->now();
     time_t local_as_utc = fields_to_epoch(
@@ -455,12 +447,8 @@ namespace ring_clock {
 
   // --- Rendering Dispatch ---
 
-  // IRAM_ATTR: entire render dispatch kept in on-chip SRAM to avoid Flash bus
-  // latency during the RMT DMA refill window.
   IRAM_ATTR void RingClock::addressable_lights_lambdacall(light::AddressableLight & it) {
-    // --- Dirty-bit cache: skip RMT write if nothing has changed ---
-    // Dynamic effects are always rendered; everything else only re-renders when
-    // the displayed h/m/s or the FSM mode actually changes.
+    // Skip rendering if nothing has changed.
     const bool rain_h = hour_hand_color   && hour_hand_color->get_effect_name()   == "Rainbow";
     const bool rain_m = minute_hand_color && minute_hand_color->get_effect_name() == "Rainbow";
     const bool rain_s = second_hand_color && second_hand_color->get_effect_name() == "Rainbow";
@@ -1043,9 +1031,9 @@ namespace ring_clock {
         _timer_finishing_dispatched = true;
       }
 
-      // Pulse the notification ring for 10 seconds, then clean up
+      // Pulse the notification ring for configured duration, then clean up
       uint32_t elapsed_finish = millis() - _timer_finished_ms;
-      if (elapsed_finish < 10000) {
+      if (elapsed_finish < ALARM_VISUAL_DURATION_MS) {
         float pulse = 0.3f + 0.7f * ((sinf(millis() * 0.003f) + 1.0f) / 2.0f);
         // Use notification_color if on; fall back to white so the pulse
         // is always visible in default clock mode (notification is off).

@@ -1,8 +1,9 @@
+# AL60 Time Package
+# Manages time synchronization using the Hardware RTC and Network Time Protocol (SNTP).
+
 esphome:
   on_boot:
-    # Priority 500: Read time from hardware RTC to seed the system clock.
-    # pcf8563.read_time calls synchronize_epoch_() internally (settimeofday)
-    # so the system clock is valid immediately after this runs.
+    # Priority 500: Read time from hardware RTC on boot.
     - priority: 500
       then:
         - pcf8563.read_time: rtc_time
@@ -19,7 +20,6 @@ esphome:
             }
 
     # Priority 200: Apply the restored timezone.
-    # text components restore their value at ~250, so by 200 it is available.
     - priority: 200
       then:
         - lambda: |-
@@ -28,9 +28,7 @@ esphome:
               id(sntp_time)->set_timezone(tz);
               ESP_LOGI("main", "Boot: Applied restored timezone: %s", tz.c_str());
             }
-        # If SNTP was disabled before reboot, restore that state.
-        # restore_mode restores the switch but does NOT fire on_turn_off,
-        # so we must manually disable the sync gate here.
+        # Restore manual time sync state if it was active.
         - if:
             condition:
               - switch.is_off: sntp_switch
@@ -67,9 +65,7 @@ esphome:
                   id: timezone_configured
                   value: "true"
 
-    # Priority 50: Mark boot complete.
-    # Enables the custom_time on_value handler (suppressed during boot to
-    # prevent the restored value from overwriting the RTC time).
+    # Priority 50: Mark boot as complete.
     - priority: 50
       then:
         - globals.set:
@@ -80,10 +76,7 @@ esphome:
             format: "Boot sequence complete."
 
 wifi:
-  # on_connect fires every time WiFi (re)connects.
-  # set_network_ready() marks the TCP/IP stack as available and restarts the
-  # SNTP daemon (if enabled) to force an immediate sync. Also applies any
-  # pending sntp_stop() that was deferred from boot time.
+  # Trigger network time sync on WiFi connection.
   on_connect:
     then:
       - lambda: "id(RingClock)->set_network_ready();"
@@ -115,8 +108,6 @@ time:
               }
 
   # Internet Time Sync (SNTP)
-  # on_time_sync fires whenever lwIP delivers a new time; we gate
-  # application through the ring_clock component so manual mode is respected.
   - platform: sntp
     id: sntp_time
     timezone: ${time_zone}
@@ -277,7 +268,7 @@ button:
     id: detect_timezone
     web_server:
       sorting_group_id: sorting_time
-      sorting_weight: 5
+      sorting_weight: 4
     on_press:
       then:
         - logger.log: "Stage 1: Detecting IANA Timezone..."

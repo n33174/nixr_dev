@@ -1,3 +1,6 @@
+# AL60 Light Package
+# Configures the addressable LED rings, visual effects, and color customization controls.
+
 esphome:
   on_boot:
     # Restore brightness and last used effect on boot
@@ -47,7 +50,7 @@ esphome:
                   // Minute: Cyan (0, 255, 255)
                   auto m = id(minute_hand_color)->turn_on();
                   m.set_effect((uint32_t)0);
-                  m.set_red(0.0f); m.set_green(1.0f); m.set_blue(1.0f); m.set_brightness(1.0f); m.set_color_brightness(1.0f); h.perform();
+                  m.set_red(0.0f); m.set_green(1.0f); m.set_blue(1.0f); m.set_brightness(1.0f); m.set_color_brightness(1.0f); m.perform();
                   // Second: White (200, 200, 200)
                   auto s = id(second_hand_color)->turn_on();
                   s.set_effect((uint32_t)0);
@@ -74,7 +77,7 @@ number:
     step: 1
     web_server:
       sorting_group_id: sorting_clock
-      sorting_weight: 5
+      sorting_weight: 4
 
   # Brightness slider for Inactive/No Occupancy state
   - platform: template
@@ -89,7 +92,7 @@ number:
     step: 1
     web_server:
       sorting_group_id: sorting_clock
-      sorting_weight: 6
+      sorting_weight: 5
 
 # Custom Component: Ring Clock Logic
 # Links sensors, inputs, and lights together
@@ -286,9 +289,7 @@ light:
                 call.set_blue(b / 255.0f);
                 call.set_color_brightness(1.0f);
                 call.set_brightness(br);
-                call.set_transition_length(0); // No transition: hand lights are virtual; transitions
-                                               // drive template output write_actions every loop tick,
-                                               // cascading into ~46 extra RMT writes per brightness event.
+                call.set_transition_length(0); // Instant transition for hand colors.
                 call.perform();
               };
               auto set_rainbow = [](light::LightState* ls) {
@@ -319,16 +320,14 @@ light:
             }
           }
     effects:
-      # Standard steps — 200ms so brightness transitions are visible at 5fps.
-      # The dirty-bit cache in addressable_lights_lambdacall means only 1 actual
-      # RMT write/second during normal static display (remaining 4 calls hit the cache).
+      # Standard clock display updated every 200ms.
       - addressable_lambda:
           name: Clock
           update_interval: 200ms
           lambda: |-
             id(RingClock)->set_state(ring_clock::state::time);
             id(RingClock)->addressable_lights_lambdacall(it);
-      # Smooth Fading Steps (25fps — visually identical to 30fps for a second-hand sweep)
+      # Smooth fading effect updated at 25 frames per second.
       - addressable_lambda:
           name: "Clock (Fade)"
           update_interval: 40ms
@@ -384,7 +383,7 @@ light:
     id: hour_hand_color
     name: "Hour Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light for color selection.
     red: output_hour_red
     green: output_hour_green
     blue: output_hour_blue
@@ -407,7 +406,7 @@ light:
     id: minute_hand_color
     name: "Minute Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light for color selection.
     red: output_minute_red
     green: output_minute_green
     blue: output_minute_blue
@@ -430,7 +429,7 @@ light:
     id: second_hand_color
     name: "Second Hand"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light for color selection.
     red: output_second_red
     green: output_second_green
     blue: output_second_blue
@@ -454,7 +453,7 @@ light:
     id: marker_color
     name: "Markers"
     restore_mode: RESTORE_DEFAULT_ON
-    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light for color selection.
     red: output_marker_red
     green: output_marker_green
     blue: output_marker_blue
@@ -493,7 +492,7 @@ light:
     id: notification_color
     name: "Notification"
     restore_mode: RESTORE_DEFAULT_OFF
-    default_transition_length: 0ms # Virtual light — transitions cause cascading RMT writes
+    default_transition_length: 0ms # Virtual light for color selection.
     red: output_notification_red
     green: output_notification_green
     blue: output_notification_blue

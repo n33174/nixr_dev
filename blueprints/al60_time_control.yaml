@@ -1,7 +1,7 @@
 blueprint:
   name: NIX labs AL60 Time Control
   description: Add time based on/off/dim control to your NIX labs AL60 clock
-  source_url: https://github.com/YOUR_USERNAME/YOUR_REPO/blob/main/blueprints/clock_scheduler.yaml
+  source_url: https://github.com/nix-labs/al60/blob/main/blueprints/al60_time_control.yaml
   domain: automation
   input:
     clock_device:

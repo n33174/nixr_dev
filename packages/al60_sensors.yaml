@@ -1,3 +1,6 @@
+# AL60 Sensors Package
+# Interfaces with hardware sensors (temperature, humidity, light, occupancy).
+
 substitutions:
   # Default offsets to compensate for internal heat
   # These can be adjusted via the web UI or Home Assistant
@@ -65,7 +68,7 @@ sensor:
     accuracy_decimals: 0
     web_server:
       sorting_group_id: sorting_sensors
-      sorting_weight: 7
+      sorting_weight: 4
     attenuation: 12db
     update_interval: 5s
     unit_of_measurement: "%"
@@ -101,7 +104,7 @@ binary_sensor:
     name: "Occupancy"
     web_server:
       sorting_group_id: sorting_sensors
-      sorting_weight: 6
+      sorting_weight: 3
     device_class: occupancy
     icon: mdi:target-account
     filters:
