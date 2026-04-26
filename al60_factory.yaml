@@ -22,7 +22,8 @@ packages:
   # radar: !include packages/al60_radar.yaml
 
 dashboard_import:
-  package_import_url: github://n33174/nixr_dev/al60.yaml@main
+  package_import_url: github://nix-labs/al60/al60.yaml@main
+
   import_full_config: true
 
 # Factory Overrides for Web Interface

@@ -1,6 +1,6 @@
 # NIX labs AL60 Clock Firmware
 
-This repository contains the ESPHome firmware for the NIX labs AL60 Clock, an advanced dual-ring WS2812 LED clock powered by an ESP32-C3.
+This repository contains the ESPHome firmware for the NIX labs AL60 Clock, an advanced dual-ring LED clock powered by an ESP32-C3 and ESPHome.
 
 ## Repository Structure
 
@@ -17,18 +17,11 @@ This repository contains the ESPHome firmware for the NIX labs AL60 Clock, an ad
 
 ## Using the `ring_clock` Component in Other Projects
 
-The `ring_clock` component can be reused in other ESPHome projects that use a similar dual-ring LED layout (60 inner, 48 outer).
-
-### Prerequisites
-
-- An ESP32 (ESP32-C3 recommended).
-- A 60-LED inner ring (Minutes/Seconds).
-- A 48-LED outer ring (Hours/Markers).
-- An external Real Time Clock (e.g., PCF8563).
+The `ring_clock` component can be reused in other ESPHome projects featuring a dual-ring LED layout (60 inner, 48 outer).
 
 ### YAML Configuration
 
-Add the component to your ESPHome config:
+Add the component to your configuration. Note that the component depends on existing time and light entities:
 
 ```yaml
 external_components:
@@ -36,40 +29,50 @@ external_components:
     components: [ring_clock]
 
 ring_clock:
-  id: my_clock
-  time_id: rtc_time_component
-  light_id: ring_lights_component
-  hour_sweep_switch: sweep_switch
-  hour_hand_color: hour_color_light
-  minute_hand_color: minute_color_light
-  second_hand_color: second_color_light
-  marker_color: marker_color_light
-  notification_color: notif_color_light
-  sound_enabled_switch: sound_switch
+  id: RingClock
+  # Replace all IDs below with your own
+  time_id: sntp_time
+  light_id: ring_light
+  hour_sweep_switch: hour_sweep
+  hour_hand_color: hour_hand_color
+  minute_hand_color: minute_hand_color
+  second_hand_color: second_hand_color
+  marker_color: marker_color
+  notification_color: notification_color
+  sound_enabled_switch: timer_sounds
+  temperature_sensor: temp_sensor
+  humidity_sensor: humidity_sensor
 ```
 
-## YAML Customization
+## YAML Customisation
 
-If you have purchased a NIX labs AL60 Clock, you can customize its behavior by editing `al60.yaml`.
+If you have purchased a NIX labs AL60 Clock, you can customize its behavior by importing the config on your own esphome instance and editing as needed.
 
-### 1. Core Settings
+### Core Settings
 
-Modify the `substitutions` block at the top of the file:
+Modify the substitutions block at the top of the al60.yaml file:
 
-- `name`: Network hostname.
-- `friendly_name`: Display name in Home Assistant.
-- `time_zone`: Fallback POSIX timezone string.
+- name: Network hostname.
+- friendly_name: Display name in Home Assistant.
+- time_zone: Fallback POSIX timezone string.
 
-### 2. Calibration Offsets
+### Packages
 
-In `packages/al60_sensors.yaml`, you can adjust:
+The firmware is composed of multiple YAML packages in `packages/`:
 
-- `temp_offset_default`: Calibration for internal heat (default `-8°C`).
-- `occupancy_cooloff_default`: Seconds before turning off display when no motion is detected.
+- **`al60_core.yaml`**: Base board definitions, power limits, and logging settings.
+- **`al60_light.yaml`**: Color configurations, dummy placeholders, and visual effect loops.
+- **`al60_sensors.yaml`**: Environmental calibrations. Adjust `temp_offset_default` to tune the temperature readout.
+- **`al60_inputs.yaml`**: Touch controls and hardware interaction mappings.
+- **`al60_time.yaml`**: RTC and SNTP time synchronization.
+- **`al60_radar.yaml`**: Optional UART integration for LD2410.
 
-### 3. Enabling Optional Features
+## Documentation
 
-To enable full UART data from the LD2410 radar sensor, uncomment the `radar` package line in `al60.yaml`.
+For further reading, hardware schematics, and troubleshooting, visit our resources:
+
+- [General User Documentation](https://docs.nixlabs.com.au/al60)
+- [Advanced Technical Customisation](https://docs.nixlabs.com.au/al60/advanced/)
 
 ## License
 
